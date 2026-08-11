@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Evaluar capacidad{% endblock %}
+{% block page_title %}Evaluar capacidad operativa{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}">{% endblock %}
+
+{% block content %}
+<form method="post" class="capacity-form" novalidate>
+    {% csrf_token %}
+    <header><span>Evaluación por inventario</span><h2>Seleccione la estación y capacidad</h2><p>Solo se contarán recursos activos, operativos y disponibles.</p></header>
+    {% if form.non_field_errors %}<div class="capacity-form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="capacity-form-grid">
+        {% for field in form %}
+            <div class="capacity-field{% if field.name == 'observaciones' %} capacity-field--wide{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {{ field }}
+                {% for error in field.errors %}<p class="capacity-field-error" id="{{ field.auto_id }}_error">{{ error }}</p>{% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    <div class="capacity-form-note"><strong>Importante:</strong> la evaluación crea un registro histórico y no modifica el inventario.</div>
+    <div class="capacity-form-actions"><a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:lista_capacidades' %}">Cancelar</a><button class="capacity-button capacity-button--primary" type="submit">Ejecutar evaluación</button></div>
+</form>
+{% endblock %}

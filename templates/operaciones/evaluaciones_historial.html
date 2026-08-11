@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Historial de evaluaciones{% endblock %}
+{% block page_title %}Historial de evaluaciones{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}">{% endblock %}
+
+{% block content %}
+<section class="capacity-toolbar">
+    <div><span>Registro inmutable</span><h2>Evaluaciones realizadas</h2><p>Consulte resultados históricos dentro de su alcance institucional.</p></div>
+    {% if puede_evaluar %}<a class="capacity-button capacity-button--primary" href="{% url 'operaciones:evaluar_capacidad' %}">Nueva evaluación</a>{% endif %}
+</section>
+
+<details class="capacity-filters" {% if request.GET %}open{% endif %}>
+    <summary>Filtrar evaluaciones</summary>
+    <form method="get" class="capacity-filter-grid">
+        {% for field in form %}<div class="capacity-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="capacity-field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        <div class="capacity-filter-actions"><a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:historial_evaluaciones' %}">Limpiar</a><button class="capacity-button capacity-button--primary" type="submit">Aplicar filtros</button></div>
+    </form>
+</details>
+
+<div class="evaluation-list">
+    {% for evaluacion in evaluaciones %}
+        <article class="evaluation-card">
+            <div class="evaluation-card__date"><time datetime="{{ evaluacion.fecha_evaluacion|date:'c' }}">{{ evaluacion.fecha_evaluacion|date:"d/m/Y" }}<small>{{ evaluacion.fecha_evaluacion|date:"H:i" }}</small></time></div>
+            <div class="evaluation-card__main"><span>{{ evaluacion.estacion.cuerpo_bomberos.sigla }}</span><h2>{{ evaluacion.capacidad.nombre }}</h2><p>{{ evaluacion.estacion.nombre }}</p></div>
+            <div class="evaluation-card__result"><strong>{{ evaluacion.porcentaje_cumplimiento }}%</strong><span class="capacity-badge capacity-badge--{{ evaluacion.estado }}">{{ evaluacion.get_estado_display }}</span></div>
+            <div class="evaluation-card__user"><span>Evaluado por</span><strong>{{ evaluacion.evaluado_por|default:"Sistema" }}</strong></div>
+            <a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:detalle_evaluacion' evaluacion.pk %}">Consultar detalle</a>
+        </article>
+    {% empty %}<div class="capacity-empty"><h2>No se encontraron evaluaciones</h2><p>Ajuste los filtros o ejecute una nueva evaluación.</p></div>{% endfor %}
+</div>
+{% include "operaciones/fragmentos/paginacion.html" with pagina=pagina querystring=querystring %}
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ capacidad.nombre }}{% endblock %}
+{% block page_title %}Detalle de capacidad{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}">{% endblock %}
+
+{% block content %}
+<div class="capacity-page-actions">
+    <a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:lista_capacidades' %}">← Volver al catálogo</a>
+    {% if puede_evaluar and capacidad.activo %}<a class="capacity-button capacity-button--primary" href="{% url 'operaciones:evaluar_capacidad' %}?capacidad={{ capacidad.pk }}">Evaluar capacidad</a>{% endif %}
+</div>
+
+<article class="capacity-detail">
+    <header>
+        <div><span>{{ capacidad.codigo }}</span><h2>{{ capacidad.nombre }}</h2><p>{{ capacidad.descripcion|default:"Sin descripción registrada." }}</p></div>
+        <span class="capacity-badge capacity-badge--{% if capacidad.activo %}success{% else %}muted{% endif %}">{% if capacidad.activo %}Activa{% else %}Inactiva{% endif %}</span>
+    </header>
+    <section aria-labelledby="requirements-title">
+        <div class="capacity-section-title"><span>Configuración material</span><h3 id="requirements-title">Recursos requeridos</h3></div>
+        <div class="requirement-list">
+            {% for requisito in capacidad.requisitos_recursos.all %}
+                <article class="requirement-card">
+                    <div><span>{{ requisito.tipo_recurso.categoria.nombre }}</span><h4>{{ requisito.tipo_recurso.nombre }}</h4></div>
+                    <dl><div><dt>Cantidad mínima</dt><dd>{{ requisito.cantidad_minima }}</dd></div><div><dt>Condición</dt><dd>{% if requisito.obligatorio %}Obligatorio{% else %}Opcional{% endif %}</dd></div></dl>
+                    {% if requisito.observaciones %}<p>{{ requisito.observaciones }}</p>{% endif %}
+                </article>
+            {% empty %}
+                <div class="capacity-empty"><p>Esta capacidad todavía no tiene requisitos de recursos configurados.</p></div>
+            {% endfor %}
+        </div>
+    </section>
+</article>
+{% endblock %}

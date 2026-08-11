@@ -24,5 +24,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 18. [Interfaz responsive del módulo inventario](18_interfaz_responsive_inventario.md)
 19. [Trazabilidad de disponibilidad del personal operativo](19_trazabilidad_disponibilidad_personal.md)
 20. [Corrección de alcance: capacidades sin gestión de personal](20_correccion_alcance_sin_personal.md)
+21. [Interfaz responsive de capacidades operativas](21_interfaz_responsive_capacidades.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

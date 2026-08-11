@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resultado de evaluación{% endblock %}
+{% block page_title %}Resultado de evaluación{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}">{% endblock %}
+
+{% block content %}
+<div class="capacity-page-actions"><a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:historial_evaluaciones' %}">← Volver al historial</a></div>
+<article class="evaluation-detail">
+    <header class="evaluation-summary evaluation-summary--{{ evaluacion.estado }}">
+        <div><span>Resultado general</span><h2>{{ evaluacion.get_estado_display }}</h2><p>{{ evaluacion.capacidad.nombre }}</p></div>
+        <div class="evaluation-percent"><strong>{{ evaluacion.porcentaje_cumplimiento }}%</strong><span>de cumplimiento</span></div>
+    </header>
+    <dl class="evaluation-metadata">
+        <div><dt>Institución</dt><dd>{{ evaluacion.estacion.cuerpo_bomberos.nombre }}</dd></div>
+        <div><dt>Estación</dt><dd>{{ evaluacion.estacion.nombre }}</dd></div>
+        <div><dt>Fecha y hora</dt><dd>{{ evaluacion.fecha_evaluacion|date:"d/m/Y H:i" }}</dd></div>
+        <div><dt>Usuario evaluador</dt><dd>{{ evaluacion.evaluado_por|default:"Sistema" }}</dd></div>
+        <div class="evaluation-metadata__wide"><dt>Observaciones</dt><dd>{{ evaluacion.observaciones|default:"Sin observaciones." }}</dd></div>
+    </dl>
+    <section aria-labelledby="evaluation-resources-title">
+        <div class="capacity-section-title"><span>Fotografía histórica</span><h3 id="evaluation-resources-title">Detalle de recursos</h3></div>
+        <div class="evaluation-requirements" role="list">
+            {% for requisito in detalle_recursos %}
+                <article class="evaluation-requirement" role="listitem">
+                    <div class="evaluation-requirement__name"><span>Tipo de recurso</span><h4>{{ requisito.nombre }}</h4></div>
+                    <dl><div><dt>Requeridos</dt><dd>{{ requisito.cantidad_requerida }}</dd></div><div><dt>Encontrados</dt><dd>{{ requisito.cantidad_encontrada }}</dd></div><div><dt>Faltantes</dt><dd>{{ requisito.faltante }}</dd></div></dl>
+                    <span class="capacity-badge capacity-badge--{% if requisito.cumplimiento %}success{% else %}no_cumple{% endif %}">{% if requisito.cumplimiento %}Cumple{% else %}No cumple{% endif %}</span>
+                </article>
+            {% empty %}<div class="capacity-empty"><p>No existe detalle de recursos para esta evaluación.</p></div>{% endfor %}
+        </div>
+    </section>
+</article>
+{% endblock %}
