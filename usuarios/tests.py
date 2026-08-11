@@ -17,7 +17,7 @@ class AutenticacionTests(TestCase):
         respuesta = self.client.get(reverse("usuarios:login"))
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertTemplateUsed(respuesta, "registration/login.html")
+        self.assertTemplateUsed(respuesta, "usuarios/login.html")
         self.assertContains(respuesta, "csrfmiddlewaretoken")
 
     def test_credenciales_incorrectas_muestran_error(self):

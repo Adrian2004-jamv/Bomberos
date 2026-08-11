@@ -14,15 +14,15 @@
 <body>
     <a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
     <div class="app-shell">
-        {% include "includes/sidebar.html" %}
+        {% include "componentes/sidebar.html" %}
         <div class="app-main">
-            {% include "includes/navbar.html" %}
+            {% include "componentes/navbar.html" %}
             <main id="contenido-principal" class="content" tabindex="-1">
                 <div class="page-heading">
                     <p class="eyebrow">Centro de gestión provincial</p>
                     <h1>{% block page_title %}Inicio{% endblock %}</h1>
                 </div>
-                {% include "includes/mensajes.html" %}
+                {% include "componentes/mensajes.html" %}
                 {% block content %}{% endblock %}
             </main>
         </div>

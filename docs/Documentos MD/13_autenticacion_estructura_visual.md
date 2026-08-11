@@ -30,11 +30,11 @@ La página muestra bienvenida, usuario, estación e institución cuando existen 
 
 Los componentes compartidos se separaron en:
 
-- `includes/sidebar.html`: navegación principal y módulos futuros deshabilitados;
-- `includes/navbar.html`: usuario, estación, menú móvil y formulario POST de logout;
-- `includes/mensajes.html`: mensajes de Django con región accesible.
+- `componentes/sidebar.html`: navegación principal y módulos futuros deshabilitados;
+- `componentes/navbar.html`: usuario, estación, menú móvil y formulario POST de logout;
+- `componentes/mensajes.html`: mensajes de Django con región accesible.
 
-`registration/login.html` contiene etiquetas accesibles, autocompletado apropiado, CSRF, errores comprensibles y diseño adaptable sin credenciales de demostración.
+`usuarios/login.html` contiene etiquetas accesibles, autocompletado apropiado, CSRF, errores comprensibles y diseño adaptable sin credenciales de demostración.
 
 ## Estilos y JavaScript
 
@@ -65,10 +65,10 @@ Se añadieron ocho pruebas para redirección de visitante, acceso autenticado, f
 - `usuarios/tests.py`
 - `templates/base.html`
 - `templates/core/inicio.html`
-- `templates/registration/login.html`
-- `templates/includes/sidebar.html`
-- `templates/includes/navbar.html`
-- `templates/includes/mensajes.html`
+- `templates/usuarios/login.html`
+- `templates/componentes/sidebar.html`
+- `templates/componentes/navbar.html`
+- `templates/componentes/mensajes.html`
 - `static/css/variables.css`
 - `static/css/base.css`
 - `static/css/componentes.css`

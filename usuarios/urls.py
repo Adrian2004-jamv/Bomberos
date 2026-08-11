@@ -7,7 +7,7 @@ app_name = "usuarios"
 urlpatterns = [
     path(
         "iniciar-sesion/",
-        LoginView.as_view(template_name="registration/login.html"),
+        LoginView.as_view(template_name="usuarios/login.html"),
         name="login",
     ),
     path("cerrar-sesion/", LogoutView.as_view(), name="logout"),
