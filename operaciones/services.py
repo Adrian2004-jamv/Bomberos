@@ -3,79 +3,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
-from django.utils import timezone
 
 from instituciones.models import Estacion
 from inventario.models import Recurso
 
-from .models import (
-    CalificacionPersonal,
-    EvaluacionCapacidadEstacion,
-    HistorialDisponibilidadPersonal,
-    PersonalOperativo,
-    TipoCapacidadOperativa,
-)
-
-
-JERARQUIA_NIVELES = {
-    CalificacionPersonal.Nivel.BASICO: 1,
-    CalificacionPersonal.Nivel.INTERMEDIO: 2,
-    CalificacionPersonal.Nivel.AVANZADO: 3,
-    CalificacionPersonal.Nivel.INSTRUCTOR: 4,
-}
-
-
-@transaction.atomic
-def actualizar_disponibilidad_personal(
-    personal,
-    nueva_disponibilidad,
-    usuario_responsable,
-    motivo,
-    observaciones="",
-):
-    """Actualiza la disponibilidad y registra una auditoría atómica.
-
-    ``select_for_update`` bloquea la fila durante la transacción para impedir
-    que dos cambios concurrentes registren el mismo valor anterior.
-    """
-    Usuario = get_user_model()
-    if (
-        not isinstance(usuario_responsable, Usuario)
-        or usuario_responsable.pk is None
-        or not Usuario.objects.filter(pk=usuario_responsable.pk, is_active=True).exists()
-    ):
-        raise ValidationError("El usuario responsable no existe o está inactivo.")
-
-    if nueva_disponibilidad not in PersonalOperativo.Disponibilidad.values:
-        raise ValidationError({"disponibilidad": "La disponibilidad no es válida."})
-
-    if not motivo or not motivo.strip():
-        raise ValidationError({"motivo": "Debe indicar el motivo del cambio."})
-
-    if not isinstance(personal, PersonalOperativo) or personal.pk is None:
-        raise ValidationError("El personal operativo no existe.")
-
-    try:
-        personal_actual = PersonalOperativo.objects.select_for_update().get(pk=personal.pk)
-    except PersonalOperativo.DoesNotExist as error:
-        raise ValidationError("El personal operativo no existe.") from error
-
-    disponibilidad_anterior = personal_actual.disponibilidad
-    if disponibilidad_anterior == nueva_disponibilidad:
-        return personal_actual, None
-
-    personal_actual.disponibilidad = nueva_disponibilidad
-    personal_actual.save(update_fields=("disponibilidad", "fecha_actualizacion"))
-    historial = HistorialDisponibilidadPersonal.objects.create(
-        personal=personal_actual,
-        disponibilidad_anterior=disponibilidad_anterior,
-        disponibilidad_nueva=nueva_disponibilidad,
-        motivo=motivo.strip(),
-        observaciones=observaciones,
-        registrado_por=usuario_responsable,
-    )
-    return personal_actual, historial
+from .models import EvaluacionCapacidadEstacion, TipoCapacidadOperativa
 
 
 def _validar_objetos(estacion, capacidad, usuario_evaluador):
@@ -110,30 +42,26 @@ def evaluar_capacidad_estacion(
     usuario_evaluador=None,
     observaciones="",
 ):
-    """Evalúa una capacidad sin modificar recursos, personal ni calificaciones.
+    """Evalúa una capacidad usando exclusivamente recursos materiales.
 
-    Cada requisito aporta una cobertura de 0 a 1 calculada como
-    ``min(disponible / requerido, 1)``. El porcentaje es el promedio de todas
-    las coberturas, incluidas las opcionales, multiplicado por 100.
+    Cada requisito aporta una cobertura entre 0 y 1, calculada como
+    ``min(recursos_encontrados / cantidad_requerida, 1)``. La evaluación se
+    persiste como una fotografía histórica y no modifica el inventario.
     """
     _validar_objetos(estacion, tipo_capacidad, usuario_evaluador)
 
-    requisitos_recursos = list(
+    requisitos = list(
         tipo_capacidad.requisitos_recursos.select_related("tipo_recurso").all()
     )
-    requisitos_personal = list(
-        tipo_capacidad.requisitos_personal.select_related("especialidad").all()
-    )
-    if not requisitos_recursos and not requisitos_personal:
-        raise ValidationError("La capacidad no tiene requisitos configurados.")
+    if not requisitos:
+        raise ValidationError("La capacidad no tiene requisitos de recursos configurados.")
 
     detalle_recursos = []
-    detalle_personal = []
     coberturas = []
     coberturas_obligatorias = []
 
-    for requisito in requisitos_recursos:
-        cantidad_disponible = Recurso.objects.filter(
+    for requisito in requisitos:
+        cantidad_encontrada = Recurso.objects.filter(
             estacion=estacion,
             tipo=requisito.tipo_recurso,
             activo=True,
@@ -141,7 +69,7 @@ def evaluar_capacidad_estacion(
             disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
         ).count()
         cobertura = min(
-            Decimal(cantidad_disponible) / Decimal(requisito.cantidad_minima),
+            Decimal(cantidad_encontrada) / Decimal(requisito.cantidad_minima),
             Decimal("1"),
         )
         detalle_recursos.append(
@@ -150,53 +78,11 @@ def evaluar_capacidad_estacion(
                 "tipo_recurso_id": requisito.tipo_recurso_id,
                 "nombre": requisito.tipo_recurso.nombre,
                 "cantidad_requerida": requisito.cantidad_minima,
-                "cantidad_disponible": cantidad_disponible,
+                "cantidad_encontrada": cantidad_encontrada,
+                "cantidad_disponible": cantidad_encontrada,
                 "obligatorio": requisito.obligatorio,
-                "cumplimiento": cantidad_disponible >= requisito.cantidad_minima,
-                "faltante": max(requisito.cantidad_minima - cantidad_disponible, 0),
-            }
-        )
-        coberturas.append(cobertura)
-        if requisito.obligatorio:
-            coberturas_obligatorias.append(cobertura)
-
-    hoy = timezone.localdate()
-    for requisito in requisitos_personal:
-        nivel_requerido = JERARQUIA_NIVELES[requisito.nivel_minimo]
-        niveles_aceptados = [
-            nivel
-            for nivel, jerarquia in JERARQUIA_NIVELES.items()
-            if jerarquia >= nivel_requerido
-        ]
-        cantidad_disponible = (
-            PersonalOperativo.objects.filter(
-                Q(calificaciones__fecha_vencimiento__isnull=True)
-                | Q(calificaciones__fecha_vencimiento__gte=hoy),
-                estacion=estacion,
-                activo=True,
-                disponibilidad=PersonalOperativo.Disponibilidad.DISPONIBLE,
-                calificaciones__especialidad=requisito.especialidad,
-                calificaciones__activo=True,
-                calificaciones__nivel__in=niveles_aceptados,
-            )
-            .distinct()
-            .count()
-        )
-        cobertura = min(
-            Decimal(cantidad_disponible) / Decimal(requisito.cantidad_minima),
-            Decimal("1"),
-        )
-        detalle_personal.append(
-            {
-                "requisito_id": requisito.pk,
-                "especialidad_id": requisito.especialidad_id,
-                "nombre": requisito.especialidad.nombre,
-                "nivel_minimo": requisito.nivel_minimo,
-                "cantidad_requerida": requisito.cantidad_minima,
-                "cantidad_disponible": cantidad_disponible,
-                "obligatorio": requisito.obligatorio,
-                "cumplimiento": cantidad_disponible >= requisito.cantidad_minima,
-                "faltante": max(requisito.cantidad_minima - cantidad_disponible, 0),
+                "cumplimiento": cantidad_encontrada >= requisito.cantidad_minima,
+                "faltante": max(requisito.cantidad_minima - cantidad_encontrada, 0),
             }
         )
         coberturas.append(cobertura)
@@ -221,7 +107,6 @@ def evaluar_capacidad_estacion(
         estado=estado,
         porcentaje_cumplimiento=porcentaje,
         detalle_recursos=detalle_recursos,
-        detalle_personal=detalle_personal,
         observaciones=observaciones,
         evaluado_por=usuario_evaluador,
     )

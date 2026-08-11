@@ -4,11 +4,11 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 
 ## Módulos actuales
 
-- Usuarios personalizados, estaciones, grupos y permisos básicos.
+- Usuarios autorizados vinculados a estaciones, grupos y permisos básicos.
 - Cantones, Cuerpos de Bomberos y estaciones.
 - Categorías, tipos y recursos de inventario.
 - Historial de estado operativo y disponibilidad de recursos.
-- Registro básico de personal operativo.
+- Catálogo y evaluación histórica de capacidades basada en recursos materiales.
 
 ## Requisitos
 
