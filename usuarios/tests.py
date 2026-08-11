@@ -36,7 +36,11 @@ class AutenticacionTests(TestCase):
             {"username": self.usuario.username, "password": self.password},
         )
 
-        self.assertRedirects(respuesta, reverse("core:inicio"), fetch_redirect_response=False)
+        self.assertRedirects(
+            respuesta,
+            reverse("dashboard:principal"),
+            fetch_redirect_response=False,
+        )
         self.assertIn("_auth_user_id", self.client.session)
 
     def test_logout_mediante_post_cierra_sesion_y_redirige(self):

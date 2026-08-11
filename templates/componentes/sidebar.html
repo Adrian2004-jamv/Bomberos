@@ -1,6 +1,6 @@
 {% load static %}
 <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
-    <div class="sidebar__brand">
+    <a class="sidebar__brand" href="{% url 'dashboard:principal' %}" aria-label="Ir al dashboard principal">
         <img
             class="brand-logo"
             src="{% static 'img/logos/Logo.png' %}"
@@ -10,11 +10,11 @@
             <strong>Bomberos Cotopaxi</strong>
             <small>Gestión provincial</small>
         </span>
-    </div>
+    </a>
 
     <nav class="sidebar__nav">
-        <a class="nav-item{% if request.resolver_match.namespace == 'core' %} nav-item--active{% endif %}" href="{% url 'core:inicio' %}"{% if request.resolver_match.namespace == 'core' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">⌂</span> Inicio
+        <a class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} nav-item--active{% endif %}" href="{% url 'dashboard:principal' %}"{% if request.resolver_match.namespace == 'dashboard' %} aria-current="page"{% endif %}>
+            <span aria-hidden="true">⌂</span> Dashboard
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
             <span aria-hidden="true">▦</span> Instituciones

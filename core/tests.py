@@ -17,7 +17,8 @@ class InicioTests(TestCase):
 
         self.assertRedirects(
             respuesta,
-            f'{reverse("usuarios:login")}?next={reverse("core:inicio")}',
+            reverse("dashboard:principal"),
+            fetch_redirect_response=False,
         )
 
     def test_usuario_autenticado_accede_al_inicio(self):
@@ -25,7 +26,4 @@ class InicioTests(TestCase):
 
         respuesta = self.client.get(reverse("core:inicio"))
 
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertTemplateUsed(respuesta, "core/inicio.html")
-        self.assertContains(respuesta, self.usuario.username)
-        self.assertContains(respuesta, "Centro de gestión provincial")
+        self.assertRedirects(respuesta, reverse("dashboard:principal"))

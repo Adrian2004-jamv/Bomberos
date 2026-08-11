@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard institucional{% endblock %}
+{% block page_title %}Dashboard institucional{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}">{% endblock %}
+
+{% block content %}
+<section class="dashboard-welcome" aria-labelledby="welcome-title">
+    <div>
+        <span class="dashboard-kicker">Resumen institucional</span>
+        <h2 id="welcome-title">Bienvenido, {{ user.get_full_name|default:user.username }}</h2>
+        <p>{{ alcance_descripcion }}</p>
+    </div>
+    <dl class="dashboard-identity">
+        <div><dt>Rol principal</dt><dd>{{ rol_principal }}</dd></div>
+        <div><dt>Institución</dt><dd>{% if user.estacion %}{{ user.estacion.cuerpo_bomberos.nombre }}{% else %}Alcance provincial{% endif %}</dd></div>
+        <div><dt>Estación asignada</dt><dd>{% if user.estacion %}{{ user.estacion.nombre }}{% else %}Todas las autorizadas{% endif %}</dd></div>
+        <div><dt>Fecha</dt><dd><time datetime="{{ fecha_actual|date:'Y-m-d' }}">{{ fecha_actual|date:"d/m/Y" }}</time></dd></div>
+    </dl>
+</section>
+
+<section aria-labelledby="summary-title">
+    <div class="dashboard-section-title"><span>Indicadores actuales</span><h2 id="summary-title">Resumen del ámbito autorizado</h2></div>
+    <div class="metric-grid">
+        <article class="metric-card"><span aria-hidden="true">▦</span><div><strong>{{ resumen.total }}</strong><p>Total de recursos</p></div></article>
+        <article class="metric-card metric-card--success"><span aria-hidden="true">✓</span><div><strong>{{ resumen.operativos }}</strong><p>Recursos operativos</p></div></article>
+        <article class="metric-card metric-card--danger"><span aria-hidden="true">!</span><div><strong>{{ resumen.fuera_servicio }}</strong><p>Fuera de servicio</p></div></article>
+        <article class="metric-card metric-card--success"><span aria-hidden="true">●</span><div><strong>{{ resumen.disponibles }}</strong><p>Recursos disponibles</p></div></article>
+        <article class="metric-card metric-card--warning"><span aria-hidden="true">–</span><div><strong>{{ resumen.no_disponibles }}</strong><p>No disponibles</p></div></article>
+        <article class="metric-card"><span aria-hidden="true">⌂</span><div><strong>{{ resumen.estaciones }}</strong><p>Estaciones visibles</p></div></article>
+        <article class="metric-card metric-card--success"><span aria-hidden="true">✓</span><div><strong>{{ resumen.capacidades_cumplidas }}</strong><p>Capacidades cumplidas</p></div></article>
+        <article class="metric-card metric-card--danger"><span aria-hidden="true">×</span><div><strong>{{ resumen.capacidades_no_cumplidas }}</strong><p>Capacidades no cumplidas</p></div></article>
+    </div>
+</section>
+
+<div class="dashboard-columns">
+    <section class="dashboard-panel" aria-labelledby="categories-title">
+        <div class="dashboard-section-title"><span>Inventario</span><h2 id="categories-title">Recursos por categoría</h2></div>
+        {% if categorias %}
+            <div class="dashboard-bars">
+                {% for categoria in categorias %}
+                    <div class="dashboard-bar">
+                        <div><strong>{{ categoria.tipo__categoria__nombre }}</strong><span>{{ categoria.total }} recurso{{ categoria.total|pluralize }}</span></div>
+                        <div class="dashboard-bar__track" role="img" aria-label="{{ categoria.tipo__categoria__nombre }}: {{ categoria.total }} recursos"><span style="--bar-width: {{ categoria.porcentaje }}%"></span></div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}<div class="dashboard-empty"><span aria-hidden="true">□</span><p>No existen recursos registrados en su ámbito.</p></div>{% endif %}
+    </section>
+
+    <section class="dashboard-panel" aria-labelledby="status-title">
+        <div class="dashboard-section-title"><span>Disponibilidad técnica</span><h2 id="status-title">Estado operativo</h2></div>
+        {% if resumen.total %}
+            <div class="status-list">
+                {% for estado in estados_operativos %}
+                    <article class="status-item status-item--{{ estado.codigo }}">
+                        <div><span aria-hidden="true">●</span><strong>{{ estado.nombre }}</strong></div>
+                        <div><strong>{{ estado.total }}</strong><span>{{ estado.porcentaje }}%</span></div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}<div class="dashboard-empty"><span aria-hidden="true">○</span><p>No existen estados de recursos para mostrar.</p></div>{% endif %}
+    </section>
+</div>
+
+<section class="dashboard-panel dashboard-panel--wide" aria-labelledby="capacities-title">
+    <div class="dashboard-panel-heading">
+        <div class="dashboard-section-title"><span>Evaluaciones vigentes</span><h2 id="capacities-title">Capacidades operativas recientes</h2></div>
+        {% if puede_consultar_capacidades %}<a href="{% url 'operaciones:historial_evaluaciones' %}">Ver historial completo →</a>{% endif %}
+    </div>
+    {% if evaluaciones_recientes %}
+        <div class="dashboard-evaluations">
+            {% for evaluacion in evaluaciones_recientes %}
+                <article class="dashboard-evaluation">
+                    <div><span>{{ evaluacion.estacion.cuerpo_bomberos.sigla }}</span><h3>{{ evaluacion.capacidad.nombre }}</h3><p>{{ evaluacion.estacion.nombre }}</p></div>
+                    <div class="dashboard-evaluation__result"><strong>{{ evaluacion.porcentaje_cumplimiento }}%</strong><span class="dashboard-badge dashboard-badge--{{ evaluacion.estado }}">{{ evaluacion.get_estado_display }}</span></div>
+                    <time datetime="{{ evaluacion.fecha_evaluacion|date:'c' }}">{{ evaluacion.fecha_evaluacion|date:"d/m/Y H:i" }}</time>
+                    <a href="{% url 'operaciones:detalle_evaluacion' evaluacion.pk %}">Consultar detalle</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}<div class="dashboard-empty"><span aria-hidden="true">◇</span><p>Todavía no se han realizado evaluaciones de capacidades.</p></div>{% endif %}
+</section>
+
+<div class="dashboard-columns dashboard-columns--lower">
+    <section class="dashboard-panel" aria-labelledby="activity-title">
+        <div class="dashboard-section-title"><span>Trazabilidad</span><h2 id="activity-title">Actividad reciente</h2></div>
+        {% if actividad_reciente %}
+            <ol class="activity-list">
+                {% for actividad in actividad_reciente %}
+                    <li><span aria-hidden="true"></span><div><strong>{{ actividad.tipo }}</strong><p>{{ actividad.titulo }} · {{ actividad.detalle }}</p><time datetime="{{ actividad.fecha|date:'c' }}">{{ actividad.fecha|date:"d/m/Y H:i" }}</time></div></li>
+                {% endfor %}
+            </ol>
+        {% else %}<div class="dashboard-empty"><span aria-hidden="true">···</span><p>No hay actividad reciente disponible.</p></div>{% endif %}
+    </section>
+
+    <section class="dashboard-panel" aria-labelledby="shortcuts-title">
+        <div class="dashboard-section-title"><span>Navegación</span><h2 id="shortcuts-title">Accesos rápidos</h2></div>
+        <div class="shortcut-grid">
+            {% if puede_consultar_inventario %}<a href="{% url 'inventario:lista' %}"><span aria-hidden="true">□</span><strong>Consultar inventario</strong><small>Ver recursos autorizados</small></a>{% endif %}
+            {% if puede_gestionar_inventario %}<a href="{% url 'inventario:crear' %}"><span aria-hidden="true">+</span><strong>Registrar recurso</strong><small>Añadir al inventario</small></a>{% endif %}
+            {% if puede_consultar_capacidades %}<a href="{% url 'operaciones:lista_capacidades' %}"><span aria-hidden="true">◇</span><strong>Consultar capacidades</strong><small>Catálogo y requisitos</small></a>{% endif %}
+            {% if puede_evaluar_capacidades %}<a href="{% url 'operaciones:evaluar_capacidad' %}"><span aria-hidden="true">✓</span><strong>Ejecutar evaluación</strong><small>Calcular por estación</small></a>{% endif %}
+            {% if puede_consultar_instituciones %}<a href="{% url 'instituciones:lista' %}"><span aria-hidden="true">▦</span><strong>Consultar instituciones</strong><small>Cuerpos y estaciones</small></a>{% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}
