@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import CalificacionPersonal, EspecialidadOperativa, PersonalOperativo
+from .models import (
+    CalificacionPersonal,
+    EspecialidadOperativa,
+    PersonalOperativo,
+    RequisitoPersonalCapacidad,
+    RequisitoRecursoCapacidad,
+    TipoCapacidadOperativa,
+)
 
 
 class CalificacionPersonalInline(admin.TabularInline):
@@ -22,6 +29,26 @@ class CalificacionPersonalInline(admin.TabularInline):
     @admin.display(description="vigente", boolean=True)
     def mostrar_vigente(self, obj):
         return obj.vigente if obj.pk else None
+
+
+class RequisitoRecursoCapacidadInline(admin.TabularInline):
+    model = RequisitoRecursoCapacidad
+    extra = 0
+    autocomplete_fields = ("tipo_recurso",)
+    fields = ("tipo_recurso", "cantidad_minima", "obligatorio", "observaciones")
+
+
+class RequisitoPersonalCapacidadInline(admin.TabularInline):
+    model = RequisitoPersonalCapacidad
+    extra = 0
+    autocomplete_fields = ("especialidad",)
+    fields = (
+        "especialidad",
+        "nivel_minimo",
+        "cantidad_minima",
+        "obligatorio",
+        "observaciones",
+    )
 
 
 @admin.register(PersonalOperativo)
@@ -165,3 +192,17 @@ class CalificacionPersonalAdmin(admin.ModelAdmin):
     @admin.display(description="vigente", boolean=True)
     def mostrar_vigente(self, obj):
         return obj.vigente
+
+
+@admin.register(TipoCapacidadOperativa)
+class TipoCapacidadOperativaAdmin(admin.ModelAdmin):
+    inlines = (RequisitoRecursoCapacidadInline, RequisitoPersonalCapacidadInline)
+    list_display = ("nombre", "codigo", "activo", "fecha_actualizacion")
+    search_fields = ("nombre", "codigo", "descripcion")
+    list_filter = ("activo",)
+    readonly_fields = ("fecha_creacion", "fecha_actualizacion")
+    fieldsets = (
+        ("Identificación", {"fields": ("nombre", "codigo", "activo")}),
+        ("Descripción", {"fields": ("descripcion",)}),
+        ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
+    )

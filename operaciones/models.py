@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -185,3 +186,107 @@ class CalificacionPersonal(models.Model):
 
     def __str__(self):
         return f"{self.personal.nombre_completo} - {self.especialidad.nombre} ({self.get_nivel_display()})"
+
+
+class TipoCapacidadOperativa(models.Model):
+    nombre = models.CharField("nombre", max_length=150)
+    codigo = models.CharField("código", max_length=30, unique=True)
+    descripcion = models.TextField("descripción", blank=True)
+    activo = models.BooleanField("activo", default=True)
+    fecha_creacion = models.DateTimeField("fecha de creación", auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField("fecha de actualización", auto_now=True)
+
+    class Meta:
+        verbose_name = "tipo de capacidad operativa"
+        verbose_name_plural = "tipos de capacidades operativas"
+        ordering = ("nombre",)
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
+class RequisitoRecursoCapacidad(models.Model):
+    capacidad = models.ForeignKey(
+        TipoCapacidadOperativa,
+        on_delete=models.PROTECT,
+        related_name="requisitos_recursos",
+        verbose_name="capacidad operativa",
+    )
+    tipo_recurso = models.ForeignKey(
+        "inventario.TipoRecurso",
+        on_delete=models.PROTECT,
+        related_name="requisitos_capacidades",
+        verbose_name="tipo de recurso",
+    )
+    cantidad_minima = models.PositiveIntegerField(
+        "cantidad mínima",
+        validators=[MinValueValidator(1)],
+    )
+    obligatorio = models.BooleanField("obligatorio", default=True)
+    observaciones = models.TextField("observaciones", blank=True)
+
+    class Meta:
+        verbose_name = "requisito de recurso para capacidad"
+        verbose_name_plural = "requisitos de recursos para capacidades"
+        ordering = ("capacidad__nombre", "tipo_recurso__nombre")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("capacidad", "tipo_recurso"),
+                name="operaciones_requisito_recurso_unico_por_capacidad",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(cantidad_minima__gte=1),
+                name="operaciones_requisito_recurso_cantidad_positiva",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.capacidad.nombre}: {self.cantidad_minima} × {self.tipo_recurso.nombre}"
+
+
+class RequisitoPersonalCapacidad(models.Model):
+    capacidad = models.ForeignKey(
+        TipoCapacidadOperativa,
+        on_delete=models.PROTECT,
+        related_name="requisitos_personal",
+        verbose_name="capacidad operativa",
+    )
+    especialidad = models.ForeignKey(
+        EspecialidadOperativa,
+        on_delete=models.PROTECT,
+        related_name="requisitos_capacidades",
+        verbose_name="especialidad operativa",
+    )
+    nivel_minimo = models.CharField(
+        "nivel mínimo",
+        max_length=15,
+        choices=CalificacionPersonal.Nivel.choices,
+        default=CalificacionPersonal.Nivel.BASICO,
+    )
+    cantidad_minima = models.PositiveIntegerField(
+        "cantidad mínima",
+        validators=[MinValueValidator(1)],
+    )
+    obligatorio = models.BooleanField("obligatorio", default=True)
+    observaciones = models.TextField("observaciones", blank=True)
+
+    class Meta:
+        verbose_name = "requisito de personal para capacidad"
+        verbose_name_plural = "requisitos de personal para capacidades"
+        ordering = ("capacidad__nombre", "especialidad__nombre", "nivel_minimo")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("capacidad", "especialidad", "nivel_minimo"),
+                name="operaciones_requisito_personal_unico_por_capacidad",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(cantidad_minima__gte=1),
+                name="operaciones_requisito_personal_cantidad_positiva",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.capacidad.nombre}: {self.cantidad_minima} × "
+            f"{self.especialidad.nombre} ({self.get_nivel_minimo_display()})"
+        )

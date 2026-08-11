@@ -14,5 +14,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 8. [Registro básico del personal operativo](08_personal_operativo.md)
 9. [Preparación del repositorio Git](09_preparacion_repositorio_git.md)
 10. [Especialidades y calificaciones del personal](10_especialidades_calificaciones.md)
+11. [Catálogo y requisitos de capacidades operativas](11_catalogo_requisitos_capacidades.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.
