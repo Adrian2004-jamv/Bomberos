@@ -107,6 +107,46 @@ class PersonalOperativo(models.Model):
         return f"{self.codigo_institucional} - {self.nombre_completo}"
 
 
+class HistorialDisponibilidadPersonal(models.Model):
+    personal = models.ForeignKey(
+        PersonalOperativo,
+        on_delete=models.CASCADE,
+        related_name="historial_disponibilidad",
+        verbose_name="personal operativo",
+    )
+    disponibilidad_anterior = models.CharField(
+        "disponibilidad anterior",
+        max_length=20,
+        choices=PersonalOperativo.Disponibilidad.choices,
+    )
+    disponibilidad_nueva = models.CharField(
+        "disponibilidad nueva",
+        max_length=20,
+        choices=PersonalOperativo.Disponibilidad.choices,
+    )
+    motivo = models.CharField("motivo", max_length=255)
+    observaciones = models.TextField("observaciones", blank=True)
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cambios_disponibilidad_personal",
+        verbose_name="registrado por",
+    )
+    fecha_registro = models.DateTimeField("fecha de registro", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "historial de disponibilidad del personal"
+        verbose_name_plural = "historiales de disponibilidad del personal"
+        ordering = ("-fecha_registro", "-pk")
+
+    def __str__(self):
+        return (
+            f"{self.personal.nombre_completo}: "
+            f"{self.get_disponibilidad_anterior_display()} → "
+            f"{self.get_disponibilidad_nueva_display()}"
+        )
+
+
 class CalificacionPersonal(models.Model):
     class Nivel(models.TextChoices):
         BASICO = "basico", "Básico"

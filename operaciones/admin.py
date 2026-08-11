@@ -4,11 +4,63 @@ from .models import (
     CalificacionPersonal,
     EvaluacionCapacidadEstacion,
     EspecialidadOperativa,
+    HistorialDisponibilidadPersonal,
     PersonalOperativo,
     RequisitoPersonalCapacidad,
     RequisitoRecursoCapacidad,
     TipoCapacidadOperativa,
 )
+
+
+@admin.register(HistorialDisponibilidadPersonal)
+class HistorialDisponibilidadPersonalAdmin(admin.ModelAdmin):
+    list_display = (
+        "personal",
+        "mostrar_estacion",
+        "disponibilidad_anterior",
+        "disponibilidad_nueva",
+        "motivo",
+        "registrado_por",
+        "fecha_registro",
+    )
+    search_fields = (
+        "personal__codigo_institucional",
+        "personal__nombres",
+        "personal__apellidos",
+        "registrado_por__username",
+        "registrado_por__first_name",
+        "registrado_por__last_name",
+    )
+    list_filter = (
+        "personal__estacion",
+        "disponibilidad_anterior",
+        "disponibilidad_nueva",
+        "fecha_registro",
+    )
+    list_select_related = ("personal", "personal__estacion", "registrado_por")
+    readonly_fields = (
+        "personal",
+        "disponibilidad_anterior",
+        "disponibilidad_nueva",
+        "motivo",
+        "observaciones",
+        "registrado_por",
+        "fecha_registro",
+    )
+    fields = readonly_fields
+
+    @admin.display(description="estación", ordering="personal__estacion__nombre")
+    def mostrar_estacion(self, obj):
+        return obj.personal.estacion
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class CalificacionPersonalInline(admin.TabularInline):

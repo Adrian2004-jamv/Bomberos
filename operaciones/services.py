@@ -12,6 +12,7 @@ from inventario.models import Recurso
 from .models import (
     CalificacionPersonal,
     EvaluacionCapacidadEstacion,
+    HistorialDisponibilidadPersonal,
     PersonalOperativo,
     TipoCapacidadOperativa,
 )
@@ -23,6 +24,58 @@ JERARQUIA_NIVELES = {
     CalificacionPersonal.Nivel.AVANZADO: 3,
     CalificacionPersonal.Nivel.INSTRUCTOR: 4,
 }
+
+
+@transaction.atomic
+def actualizar_disponibilidad_personal(
+    personal,
+    nueva_disponibilidad,
+    usuario_responsable,
+    motivo,
+    observaciones="",
+):
+    """Actualiza la disponibilidad y registra una auditoría atómica.
+
+    ``select_for_update`` bloquea la fila durante la transacción para impedir
+    que dos cambios concurrentes registren el mismo valor anterior.
+    """
+    Usuario = get_user_model()
+    if (
+        not isinstance(usuario_responsable, Usuario)
+        or usuario_responsable.pk is None
+        or not Usuario.objects.filter(pk=usuario_responsable.pk, is_active=True).exists()
+    ):
+        raise ValidationError("El usuario responsable no existe o está inactivo.")
+
+    if nueva_disponibilidad not in PersonalOperativo.Disponibilidad.values:
+        raise ValidationError({"disponibilidad": "La disponibilidad no es válida."})
+
+    if not motivo or not motivo.strip():
+        raise ValidationError({"motivo": "Debe indicar el motivo del cambio."})
+
+    if not isinstance(personal, PersonalOperativo) or personal.pk is None:
+        raise ValidationError("El personal operativo no existe.")
+
+    try:
+        personal_actual = PersonalOperativo.objects.select_for_update().get(pk=personal.pk)
+    except PersonalOperativo.DoesNotExist as error:
+        raise ValidationError("El personal operativo no existe.") from error
+
+    disponibilidad_anterior = personal_actual.disponibilidad
+    if disponibilidad_anterior == nueva_disponibilidad:
+        return personal_actual, None
+
+    personal_actual.disponibilidad = nueva_disponibilidad
+    personal_actual.save(update_fields=("disponibilidad", "fecha_actualizacion"))
+    historial = HistorialDisponibilidadPersonal.objects.create(
+        personal=personal_actual,
+        disponibilidad_anterior=disponibilidad_anterior,
+        disponibilidad_nueva=nueva_disponibilidad,
+        motivo=motivo.strip(),
+        observaciones=observaciones,
+        registrado_por=usuario_responsable,
+    )
+    return personal_actual, historial
 
 
 def _validar_objetos(estacion, capacidad, usuario_evaluador):

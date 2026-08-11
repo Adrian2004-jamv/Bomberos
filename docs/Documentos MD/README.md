@@ -22,5 +22,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 16. [Mejora institucional del inicio de sesión de Latacunga](16_mejora_login_institucional_latacunga.md)
 17. [Interfaz responsive del módulo instituciones](17_interfaz_responsive_instituciones.md)
 18. [Interfaz responsive del módulo inventario](18_interfaz_responsive_inventario.md)
+19. [Trazabilidad de disponibilidad del personal operativo](19_trazabilidad_disponibilidad_personal.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.
