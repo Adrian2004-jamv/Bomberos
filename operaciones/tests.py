@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
-from .models import PersonalOperativo
+from .models import CalificacionPersonal, EspecialidadOperativa, PersonalOperativo
 
 
 class PersonalOperativoTests(TestCase):
