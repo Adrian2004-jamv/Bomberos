@@ -37,6 +37,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -85,6 +86,31 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYER_BACKEND = os.environ.get(
+    "CHANNEL_LAYER_BACKEND", "memory" if DEBUG else "redis"
+).lower()
+if CHANNEL_LAYER_BACKEND == "memory":
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
+elif CHANNEL_LAYER_BACKEND == "redis":
+    REDIS_URL = os.environ.get("REDIS_URL")
+    if not REDIS_URL:
+        raise ImproperlyConfigured(
+            "Configure REDIS_URL cuando CHANNEL_LAYER_BACKEND=redis."
+        )
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+else:
+    raise ImproperlyConfigured(
+        "CHANNEL_LAYER_BACKEND debe ser 'memory' o 'redis'."
+    )
 
 AUTH_USER_MODEL = "usuarios.Usuario"
 

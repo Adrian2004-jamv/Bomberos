@@ -10,6 +10,7 @@
     const unitList = root.querySelector("[data-unit-list]");
     const emergencyList = root.querySelector("[data-emergency-list]");
     const sync = root.querySelector("[data-sync-state]");
+    const realtime = root.querySelector("[data-realtime-state]");
     const syncTime = root.querySelector("[data-sync-time]");
     const errorBox = root.querySelector("[data-map-error]");
     const clearRoute = root.querySelector("[data-clear-route]");
@@ -25,9 +26,15 @@
     }).addTo(map);
 
     const markers = new Map();
+    const currentFeatures = new Map();
     let routeLayer = null;
+    let selectedRouteDeployment = null;
     let refreshTimer = null;
     let initialFitDone = false;
+    let socket = null;
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    let leavingPage = false;
 
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
@@ -46,6 +53,10 @@
         sync.dataset.state = state;
         sync.querySelector("strong").textContent = label;
         if (state === "updated") syncTime.textContent = `Última sincronización: ${new Date().toLocaleTimeString()}`;
+    };
+    const setRealtime = (state, label) => {
+        realtime.dataset.state = state;
+        realtime.querySelector("strong").textContent = label;
     };
     const iconFor = (feature) => {
         const p = feature.properties;
@@ -78,6 +89,14 @@
         });
         markers.forEach((marker, id) => { if (!visible.has(id)) { map.removeLayer(marker); markers.delete(id); } });
         if (!initialFitDone && bounds.length) { map.fitBounds(bounds, { padding: [35, 35], maxZoom: 13 }); initialFitDone = true; }
+    };
+    const renderCurrentFeatures = () => {
+        const features = [...currentFeatures.values()];
+        const emergencies = features.filter((feature) => feature.properties.clase === "emergencia");
+        const units = features.filter((feature) => feature.properties.clase === "unidad");
+        updateMarkers(features); renderUnits(units); renderEmergencies(emergencies);
+        counts.emergencies.textContent = String(emergencies.length); counts.units.textContent = String(units.length);
+        counts.waiting.textContent = String(units.filter((item) => !item.geometry).length);
     };
     const element = (tag, text, className) => {
         const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node;
@@ -123,6 +142,7 @@
             if (response.status === 403) { clearInterval(refreshTimer); setSync("error", "Autorización revocada"); return; }
             if (!response.ok) throw new Error("route");
             const feature = await response.json();
+            selectedRouteDeployment = feature.properties.despliegue;
             if (routeLayer) map.removeLayer(routeLayer);
             routeLayer = feature.geometry ? L.geoJSON(feature, { style: { color: "#a15c00", weight: 5 } }).addTo(map) : null;
             clearRoute.hidden = !routeLayer;
@@ -139,19 +159,57 @@
             if (response.status === 403) { clearInterval(refreshTimer); setSync("error", "Autorización revocada"); errorBox.hidden = false; return; }
             if (!response.ok) throw new Error("data");
             const data = await response.json();
-            const emergencies = data.features.filter((feature) => feature.properties.clase === "emergencia");
-            const units = data.features.filter((feature) => feature.properties.clase === "unidad");
-            updateMarkers(data.features); renderUnits(units); renderEmergencies(emergencies);
-            counts.emergencies.textContent = String(emergencies.length); counts.units.textContent = String(units.length);
-            counts.waiting.textContent = String(units.filter((item) => !item.geometry).length);
+            currentFeatures.clear(); data.features.forEach((feature) => currentFeatures.set(feature.id, feature));
+            renderCurrentFeatures();
             setSync("updated", "Actualizado");
         } catch (_error) { setSync("error", "Error de conexión"); errorBox.hidden = false; }
+    };
+    const applyRealtimePosition = (position) => {
+        const id = `unidad-${position.despliegue_id}`;
+        const feature = currentFeatures.get(id);
+        if (!feature) { refresh(); return; }
+        const previousDate = feature.properties.fecha_posicion ? Date.parse(feature.properties.fecha_posicion) : 0;
+        const incomingDate = Date.parse(position.fecha_recepcion);
+        if (!Number.isFinite(incomingDate) || incomingDate <= previousDate) return;
+        feature.geometry = { type: "Point", coordinates: [position.longitud, position.latitud] };
+        feature.properties.fecha_posicion = position.fecha_recepcion;
+        feature.properties.precision = position.precision;
+        feature.properties.velocidad = position.velocidad;
+        feature.properties.estado = position.estado;
+        feature.properties.antiguedad = { codigo: "reciente", etiqueta: "Posición reciente", segundos: 0 };
+        renderCurrentFeatures();
+        if (selectedRouteDeployment === position.despliegue_id) showRoute(feature.properties.recorrido_url);
+    };
+    const connectWebSocket = () => {
+        clearTimeout(reconnectTimer);
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        setRealtime(reconnectAttempt ? "connecting" : "connecting", reconnectAttempt ? "Reconectando" : "Conectando tiempo real");
+        socket = new WebSocket(`${protocol}//${window.location.host}${root.dataset.websocketPath}`);
+        socket.addEventListener("open", () => {
+            reconnectAttempt = 0; setRealtime("connected", "Conectado en tiempo real"); refresh();
+        });
+        socket.addEventListener("message", (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.tipo === "posicion.actualizada" && message.posicion) applyRealtimePosition(message.posicion);
+            } catch (_error) { /* Ignora mensajes que no pertenecen al protocolo. */ }
+        });
+        socket.addEventListener("close", () => {
+            socket = null;
+            if (leavingPage) return;
+            setRealtime("fallback", "Modo de actualización periódica");
+            const delay = Math.min(1000 * (2 ** reconnectAttempt), 30000);
+            reconnectAttempt += 1;
+            reconnectTimer = setTimeout(connectWebSocket, delay);
+        });
+        socket.addEventListener("error", () => setRealtime("offline", "Sin conexión en tiempo real"));
     };
     const schedule = () => { clearInterval(refreshTimer); if (!document.hidden) refreshTimer = setInterval(refresh, REFRESH_INTERVAL_MS); };
     form.addEventListener("submit", (event) => { event.preventDefault(); initialFitDone = false; refresh(); });
     form.addEventListener("reset", () => setTimeout(() => { initialFitDone = false; refresh(); }, 0));
     root.querySelector("[data-map-retry]").addEventListener("click", refresh);
-    clearRoute.addEventListener("click", () => { if (routeLayer) map.removeLayer(routeLayer); routeLayer = null; clearRoute.hidden = true; });
+    clearRoute.addEventListener("click", () => { if (routeLayer) map.removeLayer(routeLayer); routeLayer = null; selectedRouteDeployment = null; clearRoute.hidden = true; });
     document.addEventListener("visibilitychange", () => { schedule(); if (!document.hidden) refresh(); });
-    refresh(); schedule();
+    window.addEventListener("pagehide", () => { leavingPage = true; clearTimeout(reconnectTimer); if (socket) socket.close(1000, "Página cerrada"); });
+    refresh(); schedule(); connectWebSocket();
 })();

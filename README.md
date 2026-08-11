@@ -20,6 +20,8 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - PostgreSQL 18 con PostGIS 3.6.
 - Psycopg 3.
 - GDAL y GEOS (disponibles en desarrollo mediante QGIS 3.44.12).
+- Django Channels 4.3 y Daphne, para HTTP y WebSockets sobre ASGI.
+- Redis 5 o posterior en producción, como capa de canales compartida.
 - Git, para control de versiones.
 
 El proyecto utiliza PostgreSQL como única base de datos activa. La base SQLite utilizada durante la etapa inicial fue retirada después de verificar la migración.
@@ -45,6 +47,12 @@ Inicie el servidor de desarrollo:
 python manage.py runserver
 ```
 
+El servidor de desarrollo utiliza Daphne y una capa de canales en memoria. Para probar explícitamente la aplicación ASGI también puede ejecutar:
+
+```powershell
+python -m daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
+
 La aplicación estará disponible en `http://127.0.0.1:8000/` y Django Admin en `http://127.0.0.1:8000/admin/`.
 
 ## Configuración local
@@ -60,6 +68,18 @@ Para desarrollo, el proyecto admite estas variables de entorno:
 - `POSTGRES_PORT`: puerto; por defecto `5432`.
 - `GDAL_LIBRARY_PATH`: ruta a GDAL cuando el sistema no la detecte.
 - `GEOS_LIBRARY_PATH`: ruta a GEOS cuando el sistema no la detecte.
+- `CHANNEL_LAYER_BACKEND`: `memory` para desarrollo o pruebas controladas; `redis` para producción.
+- `REDIS_URL`: conexión de Redis, por ejemplo `redis://127.0.0.1:6379/0`, obligatoria cuando el backend es `redis`.
+
+La capa en memoria no comparte mensajes entre procesos y no debe utilizarse en producción. En Windows puede ejecutar Redis dentro de WSL, iniciarlo con `sudo service redis-server start` y comprobarlo con `redis-cli ping`. Después configure:
+
+```powershell
+$env:CHANNEL_LAYER_BACKEND="redis"
+$env:REDIS_URL="redis://127.0.0.1:6379/0"
+python -m daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
+
+En producción, la aplicación debe publicarse detrás de HTTPS para que el navegador utilice WebSockets seguros (`wss://`). Si el canal en tiempo real se interrumpe, el mapa intenta reconectarse con espera progresiva y conserva la consulta HTTP periódica como respaldo.
 
 En desarrollo local, si `POSTGRES_PASSWORD` no está definida, la contraseña puede guardarse en `secrets/postgresql_password.txt`. La carpeta `secrets/` está excluida de Git.
 

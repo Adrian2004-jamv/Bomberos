@@ -241,4 +241,7 @@ def registrar_posicion_unidad(
     )
     posicion.full_clean()
     posicion.save()
+    from .realtime import publicar_posicion_gps
+
+    transaction.on_commit(lambda: publicar_posicion_gps(posicion), robust=True)
     return posicion

@@ -32,5 +32,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 26. [Captura y almacenamiento de posiciones GPS](26_transmision_posiciones_gps.md)
 27. [Rastreo GPS geográfico con PostGIS](27_rastreo_gps_postgis.md)
 28. [Mapa operativo de unidades desplegadas](28_mapa_operativo_unidades.md)
+29. [Actualización GPS en tiempo real mediante WebSockets](29_actualizacion_websocket_mapa.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

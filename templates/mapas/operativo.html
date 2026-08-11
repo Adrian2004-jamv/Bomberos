@@ -9,10 +9,13 @@
 {% endblock %}
 
 {% block content %}
-<section class="map-shell" data-operational-map data-data-url="{% url 'mapas:datos' %}">
+<section class="map-shell" data-operational-map data-data-url="{% url 'mapas:datos' %}" data-websocket-path="/ws/mapa/posiciones/">
     <header class="map-header">
         <div><p class="eyebrow">SIG Web · respuesta a emergencias</p><h2>Emergencias y unidades desplegadas</h2><p>Últimas posiciones GPS recibidas dentro de su ámbito autorizado.</p></div>
-        <div class="sync-state" data-sync-state role="status" aria-live="polite"><span aria-hidden="true"></span><strong>Preparando mapa</strong><small data-sync-time>Sin sincronizar</small></div>
+        <div class="connection-states">
+            <div class="realtime-state" data-realtime-state data-state="connecting" role="status" aria-live="polite"><span aria-hidden="true"></span><strong>Conectando tiempo real</strong></div>
+            <div class="sync-state" data-sync-state role="status" aria-live="polite"><span aria-hidden="true"></span><strong>Preparando mapa</strong><small data-sync-time>Sin sincronizar</small></div>
+        </div>
     </header>
 
     <details class="map-filters" open>
