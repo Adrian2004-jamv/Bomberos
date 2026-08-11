@@ -30,7 +30,9 @@
         <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' %} nav-item--active{% endif %}" href="{% url 'emergencias:lista' %}"{% if request.resolver_match.namespace == 'emergencias' %} aria-current="page"{% endif %}>
             <span aria-hidden="true">△</span> Emergencias
         </a>
-        <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">◎</span> Mapa provincial</span>
+        <a class="nav-item{% if request.resolver_match.namespace == 'mapas' %} nav-item--active{% endif %}" href="{% url 'mapas:operativo' %}"{% if request.resolver_match.namespace == 'mapas' %} aria-current="page"{% endif %}>
+            <span aria-hidden="true">◎</span> Mapa operativo
+        </a>
     </nav>
 
     <div class="sidebar__footer">

@@ -11,6 +11,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - Catálogo y evaluación histórica de capacidades basada en recursos materiales.
 - Registro básico de emergencias y despliegue de unidades del inventario.
 - Historial y transmisión GPS de unidades desplegadas mediante PostGIS.
+- Mapa operativo con emergencias activas, unidades desplegadas y recorridos recientes.
 
 ## Requisitos
 

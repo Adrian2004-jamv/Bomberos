@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mapa operativo{% endblock %}
+{% block page_title %}Mapa operativo{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">
+<link rel="stylesheet" href="{% static 'mapas/css/operativo.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="map-shell" data-operational-map data-data-url="{% url 'mapas:datos' %}">
+    <header class="map-header">
+        <div><p class="eyebrow">SIG Web · respuesta a emergencias</p><h2>Emergencias y unidades desplegadas</h2><p>Últimas posiciones GPS recibidas dentro de su ámbito autorizado.</p></div>
+        <div class="sync-state" data-sync-state role="status" aria-live="polite"><span aria-hidden="true"></span><strong>Preparando mapa</strong><small data-sync-time>Sin sincronizar</small></div>
+    </header>
+
+    <details class="map-filters" open>
+        <summary>Filtros operativos</summary>
+        <form data-map-filters>
+            <label>Emergencia<select name="emergencia"><option value="">Todas las activas</option>{% for item in emergencias_filtro %}<option value="{{ item.pk }}">{{ item.codigo }} · {{ item.tipo_emergencia }}</option>{% endfor %}</select></label>
+            <label>Cuerpo de Bomberos<select name="cuerpo"><option value="">Todos los autorizados</option>{% for item in cuerpos_filtro %}<option value="{{ item.pk }}">{{ item.nombre }}</option>{% endfor %}</select></label>
+            <label>Estación<select name="estacion"><option value="">Todas las autorizadas</option>{% for item in estaciones_filtro %}<option value="{{ item.pk }}">{{ item.nombre }}</option>{% endfor %}</select></label>
+            <label>Estado del despliegue<select name="estado"><option value="">Todos los activos</option>{% for value,label in estados_despliegue %}{% if value != 'finalizada' and value != 'cancelada' %}<option value="{{ value }}">{{ label }}</option>{% endif %}{% endfor %}</select></label>
+            <label>Actualización GPS<select name="gps"><option value="">Todos los estados</option>{% for value,label in estados_gps %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+            <div class="filter-actions"><button type="submit">Aplicar filtros</button><button type="reset">Limpiar</button></div>
+        </form>
+    </details>
+
+    <div class="map-layout">
+        <div class="map-stage">
+            <div id="operational-map" class="operational-map" role="application" aria-label="Mapa de emergencias y unidades desplegadas"></div>
+            <div class="map-error" data-map-error hidden><p>No fue posible actualizar los datos operativos.</p><button type="button" data-map-retry>Reintentar</button></div>
+            <div class="map-legend" aria-label="Leyenda del mapa">
+                <strong>Leyenda</strong><span><i class="legend-emergency"></i> Emergencia activa</span><span><i class="legend-unit"></i> Unidad desplegada</span><span><i class="legend-route"></i> Recorrido seleccionado</span>
+            </div>
+        </div>
+        <aside class="operational-summary" aria-live="polite"><strong>Resumen visible</strong><span><b data-emergency-count>0</b> emergencias</span><span><b data-unit-count>0</b> unidades activas</span><span><b data-waiting-count>0</b> esperando GPS</span></aside>
+    </div>
+
+    <section class="textual-list" aria-labelledby="units-list-title">
+        <div class="section-heading"><div><p class="eyebrow">Alternativa accesible</p><h2 id="units-list-title">Unidades desplegadas</h2></div><button type="button" data-clear-route hidden>Ocultar recorrido</button></div>
+        <div class="unit-cards" data-unit-list><p>No hay unidades para mostrar.</p></div>
+    </section>
+    <section class="textual-list" aria-labelledby="emergencies-list-title">
+        <div class="section-heading"><div><p class="eyebrow">Situación activa</p><h2 id="emergencies-list-title">Emergencias</h2></div></div>
+        <div class="emergency-cards" data-emergency-list><p>No hay emergencias activas.</p></div>
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script>
+<script src="{% static 'mapas/js/operativo.js' %}" defer></script>
+{% endblock %}
