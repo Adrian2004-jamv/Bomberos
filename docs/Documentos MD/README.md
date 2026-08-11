@@ -16,5 +16,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 10. [Especialidades y calificaciones del personal](10_especialidades_calificaciones.md)
 11. [Catálogo y requisitos de capacidades operativas](11_catalogo_requisitos_capacidades.md)
 12. [Motor de evaluación de capacidades por estación](12_motor_evaluacion_capacidades.md)
+13. [Autenticación y estructura visual base](13_autenticacion_estructura_visual.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio{% endblock %}
+{% block page_title %}Bienvenido al sistema{% endblock %}
+
+{% block content %}
+<section class="welcome-card">
+    <div>
+        <span class="welcome-card__badge">Sesión activa</span>
+        <h2>{{ user.get_full_name|default:user.username }}</h2>
+        <p>
+            Se encuentra en el centro de gestión provincial de los Cuerpos de Bomberos de Cotopaxi.
+            Desde aquí se integrarán progresivamente los módulos operativos del sistema.
+        </p>
+    </div>
+    <dl class="identity-list">
+        <div>
+            <dt>Estación</dt>
+            <dd>{% if user.estacion %}{{ user.estacion.nombre }}{% else %}Sin estación asignada{% endif %}</dd>
+        </div>
+        <div>
+            <dt>Institución</dt>
+            <dd>
+                {% if user.estacion %}
+                    {{ user.estacion.cuerpo_bomberos.nombre }}
+                {% else %}
+                    Sin institución asignada
+                {% endif %}
+            </dd>
+        </div>
+    </dl>
+</section>
+
+<section class="modules-preview" aria-labelledby="modules-title">
+    <div class="section-heading">
+        <p class="eyebrow">Próximamente</p>
+        <h2 id="modules-title">Módulos del centro de gestión</h2>
+        <p>Estas áreas se habilitarán en las siguientes etapas del desarrollo.</p>
+    </div>
+    <div class="module-grid">
+        <article class="module-card"><span aria-hidden="true">▦</span><h3>Gestión institucional</h3><p>Cantones, instituciones y estaciones.</p></article>
+        <article class="module-card"><span aria-hidden="true">□</span><h3>Inventario</h3><p>Recursos y trazabilidad operativa.</p></article>
+        <article class="module-card"><span aria-hidden="true">♟</span><h3>Personal operativo</h3><p>Personal, especialidades y calificaciones.</p></article>
+        <article class="module-card"><span aria-hidden="true">◇</span><h3>Capacidades</h3><p>Requisitos y evaluaciones por estación.</p></article>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Acceso al Sistema de Gestión de Bomberos de Cotopaxi">
+    <title>Iniciar sesión | Bomberos Cotopaxi</title>
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-intro" aria-labelledby="system-name">
+            <div class="login-brand">
+                <span class="login-brand__mark" aria-hidden="true">BC</span>
+                <span>Cuerpos de Bomberos de Cotopaxi</span>
+            </div>
+            <div>
+                <p class="login-eyebrow">Centro de gestión provincial</p>
+                <h1 id="system-name">Sistema de gestión operativa</h1>
+                <p>Información institucional, recursos y capacidades para fortalecer la respuesta bomberil de la provincia.</p>
+            </div>
+            <p class="login-intro__note">Acceso exclusivo para personal autorizado.</p>
+        </section>
+
+        <section class="login-panel" aria-labelledby="login-title">
+            <div class="login-card">
+                <p class="login-card__eyebrow">Acceso seguro</p>
+                <h2 id="login-title">Iniciar sesión</h2>
+                <p class="login-card__help">Ingrese con su cuenta institucional.</p>
+
+                {% if form.errors %}
+                    <div class="login-error" role="alert">
+                        El usuario o la contraseña no son correctos. Revise los datos e inténtelo nuevamente.
+                    </div>
+                {% endif %}
+
+                {% if next and user.is_authenticated %}
+                    <div class="login-error" role="alert">Su cuenta no tiene acceso a la página solicitada.</div>
+                {% endif %}
+
+                <form method="post" class="login-form" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <div class="form-field">
+                        <label for="{{ form.username.id_for_label }}">Usuario</label>
+                        <input
+                            type="text"
+                            name="{{ form.username.html_name }}"
+                            id="{{ form.username.id_for_label }}"
+                            value="{{ form.username.value|default:'' }}"
+                            autocomplete="username"
+                            autocapitalize="none"
+                            required
+                            autofocus
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.password.id_for_label }}">Contraseña</label>
+                        <input
+                            type="password"
+                            name="{{ form.password.html_name }}"
+                            id="{{ form.password.id_for_label }}"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
+
+                    <button class="login-button" type="submit">Acceder al sistema</button>
+                </form>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

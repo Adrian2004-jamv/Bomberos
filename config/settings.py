@@ -84,6 +84,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 AUTH_USER_MODEL = "usuarios.Usuario"
 
+LOGIN_URL = "usuarios:login"
+LOGIN_REDIRECT_URL = "core:inicio"
+LOGOUT_REDIRECT_URL = "usuarios:login"
+
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases

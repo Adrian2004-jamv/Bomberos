@@ -1,0 +1,26 @@
+<header class="navbar">
+    <button
+        class="menu-toggle"
+        type="button"
+        data-sidebar-toggle
+        aria-controls="sidebar"
+        aria-expanded="false"
+        aria-label="Abrir menú principal"
+    >
+        <span aria-hidden="true">☰</span>
+    </button>
+
+    <div class="navbar__context">
+        <strong>{{ user.get_full_name|default:user.username }}</strong>
+        {% if user.estacion %}
+            <span>{{ user.estacion.nombre }}</span>
+        {% else %}
+            <span>Sin estación asignada</span>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{% url 'usuarios:logout' %}">
+        {% csrf_token %}
+        <button class="button button--ghost" type="submit">Cerrar sesión</button>
+    </form>
+</header>
