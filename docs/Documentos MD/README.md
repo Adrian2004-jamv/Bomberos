@@ -26,5 +26,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 20. [Corrección de alcance: capacidades sin gestión de personal](20_correccion_alcance_sin_personal.md)
 21. [Interfaz responsive de capacidades operativas](21_interfaz_responsive_capacidades.md)
 22. [Dashboard institucional responsive](22_dashboard_institucional_responsive.md)
+23. [Emergencias y despliegue inicial de unidades](23_emergencias_despliegue_unidades.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

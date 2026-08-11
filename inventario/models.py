@@ -31,6 +31,11 @@ class TipoRecurso(models.Model):
     codigo = models.CharField("código", max_length=20)
     descripcion = models.TextField("descripción", blank=True)
     activo = models.BooleanField("activo", default=True)
+    es_unidad_desplegable = models.BooleanField(
+        "es unidad desplegable",
+        default=False,
+        help_text="Indica si los recursos de este tipo pueden despacharse a emergencias.",
+    )
     fecha_creacion = models.DateTimeField("fecha de creación", auto_now_add=True)
     fecha_actualizacion = models.DateTimeField("fecha de actualización", auto_now=True)
 

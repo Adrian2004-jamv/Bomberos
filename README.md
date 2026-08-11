@@ -9,6 +9,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - Categorías, tipos y recursos de inventario.
 - Historial de estado operativo y disponibilidad de recursos.
 - Catálogo y evaluación histórica de capacidades basada en recursos materiales.
+- Registro básico de emergencias y despliegue de unidades del inventario.
 
 ## Requisitos
 

@@ -18,13 +18,13 @@ class CategoriaRecursoAdmin(admin.ModelAdmin):
 
 @admin.register(TipoRecurso)
 class TipoRecursoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "codigo", "categoria", "activo", "fecha_actualizacion")
+    list_display = ("nombre", "codigo", "categoria", "es_unidad_desplegable", "activo", "fecha_actualizacion")
     search_fields = ("nombre", "codigo", "descripcion", "categoria__nombre", "categoria__codigo")
-    list_filter = ("activo", "categoria")
+    list_filter = ("activo", "es_unidad_desplegable", "categoria")
     list_select_related = ("categoria",)
     readonly_fields = ("fecha_creacion", "fecha_actualizacion")
     fieldsets = (
-        ("Clasificación", {"fields": ("categoria", "nombre", "codigo", "activo")}),
+        ("Clasificación", {"fields": ("categoria", "nombre", "codigo", "es_unidad_desplegable", "activo")}),
         ("Descripción", {"fields": ("descripcion",)}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
