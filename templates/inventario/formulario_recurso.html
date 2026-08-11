@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}">{% endblock %}
+{% block content %}
+{% if not catalogos_disponibles %}<div class="catalog-warning" role="alert"><strong>No existen tipos de recursos activos.</strong><span>Un administrador debe configurar categorías y tipos desde Django Admin antes de registrar recursos.</span></div>{% endif %}
+<form class="inventory-form" method="post" novalidate>
+    {% csrf_token %}
+    <header><h2>Información descriptiva</h2><p>El estado operativo y la disponibilidad se administran mediante el flujo de trazabilidad.</p></header>
+    {% if form.non_field_errors %}<div class="inventory-form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="inventory-form-grid">
+    {% for field in form %}<div class="inventory-field{% if field.name == 'descripcion' or field.name == 'observaciones' %} inventory-field--wide{% endif %}{% if field.field.widget.input_type == 'checkbox' %} inventory-field--checkbox{% endif %}">
+        {% if field.field.widget.input_type == 'checkbox' %}{{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>{{ field }}{% endif %}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}
+    </div>{% endfor %}
+    </div>
+    <div class="inventory-form-actions"><a class="inventory-action inventory-action--secondary" href="{% if recurso %}{% url 'inventario:detalle' recurso.pk %}{% else %}{% url 'inventario:lista' %}{% endif %}">Cancelar</a><button class="inventory-action inventory-action--primary" type="submit"{% if not catalogos_disponibles %} disabled{% endif %}>Guardar recurso</button></div>
+</form>
+{% endblock %}

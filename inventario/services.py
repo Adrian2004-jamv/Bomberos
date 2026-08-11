@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from .models import HistorialEstadoRecurso, Recurso
+from .permissions import puede_gestionar_recurso
 
 
 @transaction.atomic
@@ -40,6 +41,9 @@ def actualizar_estado_recurso(
         recurso_actual = Recurso.objects.select_for_update().get(pk=recurso.pk)
     except Recurso.DoesNotExist as error:
         raise ValidationError("El recurso no existe.") from error
+
+    if not puede_gestionar_recurso(usuario_responsable, recurso_actual):
+        raise ValidationError("El usuario no tiene autorización para cambiar este recurso.")
 
     estado_anterior = recurso_actual.estado_operativo
     disponibilidad_anterior = recurso_actual.disponibilidad

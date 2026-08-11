@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Cambiar estado{% endblock %}
+{% block page_title %}Cambiar estado del recurso{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}">{% endblock %}
+{% block content %}
+<section class="change-summary"><div><span>{{ recurso.codigo_interno }}</span><strong>{{ recurso.nombre }}</strong></div><dl><div><dt>Estado actual</dt><dd>{{ recurso.get_estado_operativo_display }}</dd></div><div><dt>Disponibilidad actual</dt><dd>{{ recurso.get_disponibilidad_display }}</dd></div></dl></section>
+<form class="inventory-form inventory-form--narrow" method="post" novalidate>
+    {% csrf_token %}<header><h2>Registrar cambio</h2><p>La actualización y su historial se guardarán dentro de una única transacción.</p></header>
+    {% if form.non_field_errors %}<div class="inventory-form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="inventory-form-grid">{% for field in form %}<div class="inventory-field{% if field.name == 'motivo' or field.name == 'observaciones' %} inventory-field--wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>{{ field }}{% for error in field.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
+    <div class="inventory-form-actions"><a class="inventory-action inventory-action--secondary" href="{% url 'inventario:detalle' recurso.pk %}">Cancelar</a><button class="inventory-action inventory-action--primary" type="submit">Registrar cambio</button></div>
+</form>
+{% endblock %}

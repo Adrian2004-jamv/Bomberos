@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ recurso.codigo_interno }}{% endblock %}
+{% block page_title %}{{ recurso.nombre }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}">{% endblock %}
+{% block content %}
+<div class="inventory-page-actions"><a class="inventory-action inventory-action--secondary" href="{% url 'inventario:lista' %}">Volver</a>{% if puede_gestionar %}<a class="inventory-action inventory-action--secondary" href="{% url 'inventario:editar' recurso.pk %}">Editar recurso</a><a class="inventory-action inventory-action--primary" href="{% url 'inventario:cambiar_estado' recurso.pk %}">Cambiar estado</a>{% endif %}</div>
+<section class="resource-detail">
+    <header><div><span>{{ recurso.codigo_interno }}</span><h2>{{ recurso.nombre }}</h2><p>{{ recurso.tipo.categoria.nombre }} · {{ recurso.tipo.nombre }}</p></div><div class="status-pair"><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></div></header>
+    <dl class="resource-detail-grid">
+        <div><dt>Estación</dt><dd>{{ recurso.estacion.nombre }}</dd></div><div><dt>Cuerpo de Bomberos</dt><dd>{{ recurso.estacion.cuerpo_bomberos.nombre }}</dd></div><div><dt>Cantón</dt><dd>{{ recurso.estacion.cuerpo_bomberos.canton.nombre }}</dd></div>
+        <div><dt>Marca</dt><dd>{{ recurso.marca|default:"No registrada" }}</dd></div><div><dt>Modelo</dt><dd>{{ recurso.modelo|default:"No registrado" }}</dd></div><div><dt>Número de serie</dt><dd>{{ recurso.numero_serie|default:"No registrado" }}</dd></div><div><dt>Año de fabricación</dt><dd>{{ recurso.anio_fabricacion|default:"No registrado" }}</dd></div><div><dt>Registro</dt><dd>{% if recurso.activo %}Activo{% else %}Inactivo{% endif %}</dd></div><div><dt>Última actualización</dt><dd>{{ recurso.fecha_actualizacion|date:"d/m/Y H:i" }}</dd></div>
+        <div class="resource-detail-grid__wide"><dt>Descripción</dt><dd>{{ recurso.descripcion|default:"Sin descripción" }}</dd></div><div class="resource-detail-grid__wide"><dt>Observaciones</dt><dd>{{ recurso.observaciones|default:"Sin observaciones" }}</dd></div>
+    </dl>
+</section>
+<section class="history-preview"><div class="inventory-section-heading"><div><p class="eyebrow">Auditoría</p><h2>Historial reciente</h2></div><a href="{% url 'inventario:historial' recurso.pk %}">Ver historial completo</a></div>{% if historial_reciente %}<div class="history-list">{% for registro in historial_reciente %}<article class="history-card"><time datetime="{{ registro.fecha_registro|date:'c' }}">{{ registro.fecha_registro|date:"d/m/Y H:i" }}</time><strong>{{ registro.get_estado_anterior_display }} → {{ registro.get_estado_nuevo_display }}</strong><span>{{ registro.get_disponibilidad_anterior_display }} → {{ registro.get_disponibilidad_nueva_display }}</span><p>{{ registro.motivo }}</p></article>{% endfor %}</div>{% else %}<div class="inventory-empty inventory-empty--compact"><p>Este recurso todavía no tiene cambios registrados.</p></div>{% endif %}</section>
+{% endblock %}

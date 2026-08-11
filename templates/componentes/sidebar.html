@@ -19,7 +19,9 @@
         <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
             <span aria-hidden="true">▦</span> Instituciones
         </a>
-        <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">□</span> Inventario</span>
+        <a class="nav-item{% if request.resolver_match.namespace == 'inventario' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' %} aria-current="page"{% endif %}>
+            <span aria-hidden="true">□</span> Inventario
+        </a>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">♟</span> Personal operativo</span>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">◇</span> Capacidades</span>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">△</span> Emergencias</span>
