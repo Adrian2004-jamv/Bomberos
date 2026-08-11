@@ -1,0 +1,15 @@
+<aside
+    class="pwa-controls"
+    data-pwa-controls
+    data-service-worker-url="{% url 'core:service_worker' %}"
+    aria-label="Estado de la aplicación"
+>
+    <p class="pwa-connection" data-connection-state role="status" aria-live="polite">
+        <span aria-hidden="true"></span><strong>En línea</strong>
+    </p>
+    <button class="pwa-install" type="button" data-install-app hidden>Instalar aplicación</button>
+    <div class="pwa-update" data-update-notice role="status" aria-live="polite" hidden>
+        <span>Existe una nueva versión del sistema disponible.</span>
+        <button type="button" data-update-app>Actualizar</button>
+    </div>
+</aside>

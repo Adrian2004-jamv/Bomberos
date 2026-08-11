@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#b5121b">
+    <meta name="robots" content="noindex">
+    <title>Sin conexión | Bomberos Cotopaxi</title>
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    <link rel="stylesheet" href="{% static 'pwa/css/pwa.css' %}">
+</head>
+<body class="offline-page">
+    <main class="offline-card">
+        <img src="{% static 'pwa/icons/icon-192.png' %}" alt="" width="80" height="80">
+        <p class="offline-card__eyebrow">Bomberos Cotopaxi</p>
+        <h1>Sin conexión con el servidor</h1>
+        <p>La información operativa en tiempo real no está disponible. El mapa y las posiciones GPS podrían estar desactualizados.</p>
+        <div class="offline-warning" role="note">
+            Las operaciones que no recibieron confirmación del servidor no deben considerarse guardadas.
+        </div>
+        <div class="offline-actions">
+            <button type="button" onclick="window.location.reload()">Volver a intentar</button>
+            <a href="/">Regresar al inicio</a>
+        </div>
+    </main>
+</body>
+</html>

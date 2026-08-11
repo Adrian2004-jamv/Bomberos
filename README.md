@@ -93,6 +93,23 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 El valor de respaldo de `DJANGO_SECRET_KEY` incluido en el código es únicamente para desarrollo y no es seguro para producción.
 
+## Aplicación web progresiva
+
+El sistema incluye manifiesto web, iconos instalables, service worker, indicador de conexión, aviso controlado de actualizaciones y una página institucional sin conexión. En navegadores compatibles, el botón **Instalar aplicación** aparece únicamente cuando el navegador autoriza la instalación.
+
+Para comprobarla localmente:
+
+1. Ejecute el servidor y abra `http://localhost:8000/`.
+2. Revise **Application > Manifest** y **Application > Service Workers** en las herramientas del navegador.
+3. Cargue una vez la aplicación, active el modo sin conexión y navegue para verificar la página offline.
+4. Confirme en **Cache Storage** que solo existen CSS, JavaScript, iconos, el logotipo y la página offline.
+
+Los service workers y la geolocalización requieren HTTPS en producción; `localhost` se considera seguro para desarrollo. Los WebSockets deben utilizar `wss://` bajo HTTPS.
+
+La PWA no almacena páginas privadas, inventarios, usuarios, GPS, GeoJSON, recorridos, coordenadas ni operaciones de escritura. Las teselas externas tampoco se precargan ni almacenan. Sin conexión solo está disponible la estructura visual segura; una operación sin confirmación del servidor no se considera guardada.
+
+Limitación actual: todavía no existe almacenamiento offline de posiciones GPS ni sincronización en segundo plano. Esa funcionalidad corresponde a una etapa posterior y requerirá cifrado, control de sesión y resolución explícita de conflictos.
+
 ## Protección de datos
 
 Este repositorio es académico. No deben utilizarse ni incorporarse datos personales reales, información operativa sensible, credenciales, claves privadas, archivos `.env`, bases de datos locales ni documentos confidenciales.

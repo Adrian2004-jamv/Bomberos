@@ -210,6 +210,7 @@
     root.querySelector("[data-map-retry]").addEventListener("click", refresh);
     clearRoute.addEventListener("click", () => { if (routeLayer) map.removeLayer(routeLayer); routeLayer = null; selectedRouteDeployment = null; clearRoute.hidden = true; });
     document.addEventListener("visibilitychange", () => { schedule(); if (!document.hidden) refresh(); });
+    window.addEventListener("online", () => { if (!socket) { reconnectAttempt = 0; connectWebSocket(); } });
     window.addEventListener("pagehide", () => { leavingPage = true; clearTimeout(reconnectTimer); if (socket) socket.close(1000, "Página cerrada"); });
     refresh(); schedule(); connectWebSocket();
 })();

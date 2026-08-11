@@ -33,5 +33,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 27. [Rastreo GPS geográfico con PostGIS](27_rastreo_gps_postgis.md)
 28. [Mapa operativo de unidades desplegadas](28_mapa_operativo_unidades.md)
 29. [Actualización GPS en tiempo real mediante WebSockets](29_actualizacion_websocket_mapa.md)
+30. [Primera etapa de la aplicación web progresiva](30_pwa_instalable_segura.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.
