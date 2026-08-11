@@ -1,4 +1,4 @@
-"""Operaciones transaccionales para el despacho de unidades.
+"""Operaciones transaccionales para despliegues y posiciones de unidades.
 
 ``select_for_update`` expresa el bloqueo requerido y será efectivo al migrar a
 PostgreSQL. SQLite serializa escrituras, pero no implementa bloqueo de filas;
@@ -10,11 +10,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from datetime import timedelta
 
 from inventario.models import Recurso
 from inventario.services import actualizar_estado_recurso
 
-from .models import DespliegueUnidad, Emergencia
+from .models import DespliegueUnidad, Emergencia, PosicionUnidad
 from .permissions import estacion_autorizada, puede_gestionar_emergencias
 
 
@@ -177,3 +178,57 @@ def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
         usuario_responsable,
         observaciones,
     )
+
+
+@transaction.atomic
+def registrar_posicion_unidad(
+    despliegue,
+    usuario_responsable,
+    *,
+    latitud,
+    longitud,
+    precision=None,
+    velocidad=None,
+    rumbo=None,
+    altitud=None,
+    fecha_dispositivo=None,
+    fuente=PosicionUnidad.Fuente.NAVEGADOR,
+):
+    """Valida y conserva una posición dentro del recorrido de un despliegue."""
+    _validar_usuario(usuario_responsable)
+    if not isinstance(despliegue, DespliegueUnidad) or not despliegue.pk:
+        raise ValidationError("El despliegue no existe.")
+    try:
+        actual = DespliegueUnidad.objects.select_for_update().select_related(
+            "emergencia", "unidad"
+        ).get(pk=despliegue.pk)
+    except DespliegueUnidad.DoesNotExist as error:
+        raise ValidationError("El despliegue no existe.") from error
+    if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
+        raise ValidationError("El despliegue está fuera del ámbito autorizado.")
+    if actual.estado not in DespliegueUnidad.ESTADOS_ACTIVOS:
+        raise ValidationError("El despliegue ya no está activo.")
+    if not actual.emergencia.admite_despliegues:
+        raise ValidationError("La emergencia ya no admite seguimiento de unidades.")
+    if actual.unidad_id != despliegue.unidad_id:
+        raise ValidationError("La unidad ya no corresponde al despliegue.")
+    if fecha_dispositivo and timezone.is_naive(fecha_dispositivo):
+        fecha_dispositivo = timezone.make_aware(fecha_dispositivo)
+    if fecha_dispositivo and fecha_dispositivo > timezone.now() + timedelta(minutes=5):
+        raise ValidationError({"fecha_dispositivo": "La fecha del dispositivo está adelantada."})
+
+    posicion = PosicionUnidad(
+        despliegue=actual,
+        latitud=latitud,
+        longitud=longitud,
+        precision=precision,
+        velocidad=velocidad,
+        rumbo=rumbo,
+        altitud=altitud,
+        fecha_dispositivo=fecha_dispositivo,
+        reportado_por=usuario_responsable,
+        fuente=fuente,
+    )
+    posicion.full_clean()
+    posicion.save()
+    return posicion

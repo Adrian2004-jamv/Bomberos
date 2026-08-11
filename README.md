@@ -15,9 +15,11 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 
 - Python 3.14.
 - Django 6.1.
+- PostgreSQL 18 con PostGIS 3.6.
+- Psycopg 3.
 - Git, para control de versiones.
 
-El proyecto utiliza SQLite durante el desarrollo local. La base de datos local no se incluye en el repositorio.
+El proyecto utiliza PostgreSQL como única base de datos activa. La base SQLite utilizada durante la etapa inicial fue retirada después de verificar la migración.
 
 ## Ejecución local
 
@@ -48,6 +50,21 @@ Para desarrollo, el proyecto admite estas variables de entorno:
 
 - `DJANGO_SECRET_KEY`: clave secreta de Django.
 - `DJANGO_DEBUG`: use `True` solamente en desarrollo local y `False` en producción.
+- `POSTGRES_DB`: nombre de la base; por defecto `bomberos_cotopaxi`.
+- `POSTGRES_USER`: usuario; por defecto `postgres`.
+- `POSTGRES_PASSWORD`: contraseña de PostgreSQL.
+- `POSTGRES_HOST`: servidor; por defecto `127.0.0.1`.
+- `POSTGRES_PORT`: puerto; por defecto `5432`.
+
+En desarrollo local, si `POSTGRES_PASSWORD` no está definida, la contraseña puede guardarse en `secrets/postgresql_password.txt`. La carpeta `secrets/` está excluida de Git.
+
+La base debe crearse previamente y tener PostGIS habilitado:
+
+```sql
+CREATE DATABASE bomberos_cotopaxi;
+\c bomberos_cotopaxi
+CREATE EXTENSION IF NOT EXISTS postgis;
+```
 
 El valor de respaldo de `DJANGO_SECRET_KEY` incluido en el código es únicamente para desarrollo y no es seguro para producción.
 

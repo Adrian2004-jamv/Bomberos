@@ -152,3 +152,69 @@ class DespliegueUnidad(models.Model):
 
     def __str__(self):
         return f"{self.emergencia.codigo} - {self.unidad.codigo_interno} ({self.get_estado_display()})"
+
+
+class PosicionUnidad(models.Model):
+    class Fuente(models.TextChoices):
+        NAVEGADOR = "navegador", "Navegador web"
+
+    despliegue = models.ForeignKey(
+        DespliegueUnidad,
+        on_delete=models.CASCADE,
+        related_name="posiciones",
+        verbose_name="despliegue",
+    )
+    latitud = models.DecimalField(
+        "latitud", max_digits=9, decimal_places=6,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    )
+    longitud = models.DecimalField(
+        "longitud", max_digits=10, decimal_places=6,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    )
+    precision = models.DecimalField(
+        "precisión horizontal (m)", max_digits=9, decimal_places=2,
+        null=True, blank=True, validators=[MinValueValidator(0)],
+    )
+    velocidad = models.DecimalField(
+        "velocidad (m/s)", max_digits=9, decimal_places=3,
+        null=True, blank=True, validators=[MinValueValidator(0)],
+    )
+    rumbo = models.DecimalField(
+        "rumbo (grados)", max_digits=6, decimal_places=2,
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(360)],
+    )
+    altitud = models.DecimalField(
+        "altitud (m)", max_digits=10, decimal_places=2, null=True, blank=True,
+    )
+    fecha_dispositivo = models.DateTimeField("fecha del dispositivo", null=True, blank=True)
+    fecha_recepcion = models.DateTimeField("fecha de recepción", auto_now_add=True)
+    reportado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="posiciones_unidades_reportadas",
+        verbose_name="reportado por",
+    )
+    fuente = models.CharField(
+        "fuente", max_length=20, choices=Fuente.choices, default=Fuente.NAVEGADOR,
+    )
+
+    class Meta:
+        verbose_name = "posición de unidad"
+        verbose_name_plural = "posiciones de unidades"
+        ordering = ("-fecha_recepcion", "-pk")
+        indexes = [
+            models.Index(fields=("despliegue", "-fecha_recepcion"), name="pos_despl_fecha_idx"),
+            models.Index(fields=("-fecha_recepcion",), name="pos_fecha_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(latitud__gte=-90, latitud__lte=90), name="pos_latitud_valida"),
+            models.CheckConstraint(condition=models.Q(longitud__gte=-180, longitud__lte=180), name="pos_longitud_valida"),
+            models.CheckConstraint(condition=models.Q(precision__isnull=True) | models.Q(precision__gte=0), name="pos_precision_valida"),
+            models.CheckConstraint(condition=models.Q(velocidad__isnull=True) | models.Q(velocidad__gte=0), name="pos_velocidad_valida"),
+            models.CheckConstraint(condition=models.Q(rumbo__isnull=True) | models.Q(rumbo__gte=0, rumbo__lte=360), name="pos_rumbo_valido"),
+        ]
+
+    def __str__(self):
+        return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"

@@ -27,7 +27,9 @@
                 <span aria-hidden="true">◇</span> Capacidades operativas
             </a>
         {% endif %}
-        <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">△</span> Emergencias</span>
+        <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' %} nav-item--active{% endif %}" href="{% url 'emergencias:lista' %}"{% if request.resolver_match.namespace == 'emergencias' %} aria-current="page"{% endif %}>
+            <span aria-hidden="true">△</span> Emergencias
+        </a>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">◎</span> Mapa provincial</span>
     </nav>
 

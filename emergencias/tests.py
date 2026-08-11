@@ -323,3 +323,22 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertEqual(unidad.disponibilidad, Recurso.Disponibilidad.DISPONIBLE)
         self.assertFalse(unidad.historial_estados.exists())
         self.assertFalse(DespliegueUnidad.objects.exists())
+
+    def test_listado_web_muestra_emergencias_del_ambito(self):
+        emergencia = self.crear_emergencia()
+        self.client.force_login(self.usuario_consulta)
+        respuesta = self.client.get("/emergencias/")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, emergencia.codigo)
+
+    def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):
+        emergencia = Emergencia.objects.create(
+            codigo="EM-AJENA-001",
+            tipo_emergencia="Emergencia ajena",
+            direccion="Otra institución",
+            estacion_responsable=self.estacion_dos,
+            registrado_por=self.usuario_institucional,
+        )
+        self.client.force_login(self.usuario_consulta)
+        respuesta = self.client.get(f"/emergencias/{emergencia.pk}/")
+        self.assertEqual(respuesta.status_code, 404)

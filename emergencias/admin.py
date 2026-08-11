@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DespliegueUnidad, Emergencia
+from .models import DespliegueUnidad, Emergencia, PosicionUnidad
 
 
 class DespliegueUnidadInline(admin.TabularInline):
@@ -117,6 +117,28 @@ class DespliegueUnidadAdmin(admin.ModelAdmin):
         "fecha_llegada",
         "fecha_retorno",
         "observaciones",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PosicionUnidad)
+class PosicionUnidadAdmin(admin.ModelAdmin):
+    list_display = ("despliegue", "latitud", "longitud", "precision", "reportado_por", "fecha_recepcion")
+    list_filter = ("fuente", "fecha_recepcion", "despliegue__estacion_procedencia")
+    search_fields = ("despliegue__emergencia__codigo", "despliegue__unidad__codigo_interno", "reportado_por__username")
+    list_select_related = ("despliegue", "despliegue__emergencia", "despliegue__unidad", "reportado_por")
+    readonly_fields = (
+        "despliegue", "latitud", "longitud", "precision", "velocidad", "rumbo",
+        "altitud", "fecha_dispositivo", "fecha_recepcion", "reportado_por", "fuente",
     )
     fields = readonly_fields
 

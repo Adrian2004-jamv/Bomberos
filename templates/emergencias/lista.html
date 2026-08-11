@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Emergencias{% endblock %}
+{% block page_title %}Emergencias{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel__heading">
+        <div><p class="eyebrow">Seguimiento operativo</p><h2>Emergencias registradas</h2></div>
+        {% if puede_gestionar_en_admin %}<a class="button button--primary" href="{% url 'admin:emergencias_emergencia_changelist' %}">Administrar emergencias</a>{% endif %}
+    </div>
+    {% if emergencias %}
+        <div class="table-responsive"><table>
+            <thead><tr><th>Código</th><th>Tipo</th><th>Prioridad</th><th>Estado</th><th>Estación</th><th>Reporte</th></tr></thead>
+            <tbody>{% for emergencia in emergencias %}<tr>
+                <td><a href="{% url 'emergencias:detalle' emergencia.pk %}"><strong>{{ emergencia.codigo }}</strong></a></td>
+                <td>{{ emergencia.tipo_emergencia }}</td><td>{{ emergencia.get_prioridad_display }}</td><td>{{ emergencia.get_estado_display }}</td>
+                <td>{{ emergencia.estacion_responsable.nombre }}</td><td>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+    {% else %}<div class="empty-state"><p>No existen emergencias registradas en su ámbito autorizado.</p></div>{% endif %}
+</section>
+{% endblock %}

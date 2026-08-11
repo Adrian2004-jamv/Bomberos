@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Transmisión GPS{% endblock %}
+{% block page_title %}Transmisión GPS{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/gps.css' %}">{% endblock %}
+
+{% block content %}
+<section
+    class="gps-console"
+    data-gps-console
+    data-register-url="{% url 'emergencias:registrar_posicion' despliegue.pk %}"
+    data-latest-url="{% url 'emergencias:ultima_posicion' despliegue.pk %}"
+>
+    <header class="gps-console__header">
+        <div><p class="eyebrow">Seguimiento durante emergencia</p><h2>{{ despliegue.unidad.codigo_interno }}</h2><p>{{ despliegue.emergencia.codigo }} · {{ despliegue.emergencia.tipo_emergencia }}</p></div>
+        <span class="gps-state" data-gps-state data-state="stopped"><span aria-hidden="true"></span>Transmisión detenida</span>
+    </header>
+
+    <div class="gps-notice" role="note">
+        La ubicación se utilizará exclusivamente para seguir esta unidad durante el despliegue activo. La transmisión solo comienza cuando presione el botón correspondiente.
+    </div>
+
+    <div class="gps-grid">
+        <article><span>Estado del despliegue</span><strong>{{ despliegue.get_estado_display }}</strong></article>
+        <article><span>Última ubicación</span><strong data-gps-coordinates>Sin posiciones enviadas</strong></article>
+        <article><span>Precisión</span><strong data-gps-accuracy>No disponible</strong></article>
+        <article><span>Último envío</span><strong data-gps-time>No disponible</strong></article>
+        <article><span>Envíos de esta sesión</span><strong data-gps-count>0</strong></article>
+    </div>
+
+    <div class="gps-message" data-gps-message role="status" aria-live="polite">GPS preparado. La transmisión no está activa.</div>
+    <div class="gps-actions">
+        <button class="gps-button gps-button--start" type="button" data-gps-start>Iniciar transmisión</button>
+        <button class="gps-button gps-button--stop" type="button" data-gps-stop disabled>Detener transmisión</button>
+        <a class="gps-button gps-button--back" href="{% url 'emergencias:detalle' despliegue.emergencia_id %}">Volver a la emergencia</a>
+    </div>
+    <p class="gps-security">En producción, la geolocalización del navegador requiere HTTPS. Durante el desarrollo puede utilizarse desde <code>localhost</code>.</p>
+</section>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'emergencias/js/gps.js' %}" defer></script>{% endblock %}

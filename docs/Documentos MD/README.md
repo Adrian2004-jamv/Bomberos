@@ -27,5 +27,8 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 21. [Interfaz responsive de capacidades operativas](21_interfaz_responsive_capacidades.md)
 22. [Dashboard institucional responsive](22_dashboard_institucional_responsive.md)
 23. [Emergencias y despliegue inicial de unidades](23_emergencias_despliegue_unidades.md)
+24. [Migración local a PostgreSQL y PostGIS](24_migracion_postgresql_postgis.md)
+25. [Conexión de módulos y datos locales de demostración](25_conexion_modulos_demo.md)
+26. [Captura y almacenamiento de posiciones GPS](26_transmision_posiciones_gps.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

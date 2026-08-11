@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ emergencia.codigo }}{% endblock %}
+{% block page_title %}{{ emergencia.codigo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel__heading">
+        <div><p class="eyebrow">{{ emergencia.get_estado_display }}</p><h2>{{ emergencia.tipo_emergencia }}</h2></div>
+        <a class="button" href="{% url 'emergencias:lista' %}">Volver al listado</a>
+    </div>
+    <dl class="detail-grid">
+        <div><dt>Prioridad</dt><dd>{{ emergencia.get_prioridad_display }}</dd></div>
+        <div><dt>Estación responsable</dt><dd>{{ emergencia.estacion_responsable }}</dd></div>
+        <div><dt>Fecha de reporte</dt><dd>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</dd></div>
+        <div><dt>Registrado por</dt><dd>{{ emergencia.registrado_por.get_full_name|default:emergencia.registrado_por.username }}</dd></div>
+        <div><dt>Dirección</dt><dd>{{ emergencia.direccion }}</dd></div>
+        <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
+    </dl>
+</section>
+<section class="panel">
+    <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
+    {% if despliegues %}<div class="table-responsive"><table>
+        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Asignación</th><th>Acción</th></tr></thead>
+        <tbody>{% for despliegue in despliegues %}<tr><td>{{ despliegue.unidad }}</td><td>{{ despliegue.estacion_procedencia }}</td><td>{{ despliegue.get_estado_display }}</td><td>{{ despliegue.fecha_asignacion|date:"d/m/Y H:i" }}</td><td>{% if despliegue.activo and puede_transmitir_gps %}<a class="button button--primary" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}">Transmitir ubicación GPS</a>{% else %}<span>No disponible</span>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div class="empty-state"><p>No hay unidades desplegadas para esta emergencia.</p></div>{% endif %}
+</section>
+{% endblock %}
