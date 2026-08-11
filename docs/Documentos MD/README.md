@@ -17,5 +17,9 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 11. [Catálogo y requisitos de capacidades operativas](11_catalogo_requisitos_capacidades.md)
 12. [Motor de evaluación de capacidades por estación](12_motor_evaluacion_capacidades.md)
 13. [Autenticación y estructura visual base](13_autenticacion_estructura_visual.md)
+14. [Rediseño moderno del inicio de sesión](14_rediseno_inicio_sesion.md)
+15. [Identidad visual institucional basada en el emblema](15_identidad_visual_institucional.md)
+16. [Mejora institucional del inicio de sesión de Latacunga](16_mejora_login_institucional_latacunga.md)
+17. [Interfaz responsive del módulo instituciones](17_interfaz_responsive_instituciones.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

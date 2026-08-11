@@ -4,75 +4,141 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Acceso al Sistema de Gestión de Bomberos de Cotopaxi">
-    <title>Iniciar sesión | Bomberos Cotopaxi</title>
+    <meta name="description" content="Acceso al sistema institucional del Cuerpo de Bomberos Latacunga">
+    <title>Iniciar sesión | Cuerpo de Bomberos Latacunga</title>
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
 <body class="login-page">
-    <main class="login-shell">
-        <section class="login-intro" aria-labelledby="system-name">
-            <div class="login-brand">
-                <span class="login-brand__mark" aria-hidden="true">BC</span>
-                <span>Cuerpos de Bomberos de Cotopaxi</span>
+    <main class="access-shell">
+        <section class="access-context" aria-labelledby="system-name">
+            <header class="access-brand">
+                <img
+                    class="access-brand__logo"
+                    src="{% static 'img/logos/Logo.png' %}"
+                    alt="Emblema del Cuerpo de Bomberos"
+                >
+                <span class="access-brand__text">
+                    <strong>Cuerpo de Bomberos Latacunga</strong>
+                    <small>Inventarios y Capacidades Operativas</small>
+                </span>
+            </header>
+
+            <div class="access-context__body">
+                <span class="access-kicker">Sistema de gestión institucional</span>
+                <h1 id="system-name">Inventarios y<br>capacidades<br>operativas.</h1>
+                <p>Plataforma institucional para gestionar los recursos, el personal y las capacidades operativas.</p>
+                <div class="access-modules" aria-label="Módulos principales">
+                    <span>Inventario</span>
+                    <span>Personal</span>
+                    <span>Capacidades</span>
+                </div>
             </div>
-            <div>
-                <p class="login-eyebrow">Centro de gestión provincial</p>
-                <h1 id="system-name">Sistema de gestión operativa</h1>
-                <p>Información institucional, recursos y capacidades para fortalecer la respuesta bomberil de la provincia.</p>
-            </div>
-            <p class="login-intro__note">Acceso exclusivo para personal autorizado.</p>
+
+            <footer class="access-context__footer">
+                <span>Servicio</span>
+                <span aria-hidden="true">·</span>
+                <span>Prevención</span>
+                <span aria-hidden="true">·</span>
+                <span>Respuesta</span>
+            </footer>
         </section>
 
-        <section class="login-panel" aria-labelledby="login-title">
-            <div class="login-card">
-                <p class="login-card__eyebrow">Acceso seguro</p>
-                <h2 id="login-title">Iniciar sesión</h2>
-                <p class="login-card__help">Ingrese con su cuenta institucional.</p>
+        <section class="access-form-panel" aria-labelledby="login-title">
+            <div class="access-form-wrap">
+                <header class="access-form-heading">
+                    <span class="access-form-heading__line" aria-hidden="true"></span>
+                    <p>Acceso institucional</p>
+                    <h2 id="login-title">Iniciar sesión</h2>
+                    <span>Utilice sus credenciales institucionales para continuar.</span>
+                </header>
 
                 {% if form.errors %}
-                    <div class="login-error" role="alert">
-                        El usuario o la contraseña no son correctos. Revise los datos e inténtelo nuevamente.
+                    <div class="form-alert" role="alert">
+                        <strong><span aria-hidden="true">⚠</span> Credenciales incorrectas</strong>
+                        <span>El usuario o la contraseña no son correctos. Inténtalo nuevamente.</span>
                     </div>
                 {% endif %}
 
                 {% if next and user.is_authenticated %}
-                    <div class="login-error" role="alert">Su cuenta no tiene acceso a la página solicitada.</div>
+                    <div class="form-alert" role="alert">
+                        <strong>Acceso no disponible.</strong>
+                        <span>Su cuenta no tiene acceso a la página solicitada.</span>
+                    </div>
                 {% endif %}
 
-                <form method="post" class="login-form" novalidate>
+                <form method="post" class="access-form" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ next }}">
 
-                    <div class="form-field">
+                    <div class="field-group">
                         <label for="{{ form.username.id_for_label }}">Usuario</label>
-                        <input
-                            type="text"
-                            name="{{ form.username.html_name }}"
-                            id="{{ form.username.id_for_label }}"
-                            value="{{ form.username.value|default:'' }}"
-                            autocomplete="username"
-                            autocapitalize="none"
-                            required
-                            autofocus
-                        >
+                        <div class="field-control">
+                            <span class="field-control__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"/>
+                                </svg>
+                            </span>
+                            <input
+                                type="text"
+                                name="{{ form.username.html_name }}"
+                                id="{{ form.username.id_for_label }}"
+                                value="{{ form.username.value|default:'' }}"
+                                autocomplete="username"
+                                autocapitalize="none"
+                                placeholder="Ingrese su usuario"
+                                required
+                                autofocus
+                            >
+                        </div>
                     </div>
 
-                    <div class="form-field">
+                    <div class="field-group">
                         <label for="{{ form.password.id_for_label }}">Contraseña</label>
-                        <input
-                            type="password"
-                            name="{{ form.password.html_name }}"
-                            id="{{ form.password.id_for_label }}"
-                            autocomplete="current-password"
-                            required
-                        >
+                        <div class="field-control">
+                            <span class="field-control__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <rect x="5" y="10" width="14" height="10" rx="2"/>
+                                    <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+                                </svg>
+                            </span>
+                            <input
+                                type="password"
+                                name="{{ form.password.html_name }}"
+                                id="{{ form.password.id_for_label }}"
+                                autocomplete="current-password"
+                                placeholder="Ingrese su contraseña"
+                                required
+                            >
+                            <button
+                                class="password-toggle"
+                                type="button"
+                                aria-label="Mostrar contraseña"
+                                aria-pressed="false"
+                                data-password-toggle
+                                data-password-input="{{ form.password.id_for_label }}"
+                            >
+                                <svg class="password-toggle__show" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/>
+                                    <circle cx="12" cy="12" r="2.5"/>
+                                </svg>
+                                <svg class="password-toggle__hide" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                    <path d="m3 3 18 18M10.6 6.2A9.5 9.5 0 0 1 12 6c6.5 0 10 6 10 6a16 16 0 0 1-2.2 2.8M6.1 6.1C3.4 8 2 12 2 12s3.5 6 10 6a9.8 9.8 0 0 0 3-.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
-                    <button class="login-button" type="submit">Acceder al sistema</button>
+                    <button class="access-button" type="submit">
+                        <span>Ingresar</span>
+                        <span aria-hidden="true">→</span>
+                    </button>
                 </form>
+
+                <p class="access-help">Si no puede acceder, contacte al administrador de su institución.</p>
             </div>
         </section>
     </main>
+    <script src="{% static 'js/app.js' %}"></script>
 </body>
 </html>

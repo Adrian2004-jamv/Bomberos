@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Instituciones{% endblock %}
+{% block page_title %}Cuerpos de Bomberos{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'instituciones/css/instituciones.css' %}">{% endblock %}
+{% block content %}
+<section class="institution-toolbar" aria-labelledby="institution-summary">
+    <div><h2 id="institution-summary">Estructura institucional</h2><p>Consulta los Cuerpos de Bomberos y sus estaciones registradas.</p></div>
+    {% if puede_gestionar %}<a class="action action--primary" href="{% url 'instituciones:crear_cuerpo' %}">Nuevo Cuerpo de Bomberos</a>{% endif %}
+</section>
+{% if cuerpos %}
+<div class="institution-list" role="list">
+    {% for cuerpo in cuerpos %}
+    <article class="institution-card" role="listitem">
+        <div class="institution-card__identity">
+            <span class="institution-monogram" aria-hidden="true">{{ cuerpo.sigla|slice:":2" }}</span>
+            <div><p>{{ cuerpo.sigla }}</p><h2>{{ cuerpo.nombre }}</h2></div>
+        </div>
+        <dl class="institution-card__data">
+            <div><dt>Cantón</dt><dd>{{ cuerpo.canton.nombre }}</dd></div>
+            <div><dt>Estaciones</dt><dd>{{ cuerpo.cantidad_estaciones }}</dd></div>
+            <div><dt>Estado</dt><dd><span class="status status--{% if cuerpo.activo %}active{% else %}inactive{% endif %}">{% if cuerpo.activo %}Activo{% else %}Inactivo{% endif %}</span></dd></div>
+        </dl>
+        <a class="action action--secondary" href="{% url 'instituciones:detalle' cuerpo.pk %}" aria-label="Consultar {{ cuerpo.nombre }}">Consultar</a>
+    </article>
+    {% endfor %}
+</div>
+{% if pagina.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="Paginación de instituciones">
+    {% if pagina.has_previous %}<a href="?pagina={{ pagina.previous_page_number }}" rel="prev">Anterior</a>{% endif %}
+    <span aria-current="page">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+    {% if pagina.has_next %}<a href="?pagina={{ pagina.next_page_number }}" rel="next">Siguiente</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="empty-state"><h2>Sin información institucional disponible</h2><p>Tu cuenta no tiene una estación asociada o todavía no existen instituciones visibles.</p></div>
+{% endif %}
+{% endblock %}

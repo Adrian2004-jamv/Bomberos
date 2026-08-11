@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ cuerpo.sigla }}{% endblock %}
+{% block page_title %}{{ cuerpo.nombre }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'instituciones/css/instituciones.css' %}">{% endblock %}
+{% block content %}
+<div class="page-actions">
+    <a class="action action--secondary" href="{% url 'instituciones:lista' %}">Volver al listado</a>
+    {% if puede_gestionar %}
+    <a class="action action--secondary" href="{% url 'instituciones:editar_cuerpo' cuerpo.pk %}">Editar institución</a>
+    <a class="action action--primary" href="{% url 'instituciones:crear_estacion' cuerpo.pk %}">Nueva estación</a>
+    {% endif %}
+</div>
+<section class="institution-detail" aria-labelledby="institution-data-title">
+    <header>
+        <span class="institution-monogram" aria-hidden="true">{{ cuerpo.sigla|slice:":2" }}</span>
+        <div><p>{{ cuerpo.sigla }} · {{ cuerpo.canton.nombre }}</p><h2 id="institution-data-title">Información institucional</h2></div>
+        <span class="status status--{% if cuerpo.activo %}active{% else %}inactive{% endif %}">{% if cuerpo.activo %}Activo{% else %}Inactivo{% endif %}</span>
+    </header>
+    <dl class="detail-grid">
+        <div><dt>RUC</dt><dd>{{ cuerpo.ruc }}</dd></div>
+        <div><dt>Cantón</dt><dd>{{ cuerpo.canton.nombre }}</dd></div>
+        <div><dt>Dirección</dt><dd>{{ cuerpo.direccion }}</dd></div>
+        <div><dt>Teléfono</dt><dd>{{ cuerpo.telefono|default:"No registrado" }}</dd></div>
+        <div><dt>Correo electrónico</dt><dd>{% if cuerpo.correo %}<a href="mailto:{{ cuerpo.correo }}">{{ cuerpo.correo }}</a>{% else %}No registrado{% endif %}</dd></div>
+        <div><dt>Sitio web</dt><dd>{% if cuerpo.sitio_web %}<a href="{{ cuerpo.sitio_web }}" rel="noopener noreferrer">{{ cuerpo.sitio_web }}</a>{% else %}No registrado{% endif %}</dd></div>
+    </dl>
+</section>
+<section class="stations-section" aria-labelledby="stations-title">
+    <div class="section-title"><div><p class="eyebrow">Cobertura institucional</p><h2 id="stations-title">Estaciones</h2></div><span>{{ cuerpo.estaciones.all|length }} registrada{{ cuerpo.estaciones.all|length|pluralize:"s" }}</span></div>
+    {% if cuerpo.estaciones.all %}
+    <div class="station-list" role="list">
+        {% for estacion in cuerpo.estaciones.all %}
+        <article class="station-card" role="listitem">
+            <div class="station-card__heading"><span>{{ estacion.codigo }}</span><h3>{{ estacion.nombre }}</h3></div>
+            <dl>
+                <div><dt>Dirección</dt><dd>{{ estacion.direccion }}</dd></div>
+                <div><dt>Teléfono</dt><dd>{{ estacion.telefono|default:"No registrado" }}</dd></div>
+                <div><dt>Estado</dt><dd><span class="status status--{% if estacion.activo %}active{% else %}inactive{% endif %}">{% if estacion.activo %}Activa{% else %}Inactiva{% endif %}</span></dd></div>
+            </dl>
+            {% if puede_gestionar %}<a class="action action--secondary" href="{% url 'instituciones:editar_estacion' estacion.pk %}">Editar estación</a>{% endif %}
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}<div class="empty-state empty-state--compact"><p>No existen estaciones visibles para esta institución.</p></div>{% endif %}
+</section>
+{% endblock %}

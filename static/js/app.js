@@ -30,3 +30,22 @@ window.addEventListener("resize", () => {
         setSidebar(false);
     }
 });
+
+document.querySelectorAll("[data-password-toggle]").forEach((passwordToggle) => {
+    const passwordInput = document.getElementById(passwordToggle.dataset.passwordInput);
+
+    if (!passwordInput) {
+        return;
+    }
+
+    passwordToggle.addEventListener("click", () => {
+        const passwordIsVisible = passwordInput.type === "text";
+        passwordInput.type = passwordIsVisible ? "password" : "text";
+        passwordToggle.setAttribute("aria-pressed", String(!passwordIsVisible));
+        passwordToggle.setAttribute(
+            "aria-label",
+            passwordIsVisible ? "Mostrar contraseña" : "Ocultar contraseña",
+        );
+        passwordInput.focus();
+    });
+});

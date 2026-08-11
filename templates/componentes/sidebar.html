@@ -1,6 +1,11 @@
+{% load static %}
 <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
     <div class="sidebar__brand">
-        <span class="brand-mark" aria-hidden="true">BC</span>
+        <img
+            class="brand-logo"
+            src="{% static 'img/logos/Logo.png' %}"
+            alt="Emblema del Cuerpo de Bomberos"
+        >
         <span>
             <strong>Bomberos Cotopaxi</strong>
             <small>Gestión provincial</small>
@@ -8,10 +13,12 @@
     </div>
 
     <nav class="sidebar__nav">
-        <a class="nav-item nav-item--active" href="{% url 'core:inicio' %}" aria-current="page">
+        <a class="nav-item{% if request.resolver_match.namespace == 'core' %} nav-item--active{% endif %}" href="{% url 'core:inicio' %}"{% if request.resolver_match.namespace == 'core' %} aria-current="page"{% endif %}>
             <span aria-hidden="true">⌂</span> Inicio
         </a>
-        <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">▦</span> Instituciones</span>
+        <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
+            <span aria-hidden="true">▦</span> Instituciones
+        </a>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">□</span> Inventario</span>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">♟</span> Personal operativo</span>
         <span class="nav-item nav-item--disabled" aria-disabled="true"><span aria-hidden="true">◇</span> Capacidades</span>

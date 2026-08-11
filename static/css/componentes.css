@@ -6,7 +6,10 @@
     width: var(--sidebar-width);
     flex-direction: column;
     color: var(--color-white);
-    background: var(--color-navy-950);
+    background:
+        linear-gradient(180deg, rgb(225 6 19 / 14%), transparent 14rem),
+        var(--color-navy-950);
+    box-shadow: 0.4rem 0 1.5rem rgb(0 0 0 / 10%);
 }
 
 .sidebar__brand {
@@ -15,7 +18,7 @@
     gap: 0.8rem;
     min-height: 5.25rem;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid rgb(255 255 255 / 10%);
+    border-bottom: 3px solid var(--color-red-600);
 }
 
 .sidebar__brand strong,
@@ -25,21 +28,19 @@
 
 .sidebar__brand small {
     margin-top: 0.15rem;
-    color: #a9b7ca;
+    color: #bdbdbd;
     font-size: 0.75rem;
 }
 
-.brand-mark {
-    display: grid;
-    width: 2.65rem;
-    height: 2.65rem;
+.brand-logo {
+    width: 3rem;
+    height: 3rem;
     flex: 0 0 auto;
-    place-items: center;
+    padding: 0.18rem;
     border-radius: 50%;
-    color: var(--color-white);
-    background: var(--color-red-600);
-    font-weight: 850;
-    letter-spacing: 0.04em;
+    background: var(--color-white);
+    object-fit: contain;
+    filter: drop-shadow(0 0.3rem 0.6rem rgb(0 0 0 / 22%));
 }
 
 .sidebar__nav {
@@ -55,20 +56,24 @@
     min-height: 2.75rem;
     padding: 0.65rem 0.8rem;
     border-radius: var(--radius-sm);
-    color: #d7e0eb;
+    color: #e2e2e2;
     text-decoration: none;
 }
 
 .nav-item > span:first-child {
     width: 1.25rem;
-    color: #91a4bc;
+    color: #a9a9a9;
     text-align: center;
 }
 
 .nav-item--active {
     color: var(--color-white);
-    background: var(--color-navy-800);
-    box-shadow: inset 3px 0 0 var(--color-red-600);
+    background: var(--color-red-600);
+    box-shadow: 0 0.45rem 1rem rgb(225 6 19 / 18%);
+}
+
+.nav-item--active > span:first-child {
+    color: var(--color-white);
 }
 
 .nav-item--disabled {
@@ -82,7 +87,7 @@
     gap: 0.55rem;
     margin-top: auto;
     padding: 1rem 1.25rem;
-    color: #a9b7ca;
+    color: #bdbdbd;
     font-size: 0.78rem;
 }
 

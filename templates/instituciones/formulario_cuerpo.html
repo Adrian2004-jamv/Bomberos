@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'instituciones/css/instituciones.css' %}">{% endblock %}
+{% block content %}
+<form class="institution-form" method="post" novalidate>
+    {% csrf_token %}
+    <header><h2>Datos institucionales</h2><p>Los campos marcados con * son obligatorios.</p></header>
+    {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid">
+        {% for field in form %}
+        <div class="form-field{% if field.name == 'direccion' or field.name == 'sitio_web' %} form-field--wide{% endif %}{% if field.field.widget.input_type == 'checkbox' %} form-field--checkbox{% endif %}">
+            {% if field.field.widget.input_type == 'checkbox' %}
+                {{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% else %}
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>{{ field }}
+            {% endif %}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="form-actions">
+        <a class="action action--secondary" href="{% if cuerpo %}{% url 'instituciones:detalle' cuerpo.pk %}{% else %}{% url 'instituciones:lista' %}{% endif %}">Cancelar</a>
+        <button class="action action--primary" type="submit">Guardar institución</button>
+    </div>
+</form>
+{% endblock %}
