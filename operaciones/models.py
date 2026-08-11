@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -290,3 +292,50 @@ class RequisitoPersonalCapacidad(models.Model):
             f"{self.capacidad.nombre}: {self.cantidad_minima} × "
             f"{self.especialidad.nombre} ({self.get_nivel_minimo_display()})"
         )
+
+
+class EvaluacionCapacidadEstacion(models.Model):
+    class Estado(models.TextChoices):
+        CUMPLE = "cumple", "Cumple"
+        PARCIAL = "parcial", "Cumplimiento parcial"
+        NO_CUMPLE = "no_cumple", "No cumple"
+
+    estacion = models.ForeignKey(
+        "instituciones.Estacion",
+        on_delete=models.PROTECT,
+        related_name="evaluaciones_capacidades",
+        verbose_name="estación",
+    )
+    capacidad = models.ForeignKey(
+        TipoCapacidadOperativa,
+        on_delete=models.PROTECT,
+        related_name="evaluaciones_estaciones",
+        verbose_name="capacidad operativa",
+    )
+    estado = models.CharField("estado", max_length=15, choices=Estado.choices)
+    porcentaje_cumplimiento = models.DecimalField(
+        "porcentaje de cumplimiento",
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
+    detalle_recursos = models.JSONField("detalle de recursos", default=list)
+    detalle_personal = models.JSONField("detalle de personal", default=list)
+    observaciones = models.TextField("observaciones", blank=True)
+    evaluado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="evaluaciones_capacidades_realizadas",
+        verbose_name="evaluado por",
+        null=True,
+        blank=True,
+    )
+    fecha_evaluacion = models.DateTimeField("fecha de evaluación", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "evaluación de capacidad de estación"
+        verbose_name_plural = "evaluaciones de capacidades de estaciones"
+        ordering = ("-fecha_evaluacion", "-pk")
+
+    def __str__(self):
+        return f"{self.estacion} - {self.capacidad.nombre} - {self.get_estado_display()}"
