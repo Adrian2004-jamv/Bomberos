@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Bases de datos locales
+Bomberos.db
+db.sqlite3
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.sqlite-journal
+
+# Archivos generados y subidos por usuarios
+media/
+staticfiles/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+*.pem
+*.key
+.ssh/
+id_rsa*
+id_ed25519*
+
+# Registros, pruebas y cobertura
+*.log
+logs/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+
+# Editores e IDE
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Empaquetado y herramientas de Python
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
