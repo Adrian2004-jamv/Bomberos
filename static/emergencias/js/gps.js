@@ -12,7 +12,7 @@
         start: root.querySelector("[data-gps-start]"), stop: root.querySelector("[data-gps-stop]"),
         state: root.querySelector("[data-gps-state]"), message: root.querySelector("[data-gps-message]"),
         coordinates: root.querySelector("[data-gps-coordinates]"), accuracy: root.querySelector("[data-gps-accuracy]"),
-        time: root.querySelector("[data-gps-time]"), count: root.querySelector("[data-gps-count]"),
+        speed: root.querySelector("[data-gps-speed]"), time: root.querySelector("[data-gps-time]"), count: root.querySelector("[data-gps-count]"),
     };
     let watchId = null;
     let lastSent = null;
@@ -62,10 +62,13 @@
             ui.coordinates.textContent = `${Number(payload.latitud).toFixed(6)}, ${Number(payload.longitud).toFixed(6)}`;
             const accuracyLevel = payload.precision <= 20 ? "alta" : payload.precision <= 50 ? "moderada" : "baja";
             ui.accuracy.textContent = payload.precision == null ? "No disponible" : `± ${Math.round(payload.precision)} m (${accuracyLevel})`;
+            ui.speed.textContent = payload.velocidad == null ? "No disponible" : `${Number(payload.velocidad).toFixed(1)} m/s`;
             ui.time.textContent = new Date(data.fecha_recepcion).toLocaleTimeString(); ui.count.textContent = String(sentCount);
+            setState("Transmitiendo", "active");
             setMessage("Última ubicación enviada correctamente.", "success");
         } catch (_error) {
             pending.push(payload); if (pending.length > MAX_PENDING_POSITIONS) pending.shift();
+            setState("Envío sin confirmar", "error");
             setMessage("Sin conexión con el servidor. La transmisión no se confirma.", "error");
         } finally {
             sending = false;
@@ -80,7 +83,7 @@
     const start = () => {
         if (!("geolocation" in navigator)) { stop("Este navegador no permite geolocalización.", "error"); return; }
         sentCount = 0; lastSent = null; pending.length = 0; ui.count.textContent = "0";
-        ui.start.disabled = true; ui.stop.disabled = false; setState("Transmisión activa", "active");
+        ui.start.disabled = true; ui.stop.disabled = false; setState("Esperando ubicación", "stopped");
         setMessage("Solicitando ubicación al dispositivo…");
         watchId = navigator.geolocation.watchPosition(onPosition, onGeolocationError, GEOLOCATION_OPTIONS);
     };

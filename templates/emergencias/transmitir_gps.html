@@ -22,9 +22,11 @@
     </div>
 
     <div class="gps-grid">
+        <article><span>Estación de procedencia</span><strong>{{ despliegue.estacion_procedencia.nombre }}</strong></article>
         <article><span>Estado del despliegue</span><strong>{{ despliegue.get_estado_display }}</strong></article>
         <article><span>Última ubicación</span><strong data-gps-coordinates>Sin posiciones enviadas</strong></article>
         <article><span>Precisión</span><strong data-gps-accuracy>No disponible</strong></article>
+        <article><span>Velocidad</span><strong data-gps-speed>No disponible</strong></article>
         <article><span>Último envío</span><strong data-gps-time>No disponible</strong></article>
         <article><span>Envíos de esta sesión</span><strong data-gps-count>0</strong></article>
     </div>

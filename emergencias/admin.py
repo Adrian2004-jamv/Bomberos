@@ -132,15 +132,23 @@ class DespliegueUnidadAdmin(admin.ModelAdmin):
 
 @admin.register(PosicionUnidad)
 class PosicionUnidadAdmin(admin.ModelAdmin):
-    list_display = ("despliegue", "latitud", "longitud", "precision", "reportado_por", "fecha_recepcion")
+    list_display = ("despliegue", "unidad", "coordenadas", "precision", "reportado_por", "fecha_recepcion")
     list_filter = ("fuente", "fecha_recepcion", "despliegue__estacion_procedencia")
     search_fields = ("despliegue__emergencia__codigo", "despliegue__unidad__codigo_interno", "reportado_por__username")
     list_select_related = ("despliegue", "despliegue__emergencia", "despliegue__unidad", "reportado_por")
     readonly_fields = (
-        "despliegue", "latitud", "longitud", "precision", "velocidad", "rumbo",
+        "despliegue", "unidad", "coordenadas", "ubicacion", "precision", "velocidad", "rumbo",
         "altitud", "fecha_dispositivo", "fecha_recepcion", "reportado_por", "fuente",
     )
     fields = readonly_fields
+
+    @admin.display(description="unidad")
+    def unidad(self, obj):
+        return obj.despliegue.unidad
+
+    @admin.display(description="coordenadas")
+    def coordenadas(self, obj):
+        return f"{obj.ubicacion.y:.6f}, {obj.ubicacion.x:.6f}"
 
     def has_add_permission(self, request):
         return False

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.gis.db import models as gis_models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -164,13 +165,8 @@ class PosicionUnidad(models.Model):
         related_name="posiciones",
         verbose_name="despliegue",
     )
-    latitud = models.DecimalField(
-        "latitud", max_digits=9, decimal_places=6,
-        validators=[MinValueValidator(-90), MaxValueValidator(90)],
-    )
-    longitud = models.DecimalField(
-        "longitud", max_digits=10, decimal_places=6,
-        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    ubicacion = gis_models.PointField(
+        "ubicación", srid=4326, spatial_index=True,
     )
     precision = models.DecimalField(
         "precisión horizontal (m)", max_digits=9, decimal_places=2,
@@ -209,12 +205,31 @@ class PosicionUnidad(models.Model):
             models.Index(fields=("-fecha_recepcion",), name="pos_fecha_idx"),
         ]
         constraints = [
-            models.CheckConstraint(condition=models.Q(latitud__gte=-90, latitud__lte=90), name="pos_latitud_valida"),
-            models.CheckConstraint(condition=models.Q(longitud__gte=-180, longitud__lte=180), name="pos_longitud_valida"),
             models.CheckConstraint(condition=models.Q(precision__isnull=True) | models.Q(precision__gte=0), name="pos_precision_valida"),
             models.CheckConstraint(condition=models.Q(velocidad__isnull=True) | models.Q(velocidad__gte=0), name="pos_velocidad_valida"),
             models.CheckConstraint(condition=models.Q(rumbo__isnull=True) | models.Q(rumbo__gte=0, rumbo__lte=360), name="pos_rumbo_valido"),
         ]
+
+    @property
+    def latitud(self):
+        return self.ubicacion.y
+
+    @property
+    def longitud(self):
+        return self.ubicacion.x
+
+    def clean(self):
+        super().clean()
+        errores = {}
+        if self.ubicacion:
+            if not -90 <= self.ubicacion.y <= 90:
+                errores["ubicacion"] = "La latitud debe estar entre -90 y 90."
+            if not -180 <= self.ubicacion.x <= 180:
+                errores["ubicacion"] = "La longitud debe estar entre -180 y 180."
+            if self.ubicacion.srid != 4326:
+                errores["ubicacion"] = "La ubicación debe utilizar SRID 4326."
+        if errores:
+            raise ValidationError(errores)
 
     def __str__(self):
         return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"

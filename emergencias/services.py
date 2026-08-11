@@ -7,6 +7,7 @@ parcial en la base de datos.
 """
 
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -217,10 +218,19 @@ def registrar_posicion_unidad(
     if fecha_dispositivo and fecha_dispositivo > timezone.now() + timedelta(minutes=5):
         raise ValidationError({"fecha_dispositivo": "La fecha del dispositivo está adelantada."})
 
+    try:
+        latitud_num = float(latitud)
+        longitud_num = float(longitud)
+    except (TypeError, ValueError) as error:
+        raise ValidationError("La latitud y la longitud deben ser valores numéricos.") from error
+    if not -90 <= latitud_num <= 90:
+        raise ValidationError({"latitud": "La latitud debe estar entre -90 y 90."})
+    if not -180 <= longitud_num <= 180:
+        raise ValidationError({"longitud": "La longitud debe estar entre -180 y 180."})
+
     posicion = PosicionUnidad(
         despliegue=actual,
-        latitud=latitud,
-        longitud=longitud,
+        ubicacion=Point(longitud_num, latitud_num, srid=4326),
         precision=precision,
         velocidad=velocidad,
         rumbo=rumbo,

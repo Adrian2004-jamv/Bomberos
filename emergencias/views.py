@@ -126,7 +126,11 @@ def ultima_posicion(request, pk):
         return JsonResponse({"disponible": False, "mensaje": "Todavía no existen posiciones."})
     return JsonResponse({
         "disponible": True,
-        "latitud": str(posicion.latitud), "longitud": str(posicion.longitud),
+        "latitud": posicion.ubicacion.y, "longitud": posicion.ubicacion.x,
         "precision": str(posicion.precision) if posicion.precision is not None else None,
+        "velocidad": str(posicion.velocidad) if posicion.velocidad is not None else None,
+        "rumbo": str(posicion.rumbo) if posicion.rumbo is not None else None,
+        "fecha_dispositivo": posicion.fecha_dispositivo.isoformat() if posicion.fecha_dispositivo else None,
         "fecha_recepcion": posicion.fecha_recepcion.isoformat(),
+        "estado_despliegue": despliegue.estado,
     })

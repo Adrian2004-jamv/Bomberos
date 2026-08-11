@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
 
     # Aplicaciones del sistema
     "core",
@@ -106,7 +107,7 @@ if not POSTGRES_PASSWORD:
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": os.environ.get("POSTGRES_DB", "bomberos_cotopaxi"),
         "USER": os.environ.get("POSTGRES_USER", "postgres"),
         "PASSWORD": POSTGRES_PASSWORD,
@@ -115,6 +116,19 @@ DATABASES = {
         "CONN_MAX_AGE": 60,
     },
 }
+
+# Librerías geoespaciales instaladas con QGIS en el equipo de desarrollo.
+# En producción pueden definirse rutas diferentes mediante variables de entorno.
+_GDAL_LOCAL = Path(r"C:\Program Files\QGIS 3.44.12\bin\gdal313.dll")
+_GEOS_LOCAL = Path(r"C:\Program Files\QGIS 3.44.12\bin\geos_c.dll")
+if os.environ.get("GDAL_LIBRARY_PATH"):
+    GDAL_LIBRARY_PATH = os.environ["GDAL_LIBRARY_PATH"]
+elif _GDAL_LOCAL.exists():
+    GDAL_LIBRARY_PATH = str(_GDAL_LOCAL)
+if os.environ.get("GEOS_LIBRARY_PATH"):
+    GEOS_LIBRARY_PATH = os.environ["GEOS_LIBRARY_PATH"]
+elif _GEOS_LOCAL.exists():
+    GEOS_LIBRARY_PATH = str(_GEOS_LOCAL)
 
 
 # Password validation

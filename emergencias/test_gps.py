@@ -3,6 +3,8 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -83,19 +85,34 @@ class PosicionesGPSTests(TestCase):
         return registrar_posicion_unidad(despliegue or self.despliegue, usuario or self.usuario, **self.datos_validos(**cambios))
 
     def test_modelo_acepta_posicion_valida(self):
-        posicion = PosicionUnidad(despliegue=self.despliegue, reportado_por=self.usuario, **self.datos_validos())
+        posicion = PosicionUnidad(
+            despliegue=self.despliegue, reportado_por=self.usuario,
+            ubicacion=Point(-78.616667, -0.933333, srid=4326),
+            precision="12.50", velocidad="4.250", rumbo="180.00", altitud="2750.00",
+        )
         posicion.full_clean()
+        self.assertEqual(posicion.ubicacion.srid, 4326)
+        self.assertAlmostEqual(posicion.ubicacion.x, -78.616667)
+        self.assertAlmostEqual(posicion.ubicacion.y, -0.933333)
 
     def test_modelo_rechaza_coordenadas_invalidas(self):
-        for campo, valor in (("latitud", 91), ("longitud", -181)):
-            with self.subTest(campo=campo):
-                posicion = PosicionUnidad(despliegue=self.despliegue, reportado_por=self.usuario, **self.datos_validos(**{campo: valor}))
+        for longitud, latitud in ((-78, 91), (-181, -1)):
+            with self.subTest(longitud=longitud, latitud=latitud):
+                posicion = PosicionUnidad(
+                    despliegue=self.despliegue, reportado_por=self.usuario,
+                    ubicacion=Point(longitud, latitud, srid=4326),
+                )
                 with self.assertRaises(ValidationError): posicion.full_clean()
 
     def test_modelo_rechaza_metadatos_invalidos(self):
         for campo, valor in (("precision", -1), ("velocidad", -1), ("rumbo", 361), ("rumbo", -1)):
             with self.subTest(campo=campo, valor=valor):
-                posicion = PosicionUnidad(despliegue=self.despliegue, reportado_por=self.usuario, **self.datos_validos(**{campo: valor}))
+                metadatos = {"precision": "12.50", "velocidad": "4.250", "rumbo": "180.00"}
+                metadatos[campo] = valor
+                posicion = PosicionUnidad(
+                    despliegue=self.despliegue, reportado_por=self.usuario,
+                    ubicacion=Point(-78.616667, -0.933333, srid=4326), **metadatos,
+                )
                 with self.assertRaises(ValidationError): posicion.full_clean()
 
     def test_servicio_registra_y_conserva_historial(self):
@@ -104,6 +121,16 @@ class PosicionesGPSTests(TestCase):
         self.assertEqual(self.despliegue.posiciones.count(), 2)
         self.assertEqual(primera.reportado_por, self.usuario)
         self.assertNotEqual(primera.pk, segunda.pk)
+        self.assertEqual(primera.ubicacion.srid, 4326)
+        self.assertAlmostEqual(primera.ubicacion.x, -78.616667)
+        self.assertAlmostEqual(primera.ubicacion.y, -0.933333)
+
+    def test_consulta_geografica_basica_con_postgis(self):
+        posicion = self.crear_posicion()
+        cercanas = PosicionUnidad.objects.filter(
+            ubicacion__distance_lte=(Point(-78.6167, -0.9333, srid=4326), D(m=100))
+        )
+        self.assertIn(posicion, cercanas)
 
     def test_servicio_rechaza_fecha_exageradamente_adelantada(self):
         with self.assertRaises(ValidationError):
@@ -173,7 +200,9 @@ class PosicionesGPSTests(TestCase):
         PosicionUnidad.objects.filter(pk=primera.pk).update(fecha_recepcion=timezone.now() + timedelta(seconds=1))
         self.client.force_login(self.consulta)
         respuesta = self.client.get(reverse("emergencias:ultima_posicion", args=[self.despliegue.pk]))
-        self.assertEqual(respuesta.json()["latitud"], "-0.930000")
+        self.assertAlmostEqual(respuesta.json()["latitud"], -0.93)
+        self.assertAlmostEqual(respuesta.json()["longitud"], -78.616667)
+        self.assertEqual(respuesta.json()["estado_despliegue"], DespliegueUnidad.Estado.EN_RUTA)
         self.assertNotEqual(primera.pk, segunda.pk)
 
     def test_no_consulta_despliegue_de_otra_institucion(self):
