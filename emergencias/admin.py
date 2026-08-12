@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import DespliegueUnidad, Emergencia, PosicionUnidad
+from .models import (DespliegueUnidad, Emergencia, FormularioSCI211,
+                     PosicionUnidad, RegistroRecursoSCI211)
 
 
 class DespliegueUnidadInline(admin.TabularInline):
@@ -149,6 +150,34 @@ class PosicionUnidadAdmin(admin.ModelAdmin):
     @admin.display(description="coordenadas")
     def coordenadas(self, obj):
         return f"{obj.ubicacion.y:.6f}, {obj.ubicacion.x:.6f}"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class RegistroSCI211Inline(admin.TabularInline):
+    model = RegistroRecursoSCI211
+    extra = 0
+    can_delete = False
+    readonly_fields = tuple(field.name for field in RegistroRecursoSCI211._meta.fields)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FormularioSCI211)
+class FormularioSCI211Admin(admin.ModelAdmin):
+    list_display = ("codigo", "emergencia", "estado", "modificado_por", "fecha_actualizacion")
+    list_filter = ("estado", "emergencia__estacion_responsable")
+    search_fields = ("codigo", "emergencia__codigo")
+    readonly_fields = tuple(field.name for field in FormularioSCI211._meta.fields)
+    inlines = (RegistroSCI211Inline,)
 
     def has_add_permission(self, request):
         return False

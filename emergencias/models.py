@@ -233,3 +233,110 @@ class PosicionUnidad(models.Model):
 
     def __str__(self):
         return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"
+
+
+class FormularioSCI211(models.Model):
+    """Encabezado único del Registro y Control de Recursos de una emergencia."""
+
+    class Estado(models.TextChoices):
+        BORRADOR = "borrador", "Borrador"
+        FINALIZADO = "finalizado", "Finalizado"
+
+    emergencia = models.OneToOneField(
+        Emergencia, on_delete=models.PROTECT, related_name="formulario_sci_211",
+        verbose_name="emergencia",
+    )
+    codigo = models.CharField("número del formulario", max_length=40, unique=True)
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
+    punto_registro = models.CharField(
+        "punto de registro", max_length=150,
+        help_text="Ejemplo: Puesto de Comando, Base, Helibase o Área de Espera.",
+    )
+    preparado_por_nombre = models.CharField("preparado por", max_length=150, blank=True)
+    emergencia_codigo_emitido = models.CharField(max_length=30, blank=True, editable=False)
+    incidente_fecha_emitida = models.DateTimeField(null=True, blank=True, editable=False)
+    incidente_direccion_emitida = models.CharField(max_length=255, blank=True, editable=False)
+    institucion_emitida = models.CharField(max_length=150, blank=True, editable=False)
+    estacion_emitida = models.CharField(max_length=150, blank=True, editable=False)
+    coordenadas_emitidas = models.CharField(max_length=50, blank=True, editable=False)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sci211_creados",
+        editable=False,
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sci211_modificados",
+        editable=False,
+    )
+    finalizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sci211_finalizados",
+        null=True, blank=True, editable=False,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fecha_finalizacion = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        verbose_name = "formulario SCI-211"
+        verbose_name_plural = "formularios SCI-211"
+        ordering = ("-fecha_creacion",)
+
+    def __str__(self):
+        return f"{self.codigo} - {self.emergencia.codigo}"
+
+    @property
+    def es_editable(self):
+        return self.estado == self.Estado.BORRADOR
+
+
+class RegistroRecursoSCI211(models.Model):
+    class EstadoRecurso(models.TextChoices):
+        DISPONIBLE = "disponible", "Disponible"
+        NO_DISPONIBLE = "no_disponible", "No disponible"
+        FUERA_SERVICIO = "fuera_servicio", "Fuera de servicio"
+
+    formulario = models.ForeignKey(
+        FormularioSCI211, on_delete=models.CASCADE, related_name="registros",
+        verbose_name="formulario SCI-211",
+    )
+    despliegue = models.ForeignKey(
+        DespliegueUnidad, on_delete=models.PROTECT, related_name="registros_sci211",
+        null=True, blank=True, verbose_name="despliegue de origen",
+    )
+    solicitado_por = models.CharField("solicitado por", max_length=150)
+    fecha_hora_solicitud = models.DateTimeField("fecha y hora de solicitud")
+    clase_recurso = models.CharField("clase de recurso", max_length=120)
+    tipo_recurso = models.CharField("tipo de recurso", max_length=120, blank=True)
+    fecha_hora_arribo = models.DateTimeField("fecha y hora de arribo", null=True, blank=True)
+    institucion_procedencia = models.CharField("institución de procedencia", max_length=150)
+    matricula_identificacion = models.CharField("matrícula o identificación", max_length=80)
+    numero_personas = models.PositiveSmallIntegerField("número de personas", default=1)
+    estado_recurso = models.CharField(max_length=20, choices=EstadoRecurso.choices)
+    ubicacion_recurso = models.CharField("ubicación del recurso", max_length=180, blank=True)
+    desmovilizado_por = models.CharField("desmovilización autorizada por", max_length=150, blank=True)
+    fecha_hora_desmovilizacion = models.DateTimeField(null=True, blank=True)
+    observaciones = models.TextField(max_length=1500, blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "registro de recurso SCI-211"
+        verbose_name_plural = "registros de recursos SCI-211"
+        ordering = ("orden", "pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("formulario", "despliegue"),
+                condition=models.Q(despliegue__isnull=False),
+                name="sci211_despliegue_unico_por_formulario",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        errores = {}
+        if self.fecha_hora_arribo and self.fecha_hora_arribo < self.fecha_hora_solicitud:
+            errores["fecha_hora_arribo"] = "El arribo no puede ser anterior a la solicitud."
+        if bool(self.desmovilizado_por) != bool(self.fecha_hora_desmovilizacion):
+            errores["desmovilizado_por"] = "Indique responsable y fecha de desmovilización juntos."
+        if self.estado_recurso == self.EstadoRecurso.DISPONIBLE and not self.ubicacion_recurso:
+            errores["ubicacion_recurso"] = "Indique la ubicación del recurso disponible."
+        if errores:
+            raise ValidationError(errores)

@@ -21,6 +21,12 @@
     </dl>
 </section>
 <section class="panel">
+    <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
+    {% if sci211 %}<a class="button button--primary" href="{% url 'emergencias:sci211_detalle' sci211.pk %}">Consultar SCI-211</a>
+    {% elif puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="button button--primary" type="submit">Crear SCI-211</button></form>{% endif %}</div>
+    <p><strong>SCI-211 - Registro y Control de Recursos.</strong> {% if sci211 %}Estado: {{ sci211.get_estado_display }}.{% else %}Todavía no se ha creado para esta emergencia.{% endif %}</p>
+</section>
+<section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
     {% if despliegues %}<div class="table-responsive"><table>
         <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Asignación</th><th>Acción</th></tr></thead>

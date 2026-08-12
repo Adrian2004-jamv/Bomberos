@@ -32,3 +32,16 @@ def estacion_autorizada(usuario, estacion_id):
     return puede_gestionar_emergencias(usuario) and estaciones_permitidas(usuario).filter(
         pk=estacion_id
     ).exists()
+
+
+def puede_editar_sci(usuario, emergencia):
+    """SCI excluye inventario/consulta aunque esos grupos vean emergencias."""
+    return puede_gestionar_emergencias(usuario) and estaciones_permitidas(usuario).filter(
+        pk=emergencia.estacion_responsable_id
+    ).exists()
+
+
+def puede_consultar_sci(usuario, emergencia):
+    return puede_consultar_emergencias(usuario) and estaciones_permitidas(usuario).filter(
+        pk=emergencia.estacion_responsable_id
+    ).exists()

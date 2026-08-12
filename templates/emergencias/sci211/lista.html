@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Formularios SCI-211{% endblock %}{% block page_title %}Formularios SCI-211{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}">{% endblock %}
+{% block content %}<section class="panel"><div class="panel__heading"><div><p class="eyebrow">Registro y Control de Recursos</p><h2>Documentos autorizados</h2></div></div>
+{% if formularios %}<div class="table-responsive"><table><thead><tr><th>Código</th><th>Emergencia</th><th>Estado</th><th>Actualizado</th><th></th></tr></thead><tbody>{% for f in formularios %}<tr><td>{{ f.codigo }}</td><td>{{ f.emergencia.codigo }}</td><td>{{ f.get_estado_display }}</td><td>{{ f.fecha_actualizacion|date:"d/m/Y H:i" }}</td><td><a class="button" href="{% url 'emergencias:sci211_detalle' f.pk %}">Consultar</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state">No existen formularios SCI-211 en su ámbito.</div>{% endif %}</section>{% endblock %}
