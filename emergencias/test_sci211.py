@@ -151,6 +151,18 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Consultar SCI-211")
         self.assertContains(respuesta, "Descargar PDF")
 
+    def test_menu_incluye_formularios_sci_y_marca_opcion_activa(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:lista"))
+        self.assertContains(respuesta, "Formularios SCI")
+        self.assertContains(respuesta, reverse("emergencias:sci211_lista"))
+        respuesta = self.client.get(reverse("emergencias:sci211_lista"))
+        self.assertContains(
+            respuesta,
+            f'href="{reverse("emergencias:sci211_lista")}" aria-current="page"',
+            html=False,
+        )
+
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")
