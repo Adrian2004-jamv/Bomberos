@@ -71,8 +71,14 @@ def lista(request):
     if activo in {"true", "false"}:
         recursos = recursos.filter(activo=activo == "true")
 
-    recursos = recursos.order_by("codigo_interno", "pk").distinct()
-    pagina = Paginator(recursos, 12).get_page(request.GET.get("pagina"))
+    recursos = recursos.order_by(
+        "estacion__cuerpo_bomberos__nombre",
+        "tipo__categoria__nombre",
+        "tipo__nombre",
+        "codigo_interno",
+        "pk",
+    ).distinct()
+    pagina = Paginator(recursos, 24).get_page(request.GET.get("pagina"))
     parametros = request.GET.copy()
     parametros.pop("pagina", None)
 

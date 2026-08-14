@@ -110,6 +110,27 @@
 
 .resource-list,
 .history-list { display: grid; gap: 0.85rem; }
+.inventory-groups { display: grid; gap: 1rem; }
+.inventory-institution { overflow: hidden; border: 1px solid var(--color-slate-200); border-radius: var(--radius-md); background: var(--color-white); box-shadow: var(--shadow-sm); }
+.inventory-institution > summary { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .8rem; min-height: 4.25rem; padding: .8rem 1rem; border-left: .3rem solid var(--color-red-600); cursor: pointer; list-style: none; }
+.inventory-institution > summary::-webkit-details-marker { display: none; }
+.institution-icon { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: .65rem; color: var(--color-white); background: var(--color-red-700); }
+.institution-icon svg { width: 1.25rem; height: 1.25rem; }
+.inventory-institution summary strong, .inventory-institution summary small { display: block; }
+.inventory-institution summary strong { color: var(--color-navy-950); }
+.inventory-institution summary small, .institution-canton { color: var(--color-slate-500); font-size: .72rem; }
+.inventory-institution__body { display: grid; gap: 1rem; padding: 1rem; border-top: 1px solid var(--color-slate-200); background: var(--color-slate-100); }
+.inventory-category { overflow: hidden; border: 1px solid var(--color-slate-200); border-radius: var(--radius-sm); background: var(--color-white); }
+.inventory-category > header { display: flex; align-items: center; gap: .55rem; padding: .7rem .85rem; border-bottom: 1px solid var(--color-slate-200); }
+.inventory-category > header svg { width: 1rem; color: var(--color-red-700); }
+.inventory-category > header h2 { flex: 1; margin: 0; font-size: .9rem; }
+.inventory-category > header > span:last-child { min-width: 1.7rem; padding: .18rem .45rem; border-radius: 999px; background: var(--color-slate-100); text-align: center; font-size: .7rem; font-weight: 800; }
+.inventory-type { padding: .85rem; }
+.inventory-type + .inventory-type { border-top: 1px solid var(--color-slate-200); }
+.inventory-type__heading { display: flex; justify-content: space-between; gap: .7rem; margin-bottom: .65rem; }
+.inventory-type__heading h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+.inventory-type__heading span { color: var(--color-slate-500); font-size: .68rem; }
+.inventory-type .resource-card { box-shadow: none; }
 
 .resource-card,
 .resource-detail,
@@ -258,6 +279,8 @@ textarea.form-control { resize: vertical; }
 }
 
 @media (max-width: 35.99rem) {
+    .inventory-institution > summary { grid-template-columns: auto minmax(0,1fr); }
+    .institution-canton { display: none; }
     .inventory-toolbar .inventory-action,
     .inventory-page-actions .inventory-action,
     .inventory-form-actions .inventory-action,

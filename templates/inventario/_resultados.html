@@ -1,10 +1,36 @@
 {% if recursos %}
-<div class="resource-list" role="list" aria-live="polite">
-{% for recurso in recursos %}<article class="resource-card" role="listitem">
-    <div class="resource-card__identity"><span>{{ recurso.codigo_interno }}</span><h2>{{ recurso.nombre }}</h2><p>{{ recurso.tipo.categoria.nombre }} · {{ recurso.tipo.nombre }}</p></div>
-    <dl class="resource-card__data"><div><dt>Estación</dt><dd>{{ recurso.estacion.nombre }}</dd></div><div><dt>Institución</dt><dd>{{ recurso.estacion.cuerpo_bomberos.sigla }}</dd></div><div><dt>Estado</dt><dd><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span></dd></div><div><dt>Disponibilidad</dt><dd><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></dd></div></dl>
-    <div class="resource-card__actions"><a class="inventory-action inventory-action--secondary" href="{% url 'inventario:detalle' recurso.pk %}">Ver ficha</a>{% if puede_gestionar %}<a class="inventory-action inventory-action--secondary" href="{% url 'inventario:editar' recurso.pk %}">Editar</a><a class="inventory-action inventory-action--primary" href="{% url 'inventario:cambiar_estado' recurso.pk %}">Cambiar estado</a>{% endif %}</div>
-</article>{% endfor %}
+{% regroup recursos by estacion.cuerpo_bomberos as instituciones_agrupadas %}
+<div class="inventory-groups" aria-live="polite">
+{% for institucion in instituciones_agrupadas %}
+<details class="inventory-institution" open>
+    <summary>
+        <span class="institution-icon" aria-hidden="true"><i data-lucide="building-2"></i></span>
+        <span><strong>{{ institucion.grouper.nombre }}</strong><small>{{ institucion.list|length }} recurso{{ institucion.list|length|pluralize }}</small></span>
+        <span class="institution-canton">{{ institucion.grouper.canton.nombre }}</span>
+    </summary>
+    <div class="inventory-institution__body">
+    {% regroup institucion.list by tipo.categoria as categorias_agrupadas %}
+    {% for categoria in categorias_agrupadas %}
+        <section class="inventory-category" aria-labelledby="categoria-{{ institucion.grouper.pk }}-{{ categoria.grouper.pk }}">
+            <header><span data-lucide="folder-open" aria-hidden="true"></span><h2 id="categoria-{{ institucion.grouper.pk }}-{{ categoria.grouper.pk }}">{{ categoria.grouper.nombre }}</h2><span>{{ categoria.list|length }}</span></header>
+            {% regroup categoria.list by tipo as tipos_agrupados %}
+            {% for tipo in tipos_agrupados %}
+            <div class="inventory-type">
+                <div class="inventory-type__heading"><h3>{{ tipo.grouper.nombre }}</h3><span>{{ tipo.list|length }} elemento{{ tipo.list|length|pluralize }}</span></div>
+                <div class="resource-list" role="list">
+                {% for recurso in tipo.list %}<article class="resource-card" role="listitem">
+                    <div class="resource-card__identity"><span>{{ recurso.codigo_interno }}</span><h2>{{ recurso.nombre }}</h2><p>{{ recurso.estacion.nombre }}{% if recurso.marca %} · {{ recurso.marca }}{% endif %}{% if recurso.modelo %} {{ recurso.modelo }}{% endif %}</p></div>
+                    <dl class="resource-card__data"><div><dt>Estado</dt><dd><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span></dd></div><div><dt>Disponibilidad</dt><dd><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></dd></div></dl>
+                    <div class="resource-card__actions"><a class="inventory-action inventory-action--secondary" href="{% url 'inventario:detalle' recurso.pk %}">Ver ficha</a>{% if puede_gestionar %}<a class="inventory-action inventory-action--secondary" href="{% url 'inventario:editar' recurso.pk %}">Editar</a><a class="inventory-action inventory-action--primary" href="{% url 'inventario:cambiar_estado' recurso.pk %}">Estado</a>{% endif %}</div>
+                </article>{% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+    {% endfor %}
+    </div>
+</details>
+{% endfor %}
 </div>
 {% if pagina.paginator.num_pages > 1 %}<nav class="inventory-pagination" aria-label="Paginación de recursos">{% if pagina.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}" hx-get="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}" hx-target="#inventory-results" hx-push-url="true">Anterior</a>{% endif %}<span aria-current="page">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>{% if pagina.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.next_page_number }}" hx-get="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.next_page_number }}" hx-target="#inventory-results" hx-push-url="true">Siguiente</a>{% endif %}</nav>{% endif %}
 {% else %}<div class="inventory-empty"><h2>No se encontraron recursos</h2><p>Revisa los filtros o registra el primer recurso si tienes autorización.</p></div>{% endif %}
