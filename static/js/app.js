@@ -2,6 +2,23 @@ const body = document.body;
 const toggle = document.querySelector("[data-sidebar-toggle]");
 const closeButton = document.querySelector("[data-sidebar-close]");
 
+function initializeVisualComponents(root = document) {
+    if (window.lucide) window.lucide.createIcons({ attrs: { "stroke-width": 1.9 } });
+    if (!window.TomSelect) return;
+    root.querySelectorAll("select[data-enhanced-select], select.form-control").forEach((select) => {
+        if (select.tomselect || (select.options.length < 5 && !select.hasAttribute("data-enhanced-select"))) return;
+        new TomSelect(select, {
+            allowEmptyOption: true,
+            create: false,
+            maxOptions: 200,
+            placeholder: select.dataset.placeholder || "Buscar o seleccionar…",
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => initializeVisualComponents());
+document.addEventListener("htmx:afterSwap", (event) => initializeVisualComponents(event.detail.target));
+
 function setSidebar(open) {
     body.classList.toggle("sidebar-open", open);
     if (toggle) {

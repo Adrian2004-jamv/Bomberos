@@ -14,27 +14,27 @@
 
     <nav class="sidebar__nav">
         <a class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} nav-item--active{% endif %}" href="{% url 'dashboard:principal' %}"{% if request.resolver_match.namespace == 'dashboard' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">⌂</span> Dashboard
+            <span data-lucide="layout-dashboard" aria-hidden="true"></span> Dashboard
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">▦</span> Instituciones
+            <span data-lucide="building-2" aria-hidden="true"></span> Instituciones
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'inventario' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">□</span> Inventario
+            <span data-lucide="boxes" aria-hidden="true"></span> Inventario
         </a>
         {% if puede_consultar_capacidades %}
             <a class="nav-item{% if request.resolver_match.namespace == 'operaciones' %} nav-item--active{% endif %}" href="{% url 'operaciones:lista_capacidades' %}"{% if request.resolver_match.namespace == 'operaciones' %} aria-current="page"{% endif %}>
-                <span aria-hidden="true">◇</span> Capacidades operativas
+                <span data-lucide="shield-check" aria-hidden="true"></span> Capacidades operativas
             </a>
         {% endif %}
         <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':6' == 'sci211' %} nav-item--active{% endif %}" href="{% url 'emergencias:lista' %}"{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':6' == 'sci211' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">△</span> Emergencias
+            <span data-lucide="triangle-alert" aria-hidden="true"></span> Emergencias
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':6' == 'sci211' %} nav-item--active{% endif %}" href="{% url 'emergencias:sci211_lista' %}"{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':6' == 'sci211' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">▤</span> Formularios SCI
+            <span data-lucide="files" aria-hidden="true"></span> Formularios SCI
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'mapas' %} nav-item--active{% endif %}" href="{% url 'mapas:operativo' %}"{% if request.resolver_match.namespace == 'mapas' %} aria-current="page"{% endif %}>
-            <span aria-hidden="true">◎</span> Mapa operativo
+            <span data-lucide="map-pinned" aria-hidden="true"></span> Mapa operativo
         </a>
     </nav>
 

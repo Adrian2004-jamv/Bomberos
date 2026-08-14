@@ -67,6 +67,8 @@
     color: #a9a9a9;
     text-align: center;
 }
+.nav-item > svg:first-child { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; color: #a9a9a9; }
+.nav-item--active > svg:first-child { color: var(--color-white); }
 
 .nav-item--active {
     color: var(--color-white);
@@ -137,6 +139,7 @@
     background: var(--color-white);
     cursor: pointer;
 }
+.menu-toggle svg { width: 1.35rem; height: 1.35rem; }
 
 .button {
     min-height: 2.55rem;

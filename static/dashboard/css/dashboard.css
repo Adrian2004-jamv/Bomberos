@@ -47,6 +47,8 @@
 .metric-card--danger > span { background: var(--color-danger); }
 
 .dashboard-columns { display: grid; gap: 1rem; margin-bottom: 1rem; }
+.dashboard-chart { position: relative; min-height: 13rem; margin-bottom: 1rem; }
+.dashboard-chart--compact { min-height: 12rem; }
 .dashboard-panel { padding: clamp(1rem, 3vw, 1.35rem); }
 .dashboard-panel--wide { margin-bottom: 1rem; }
 .dashboard-panel-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem; }

@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link rel="stylesheet" href="{% static 'css/componentes.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/tom-select-2.6.2.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -33,7 +34,9 @@
     <button class="sidebar-backdrop" type="button" data-sidebar-close aria-label="Cerrar menú"></button>
     {% include "componentes/pwa_controles.html" %}
     <link rel="stylesheet" href="{% static 'pwa/css/pwa.css' %}">
-    <script src="{% static 'js/app.js' %}" defer></script>
+    <script src="{% static 'vendor/lucide-1.27.0.min.js' %}" defer></script>
+    <script src="{% static 'vendor/tom-select-2.6.2.min.js' %}" defer></script>
+    <script src="{% static 'js/app.js' %}?v=2" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
