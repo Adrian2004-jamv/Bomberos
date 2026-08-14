@@ -82,10 +82,7 @@ def lista(request):
     cuerpos = CuerpoBomberos.objects.filter(estaciones__in=estaciones).distinct().order_by(
         "nombre"
     )
-    return render(
-        request,
-        "inventario/lista.html",
-        {
+    contexto = {
             "recursos": pagina,
             "pagina": pagina,
             "querystring": parametros.urlencode(),
@@ -97,8 +94,13 @@ def lista(request):
             "disponibilidades": Recurso.Disponibilidad.choices,
             "puede_gestionar": puede_gestionar_inventario(request.user),
             "filtros_activos": bool(request.GET),
-        },
+    }
+    plantilla = (
+        "inventario/_resultados.html"
+        if request.headers.get("HX-Request") == "true"
+        else "inventario/lista.html"
     )
+    return render(request, plantilla, contexto)
 
 
 @login_required

@@ -223,6 +223,13 @@ class InterfazInventarioTests(TestCase):
         ids = [recurso.pk for recurso in respuesta.context["recursos"]]
         self.assertEqual(len(ids), len(set(ids)))
 
+    def test_peticion_htmx_devuelve_solo_resultados(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"), HTTP_HX_REQUEST="true")
+        self.assertTemplateUsed(respuesta, "inventario/_resultados.html")
+        self.assertContains(respuesta, "R-I-001")
+        self.assertNotContains(respuesta, "Buscar y filtrar inventario")
+
     def test_opcion_invalida_produce_error(self):
         with self.assertRaises(ValidationError):
             actualizar_estado_recurso(

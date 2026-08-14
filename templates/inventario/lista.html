@@ -2,16 +2,16 @@
 {% load static %}
 {% block title %}Inventario{% endblock %}
 {% block page_title %}Inventario de recursos{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="inventory-toolbar">
-    <div><h2>Recursos institucionales</h2><p>Consulta los recursos disponibles dentro de tu alcance institucional.</p></div>
+    <div><h2>Recursos institucionales</h2><p>Consulta y gestiona los recursos dentro de tu alcance institucional.</p></div>
     {% if puede_gestionar %}<a class="inventory-action inventory-action--primary" href="{% url 'inventario:crear' %}">Registrar recurso</a>{% endif %}
 </section>
 
 <details class="filters"{% if filtros_activos %} open{% endif %}>
     <summary>Buscar y filtrar inventario</summary>
-    <form method="get" class="filter-grid">
+    <form method="get" class="filter-grid" hx-get="{% url 'inventario:lista' %}" hx-target="#inventory-results" hx-push-url="true" hx-trigger="submit, input changed delay:350ms from:#id_q, change from:select" hx-indicator="#inventory-loading">
         <div class="filter-field filter-field--search"><label for="id_q">Búsqueda</label><input id="id_q" name="q" type="search" value="{{ request.GET.q }}" placeholder="Código, nombre, marca, modelo o serie"></div>
         <div class="filter-field"><label for="id_cuerpo">Cuerpo de Bomberos</label><select id="id_cuerpo" name="cuerpo_id"><option value="">Todos</option>{% for cuerpo in cuerpos %}<option value="{{ cuerpo.pk }}"{% if request.GET.cuerpo_id == cuerpo.pk|stringformat:"s" %} selected{% endif %}>{{ cuerpo.sigla }}</option>{% endfor %}</select></div>
         <div class="filter-field"><label for="id_estacion">Estación</label><select id="id_estacion" name="estacion_id"><option value="">Todas</option>{% for estacion in estaciones %}<option value="{{ estacion.pk }}"{% if request.GET.estacion_id == estacion.pk|stringformat:"s" %} selected{% endif %}>{{ estacion.nombre }}</option>{% endfor %}</select></div>
@@ -24,21 +24,7 @@
     </form>
 </details>
 
-{% if recursos %}
-<div class="resource-list" role="list">
-    {% for recurso in recursos %}
-    <article class="resource-card" role="listitem">
-        <div class="resource-card__identity"><span>{{ recurso.codigo_interno }}</span><h2>{{ recurso.nombre }}</h2><p>{{ recurso.tipo.categoria.nombre }} · {{ recurso.tipo.nombre }}</p></div>
-        <dl class="resource-card__data">
-            <div><dt>Estación</dt><dd>{{ recurso.estacion.nombre }}</dd></div>
-            <div><dt>Institución</dt><dd>{{ recurso.estacion.cuerpo_bomberos.sigla }}</dd></div>
-            <div><dt>Estado</dt><dd><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span></dd></div>
-            <div><dt>Disponibilidad</dt><dd><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></dd></div>
-        </dl>
-        <a class="inventory-action inventory-action--secondary" href="{% url 'inventario:detalle' recurso.pk %}">Consultar</a>
-    </article>
-    {% endfor %}
-</div>
-{% if pagina.paginator.num_pages > 1 %}<nav class="inventory-pagination" aria-label="Paginación de recursos">{% if pagina.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}">Anterior</a>{% endif %}<span aria-current="page">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>{% if pagina.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
-{% else %}<div class="inventory-empty"><h2>No se encontraron recursos</h2><p>Revisa los filtros o registra el primer recurso si tienes autorización.</p></div>{% endif %}
+<div id="inventory-loading" class="inventory-loading htmx-indicator" role="status">Actualizando inventario…</div>
+<div id="inventory-results">{% include "inventario/_resultados.html" %}</div>
+<script src="{% static 'vendor/htmx-2.0.10.min.js' %}" defer></script>
 {% endblock %}
