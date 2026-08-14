@@ -2,7 +2,7 @@
 {% regroup recursos by estacion.cuerpo_bomberos as instituciones_agrupadas %}
 <div class="inventory-groups" aria-live="polite">
 {% for institucion in instituciones_agrupadas %}
-<details class="inventory-institution" open>
+<details class="inventory-institution"{% if forloop.first %} open{% endif %}>
     <summary>
         <span class="institution-icon" aria-hidden="true"><i data-lucide="building-2"></i></span>
         <span><strong>{{ institucion.grouper.nombre }}</strong><small>{{ institucion.list|length }} recurso{{ institucion.list|length|pluralize }}</small></span>
@@ -18,10 +18,11 @@
             <div class="inventory-type">
                 <div class="inventory-type__heading"><h3>{{ tipo.grouper.nombre }}</h3><span>{{ tipo.list|length }} elemento{{ tipo.list|length|pluralize }}</span></div>
                 <div class="resource-list" role="list">
-                {% for recurso in tipo.list %}<article class="resource-card" role="listitem">
+                {% for recurso in tipo.list %}<article class="resource-card resource-object" role="listitem">
+                    <div class="resource-object__icon" aria-hidden="true"><i data-lucide="{% if recurso.tipo.es_unidad_desplegable %}truck{% else %}package-open{% endif %}"></i></div>
                     <div class="resource-card__identity"><span>{{ recurso.codigo_interno }}</span><h2>{{ recurso.nombre }}</h2><p>{{ recurso.estacion.nombre }}{% if recurso.marca %} · {{ recurso.marca }}{% endif %}{% if recurso.modelo %} {{ recurso.modelo }}{% endif %}</p></div>
                     <dl class="resource-card__data"><div><dt>Estado</dt><dd><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span></dd></div><div><dt>Disponibilidad</dt><dd><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></dd></div></dl>
-                    <div class="resource-card__actions"><a class="inventory-action inventory-action--secondary" href="{% url 'inventario:detalle' recurso.pk %}">Ver ficha</a>{% if puede_gestionar %}<a class="inventory-action inventory-action--secondary" href="{% url 'inventario:editar' recurso.pk %}">Editar</a><a class="inventory-action inventory-action--primary" href="{% url 'inventario:cambiar_estado' recurso.pk %}">Estado</a>{% endif %}</div>
+                    <details class="resource-actions"><summary><span data-lucide="ellipsis" aria-hidden="true"></span> Acciones</summary><div><a href="{% url 'inventario:detalle' recurso.pk %}"><span data-lucide="eye" aria-hidden="true"></span> Ver ficha</a>{% if puede_gestionar %}<a href="{% url 'inventario:editar' recurso.pk %}"><span data-lucide="pencil" aria-hidden="true"></span> Editar datos</a><a href="{% url 'inventario:cambiar_estado' recurso.pk %}"><span data-lucide="refresh-cw" aria-hidden="true"></span> Cambiar estado</a>{% endif %}</div></details>
                 </article>{% endfor %}
                 </div>
             </div>
