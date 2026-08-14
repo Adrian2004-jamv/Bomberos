@@ -1,0 +1,84 @@
+BASE DE DATOS DE DESARROLLO - SISTEMA BOMBEROS COTOPAXI
+========================================================
+
+Archivo de respaldo:
+backups/bomberos_cotopaxi_desarrollo.dump
+
+IMPORTANTE
+----------
+- Este respaldo es únicamente para desarrollo local.
+- Contiene los datos actuales del sistema y usuarios con contraseñas cifradas por Django.
+- No contiene la contraseña de PostgreSQL en texto plano.
+- No se debe utilizar esta base directamente en producción.
+
+REQUISITOS
+----------
+1. PostgreSQL 18 o una versión compatible.
+2. PostGIS instalado para esa versión de PostgreSQL.
+3. Python y las dependencias del proyecto instaladas.
+4. Haber clonado el repositorio y estar dentro de la carpeta "Sistema Bomberos Cotopaxi".
+
+RESTAURACIÓN EN WINDOWS (POWERSHELL)
+------------------------------------
+
+1. Crear la base de datos vacía:
+
+   & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" `
+     --host=127.0.0.1 --port=5432 --username=postgres `
+     bomberos_cotopaxi
+
+2. Activar PostGIS:
+
+   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" `
+     --host=127.0.0.1 --port=5432 --username=postgres `
+     --dbname=bomberos_cotopaxi `
+     --command="CREATE EXTENSION IF NOT EXISTS postgis;"
+
+3. Restaurar el respaldo:
+
+   & "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" `
+     --host=127.0.0.1 --port=5432 --username=postgres `
+     --dbname=bomberos_cotopaxi `
+     --clean --if-exists --no-owner --no-privileges `
+     "backups\bomberos_cotopaxi_desarrollo.dump"
+
+Si PostgreSQL está instalado en otra versión o ubicación, se debe cambiar la
+ruta "C:\Program Files\PostgreSQL\18\bin" por la correspondiente.
+
+CONFIGURAR LA CONTRASEÑA LOCAL
+------------------------------
+
+1. Crear la carpeta "secrets" si no existe.
+2. Crear el archivo:
+
+   secrets/postgresql_password.txt
+
+3. Escribir únicamente la contraseña LOCAL del usuario postgres.
+
+La carpeta secrets está excluida de Git. Nunca se debe subir ese archivo.
+
+PREPARAR DJANGO DESPUÉS DE RESTAURAR
+------------------------------------
+
+Ejecutar desde la raíz del proyecto:
+
+   py manage.py migrate
+   py manage.py check
+   py manage.py runserver 8001
+
+Después abrir:
+
+   http://127.0.0.1:8001/
+
+Si el compañero no conoce una contraseña de acceso de Django, puede asignar
+una nueva a un usuario existente sin modificar este respaldo:
+
+   py manage.py changepassword NOMBRE_DE_USUARIO
+
+ACTUALIZAR EL RESPALDO EN EL FUTURO
+-----------------------------------
+
+El respaldo incluido representa una fotografía de la base en la fecha del
+commit. Los cambios que cada desarrollador haga localmente no se sincronizan
+automáticamente. Para compartir una versión posterior se debe generar un nuevo
+dump, reemplazar el archivo y crear otro commit.
