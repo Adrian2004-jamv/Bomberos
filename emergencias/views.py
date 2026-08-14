@@ -88,6 +88,7 @@ def detalle(request, pk):
         "puede_transmitir_gps": puede_gestionar_emergencias(request.user),
         "sci211": getattr(emergencia, "formulario_sci_211", None),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
+        "catalogo_sci": CATALOGO_FORMULARIOS_SCI,
     })
 
 
@@ -97,6 +98,11 @@ def _formularios_sci_permitidos(usuario):
     ).select_related("emergencia", "creado_por", "modificado_por", "finalizado_por")
 
 
+def _emergencia_para_visualizar(usuario):
+    emergencias = _emergencias_permitidas(usuario)
+    return emergencias.filter(codigo="EM-SCI-001").first() or emergencias.order_by("pk").first()
+
+
 @login_required
 def sci211_lista(request):
     if not puede_consultar_emergencias(request.user):
@@ -104,6 +110,7 @@ def sci211_lista(request):
     return render(request, "emergencias/sci211/lista.html", {
         "formularios": _formularios_sci_permitidos(request.user),
         "catalogo_sci": CATALOGO_FORMULARIOS_SCI,
+        "emergencia_visualizacion": _emergencia_para_visualizar(request.user),
     })
 
 
@@ -119,6 +126,29 @@ def formulario_sci_catalogo_detalle(request, codigo):
         raise Http404
     return render(request, "emergencias/sci211/catalogo_detalle.html", {
         "formulario_catalogo": formulario_catalogo,
+        "emergencia_visualizacion": _emergencia_para_visualizar(request.user),
+    })
+
+
+@login_required
+def formulario_sci_visualizar(request, codigo, emergencia_pk):
+    if not puede_consultar_emergencias(request.user):
+        raise PermissionDenied
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    formulario_catalogo = next(
+        (formulario for formulario in CATALOGO_FORMULARIOS_SCI if formulario["codigo"] == codigo),
+        None,
+    )
+    if formulario_catalogo is None:
+        raise Http404
+    if codigo == "211":
+        formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+        if formulario:
+            return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
+    return render(request, "emergencias/sci_preview.html", {
+        "emergencia": emergencia,
+        "formulario_catalogo": formulario_catalogo,
+        "filas": range(8),
     })
 
 

@@ -8,7 +8,7 @@
         {% for item in catalogo_sci %}<article class="sci-catalog-card{% if item.implementado %} sci-catalog-card--ready{% endif %}">
             <header><span>SCI-{{ item.codigo }}</span><span class="sci-status{% if item.implementado %} sci-status--ready{% endif %}">{% if item.implementado %}Operativo{% else %}Vista informativa{% endif %}</span></header>
             <h3>{{ item.nombre }}</h3><p>{{ item.estructura }}</p><small>{{ item.formato }}</small>
-            <a class="button{% if item.implementado %} button--primary{% endif %}" href="{% url 'emergencias:sci_catalogo_detalle' item.codigo %}">{% if item.implementado %}Abrir formulario{% else %}Ver estructura{% endif %}</a>
+            {% if emergencia_visualizacion %}<a class="button button--primary" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia_visualizacion.pk %}">Visualizar formulario</a>{% endif %}<a class="button" href="{% url 'emergencias:sci_catalogo_detalle' item.codigo %}">Ver información</a>
         </article>{% endfor %}
     </div>
 </section>

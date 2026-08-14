@@ -194,6 +194,17 @@ class SCI211Tests(TestCase):
         inexistente = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["999"]))
         self.assertEqual(inexistente.status_code, 404)
 
+    def test_todos_los_formularios_tienen_visualizacion_vinculada_a_emergencia(self):
+        self.client.force_login(self.usuario)
+        for codigo in ("201", "202", "203", "204", "205", "206", "207", "214", "215", "221", "222"):
+            respuesta = self.client.get(reverse(
+                "emergencias:sci_visualizar", args=[codigo, self.emergencia.pk]
+            ))
+            self.assertEqual(respuesta.status_code, 200)
+            self.assertContains(respuesta, f"Formulario SCI-{codigo}")
+            self.assertContains(respuesta, self.emergencia.tipo_emergencia)
+            self.assertContains(respuesta, "Imprimir")
+
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")
