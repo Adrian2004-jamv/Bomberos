@@ -225,6 +225,18 @@ class SCI211Tests(TestCase):
         self.assertContains(impresion, "Canal operativo 1")
         self.assertContains(impresion, "Editar formulario")
 
+    def test_editor_carga_estilos_documentales_y_acciones_funcionales(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_editar", args=["215", self.emergencia.pk]
+        ))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "emergencias/css/sci_editor.css")
+        self.assertContains(respuesta, 'id="sci-document-form"', html=False)
+        self.assertContains(respuesta, 'form="sci-document-form"', html=False)
+        self.assertContains(respuesta, "Guardar cambios")
+        self.assertContains(respuesta, "Vista de impresión")
+
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")

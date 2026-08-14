@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ formulario_catalogo.codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ formulario_catalogo.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
 <div class="sci-workspace__toolbar"><div><strong>SCI-{{ formulario_catalogo.codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }}</span></div><div><a class="button" href="{% url 'emergencias:sci211_lista' %}">Cerrar</a><a class="button" href="{% url 'emergencias:sci_visualizar' formulario_catalogo.codigo emergencia.pk %}">Vista de impresión</a><button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button></div></div>
