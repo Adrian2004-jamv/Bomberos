@@ -3,7 +3,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -20,6 +20,22 @@ from .permissions import (puede_consultar_emergencias, puede_consultar_sci,
                           puede_editar_sci, puede_gestionar_emergencias)
 from .services import registrar_posicion_unidad
 from .services_sci import crear_sci211_desde_emergencia, finalizar_sci211, generar_pdf_sci211
+
+
+CATALOGO_FORMULARIOS_SCI = (
+    {"codigo": "201", "nombre": "Resumen del Incidente", "formato": "Carta vertical · 4 páginas", "estructura": "Datos generales, evaluación, objetivos, organización, croquis y aprobación."},
+    {"codigo": "202", "nombre": "Plan de Acción del Incidente", "formato": "Carta horizontal · 2 páginas", "estructura": "Periodo operacional, objetivos, estrategias, tácticas y recursos."},
+    {"codigo": "203", "nombre": "Listado de Asignación en la Organización", "formato": "Vertical · 2 hojas estimadas", "estructura": "Estructura de mando, cargos y responsables del incidente."},
+    {"codigo": "204", "nombre": "Asignaciones Tácticas", "formato": "Carta horizontal · 1 página", "estructura": "Rama, división o grupo, recursos, instrucciones y comunicaciones."},
+    {"codigo": "205", "nombre": "Plan de Comunicaciones", "formato": "Carta vertical · 1 página", "estructura": "Sistemas, canales, frecuencias, indicativos y asignaciones."},
+    {"codigo": "206", "nombre": "Plan Médico", "formato": "Carta vertical · 1 página", "estructura": "Instalaciones, ambulancias, hospitales, rutas y procedimientos médicos."},
+    {"codigo": "207", "nombre": "Registro de Pacientes/Víctimas", "formato": "Carta horizontal · 1 página", "estructura": "Identificación, clasificación, condición, traslado y destino de pacientes."},
+    {"codigo": "211", "nombre": "Registro y Control de Recursos", "formato": "A4 horizontal · imprimible", "estructura": "Solicitud, arribo, institución, estado, asignación y desmovilización de recursos.", "implementado": True},
+    {"codigo": "214", "nombre": "Registro de Actividades", "formato": "Carta vertical · páginas repetibles", "estructura": "Bitácora cronológica, responsable, novedades, decisiones y firma."},
+    {"codigo": "215", "nombre": "Análisis de Seguridad del PAI", "formato": "Carta horizontal · 1 página", "estructura": "Áreas de trabajo, peligros, riesgos y acciones de mitigación."},
+    {"codigo": "221", "nombre": "Verificación de la Desmovilización", "formato": "Carta vertical · 4 páginas", "estructura": "Lista de verificación, liberación de recursos, observaciones y firmas."},
+    {"codigo": "222", "nombre": "Prioridades y Asignación de Recursos", "formato": "Horizontal · matriz", "estructura": "Prioridad de incidentes, recursos requeridos, disponibles y reasignados."},
+)
 
 
 def _emergencias_permitidas(usuario):
@@ -86,7 +102,23 @@ def sci211_lista(request):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
     return render(request, "emergencias/sci211/lista.html", {
-        "formularios": _formularios_sci_permitidos(request.user)
+        "formularios": _formularios_sci_permitidos(request.user),
+        "catalogo_sci": CATALOGO_FORMULARIOS_SCI,
+    })
+
+
+@login_required
+def formulario_sci_catalogo_detalle(request, codigo):
+    if not puede_consultar_emergencias(request.user):
+        raise PermissionDenied
+    formulario_catalogo = next(
+        (formulario for formulario in CATALOGO_FORMULARIOS_SCI if formulario["codigo"] == codigo),
+        None,
+    )
+    if formulario_catalogo is None:
+        raise Http404
+    return render(request, "emergencias/sci211/catalogo_detalle.html", {
+        "formulario_catalogo": formulario_catalogo,
     })
 
 

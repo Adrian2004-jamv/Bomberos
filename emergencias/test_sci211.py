@@ -178,6 +178,22 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Vista imprimible")
         self.assertContains(respuesta, "Descargar PDF")
 
+    def test_catalogo_muestra_los_doce_formularios_y_sus_fichas(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_lista"))
+        for codigo in ("201", "202", "203", "204", "205", "206", "207", "211", "214", "215", "221", "222"):
+            self.assertContains(respuesta, f"SCI-{codigo}")
+        self.assertContains(respuesta, "Vista informativa", count=11)
+        self.assertContains(respuesta, "Operativo", count=1)
+
+        ficha = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["205"]))
+        self.assertEqual(ficha.status_code, 200)
+        self.assertContains(ficha, "Plan de Comunicaciones")
+        self.assertContains(ficha, "digitalización pendiente")
+
+        inexistente = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["999"]))
+        self.assertEqual(inexistente.status_code, 404)
+
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")

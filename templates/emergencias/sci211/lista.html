@@ -2,11 +2,17 @@
 {% block title %}Formularios SCI{% endblock %}{% block page_title %}Formularios SCI{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}">{% endblock %}
 {% block content %}
-<section class="panel">
-    <div class="panel__heading"><div><p class="eyebrow">Centro documental operativo</p><h2>Formularios disponibles</h2></div></div>
-    <dl class="detail-grid"><div><dt>SCI-211</dt><dd><strong>Registro y Control de Recursos</strong><br>Formulario piloto habilitado para emergencias.</dd></div></dl>
+<section class="panel sci-catalog-panel">
+    <div class="panel__heading"><div><p class="eyebrow">Centro documental operativo</p><h2>Catálogo completo de formularios</h2><p>Consulta la finalidad y estructura de los doce formularios SCI identificados.</p></div></div>
+    <div class="sci-catalog">
+        {% for item in catalogo_sci %}<article class="sci-catalog-card{% if item.implementado %} sci-catalog-card--ready{% endif %}">
+            <header><span>SCI-{{ item.codigo }}</span><span class="sci-status{% if item.implementado %} sci-status--ready{% endif %}">{% if item.implementado %}Operativo{% else %}Vista informativa{% endif %}</span></header>
+            <h3>{{ item.nombre }}</h3><p>{{ item.estructura }}</p><small>{{ item.formato }}</small>
+            <a class="button{% if item.implementado %} button--primary{% endif %}" href="{% url 'emergencias:sci_catalogo_detalle' item.codigo %}">{% if item.implementado %}Abrir formulario{% else %}Ver estructura{% endif %}</a>
+        </article>{% endfor %}
+    </div>
 </section>
-<section class="panel">
+<section class="panel" id="documentos-sci211">
     <div class="panel__heading"><div><p class="eyebrow">SCI-211</p><h2>Documentos en su ámbito</h2></div></div>
     {% if formularios %}<div class="table-responsive"><table><thead><tr><th>Formulario</th><th>Emergencia</th><th>Estado</th><th>Actualizado</th><th>Acciones</th></tr></thead><tbody>{% for f in formularios %}<tr><td><strong>{{ f.codigo }}</strong><br>Registro y Control de Recursos</td><td>{{ f.emergencia.codigo }}<br>{{ f.emergencia.tipo_emergencia }}</td><td>{{ f.get_estado_display }}</td><td>{{ f.fecha_actualizacion|date:"d/m/Y H:i" }}</td><td><div class="button-group">{% if f.es_editable %}<a class="button button--primary" href="{% url 'emergencias:sci211_editar' f.pk %}">Continuar edición</a>{% endif %}<a class="button" href="{% url 'emergencias:sci211_detalle' f.pk %}">Consultar</a><a class="button" href="{% url 'emergencias:sci211_imprimir' f.pk %}">Vista imprimible</a><a class="button" href="{% url 'emergencias:sci211_pdf' f.pk %}">Descargar PDF</a></div></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state"><p>No existen formularios SCI-211 en su ámbito.</p><p>Para crear el primero, abra una emergencia y use la sección <strong>Formularios SCI</strong>.</p></div>{% endif %}
 </section>
