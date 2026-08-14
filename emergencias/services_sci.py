@@ -1,5 +1,8 @@
+import base64
 from io import BytesIO
+from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.template.loader import render_to_string
@@ -83,17 +86,22 @@ def finalizar_sci211(formulario, usuario):
 
 def generar_pdf_sci211(formulario):
     try:
-        from weasyprint import CSS, HTML
+        from weasyprint import HTML, default_url_fetcher
     except (ImportError, OSError) as error:
         raise RuntimeError("WeasyPrint no está disponible en este entorno.") from error
-    html = render_to_string("emergencias/sci211/pdf.html", {"formulario": formulario})
+    logo = Path(settings.BASE_DIR) / "static" / "emergencias" / "img" / "sci-logo.png"
+    contexto = {
+        "formulario": formulario,
+        "filas_vacias": range(max(0, 24 - formulario.registros.count())),
+        "logo_sci_data_uri": "data:image/png;base64," + base64.b64encode(logo.read_bytes()).decode("ascii"),
+    }
+    html = render_to_string("emergencias/sci211/pdf.html", contexto)
     salida = BytesIO()
 
     def bloquear_recurso_externo(url, timeout=10, ssl_context=None):
+        if url.startswith("data:image/png;base64,"):
+            return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
         raise ValueError(f"El PDF SCI-211 no admite recursos externos: {url!r}")
 
-    HTML(string=html, url_fetcher=bloquear_recurso_externo).write_pdf(
-        salida,
-        stylesheets=[CSS(string="@page { size: A4 landscape; margin: 10mm; }")],
-    )
+    HTML(string=html, url_fetcher=bloquear_recurso_externo).write_pdf(salida)
     return salida.getvalue()

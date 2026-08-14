@@ -167,7 +167,11 @@ def sci211_pdf(request, pk):
 @login_required
 def sci211_imprimir(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
-    return render(request, "emergencias/sci211/pdf.html", {"formulario": formulario, "vista_web": True})
+    return render(request, "emergencias/sci211/pdf.html", {
+        "formulario": formulario,
+        "vista_web": True,
+        "filas_vacias": range(max(0, 24 - formulario.registros.count())),
+    })
 
 
 def _despliegues_permitidos(usuario):
