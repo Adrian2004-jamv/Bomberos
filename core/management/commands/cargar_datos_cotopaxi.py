@@ -81,6 +81,7 @@ class Command(BaseCommand):
 
         cuerpos_creados = 0
         estaciones_creadas = 0
+        estaciones_principales = []
         for canton_codigo, nombre, sigla, ruc, codigo_estacion, nombre_estacion, latitud, longitud in INSTITUCIONES_COTOPAXI:
             canton = Canton.objects.get(codigo=canton_codigo)
             cuerpo, cuerpo_creado = CuerpoBomberos.objects.update_or_create(
@@ -114,7 +115,45 @@ class Command(BaseCommand):
                 },
             )
             estaciones_creadas += int(estacion_creada)
+            estaciones_principales.append(estacion)
+
+        categoria_vehiculos, _ = CategoriaRecurso.objects.update_or_create(
+            codigo="VEH", defaults={"nombre": "Vehículos", "activo": True}
+        )
+        categoria_equipos, _ = CategoriaRecurso.objects.update_or_create(
+            codigo="EQU", defaults={"nombre": "Equipos", "activo": True}
+        )
+        tipo_autobomba, _ = TipoRecurso.objects.update_or_create(
+            categoria=categoria_vehiculos,
+            codigo="AUT",
+            defaults={"nombre": "Autobomba", "es_unidad_desplegable": True, "activo": True},
+        )
+        tipo_era, _ = TipoRecurso.objects.update_or_create(
+            categoria=categoria_equipos,
+            codigo="ERA",
+            defaults={"nombre": "Equipo de respiración autónoma", "activo": True},
+        )
+        recursos_creados = 0
+        for estacion in estaciones_principales:
+            recursos_iniciales = (
+                (tipo_autobomba, "AB-01", "Autobomba"),
+                (tipo_era, "ERA-01", "Equipo ERA 01"),
+                (tipo_era, "ERA-02", "Equipo ERA 02"),
+            )
+            for tipo, codigo, nombre in recursos_iniciales:
+                _, recurso_creado = Recurso.objects.get_or_create(
+                    estacion=estacion,
+                    codigo_interno=codigo,
+                    defaults={
+                        "tipo": tipo,
+                        "nombre": nombre,
+                        "descripcion": "Carga inicial pendiente de actualización institucional.",
+                        "observaciones": "Verificar características, identificación y estado con la institución responsable.",
+                    },
+                )
+                recursos_creados += int(recurso_creado)
         self.stdout.write(self.style.SUCCESS(
             f"Cotopaxi disponible: 7 cantones, 7 Cuerpos de Bomberos y 7 estaciones principales. "
-            f"Nuevos: {creados} cantones, {cuerpos_creados} cuerpos y {estaciones_creadas} estaciones."
+            f"Nuevos: {creados} cantones, {cuerpos_creados} cuerpos, {estaciones_creadas} estaciones "
+            f"y {recursos_creados} recursos iniciales."
         ))

@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
+from inventario.models import Recurso
 
 
 class InicioTests(TestCase):
@@ -44,9 +45,11 @@ class DatosCotopaxiTests(TestCase):
         self.assertEqual(Canton.objects.count(), 7)
         self.assertEqual(CuerpoBomberos.objects.count(), 7)
         self.assertEqual(Estacion.objects.count(), 7)
+        self.assertEqual(Recurso.objects.count(), 21)
         for canton in Canton.objects.all():
             self.assertEqual(canton.cuerpos_bomberos.count(), 1)
             self.assertEqual(canton.cuerpos_bomberos.get().estaciones.count(), 1)
+            self.assertEqual(canton.cuerpos_bomberos.get().estaciones.get().recursos.count(), 3)
 
 
 class PwaTests(TestCase):
