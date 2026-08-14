@@ -6,6 +6,7 @@ app_name = "emergencias"
 
 urlpatterns = [
     path("", views.lista, name="lista"),
+    path("crear/", views.crear, name="crear"),
     path("formularios-sci/211/", views.sci211_lista, name="sci211_lista"),
     path("formularios-sci/211/<int:pk>/", views.sci211_detalle, name="sci211_detalle"),
     path("formularios-sci/211/<int:pk>/editar/", views.sci211_editar, name="sci211_editar"),

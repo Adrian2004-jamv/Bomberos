@@ -9,7 +9,7 @@
 <section class="panel">
     <div class="panel__heading">
         <div><p class="eyebrow">Seguimiento operativo</p><h2>Emergencias registradas</h2></div>
-        {% if puede_gestionar_en_admin %}<a class="button button--primary" href="{% url 'admin:emergencias_emergencia_changelist' %}">Administrar emergencias</a>{% endif %}
+        {% if puede_crear %}<a class="button button--primary" href="{% url 'emergencias:crear' %}">Crear emergencia</a>{% endif %}
     </div>
     {% if emergencias %}
         <div class="table-responsive"><table>

@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from inventario.permissions import estaciones_permitidas
 
+from .forms import EmergenciaForm
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
@@ -37,8 +38,23 @@ def lista(request):
         raise PermissionDenied
     return render(request, "emergencias/lista.html", {
         "emergencias": _emergencias_permitidas(request.user),
-        "puede_gestionar_en_admin": request.user.is_staff,
+        "puede_crear": puede_gestionar_emergencias(request.user),
     })
+
+
+@login_required
+def crear(request):
+    if not puede_gestionar_emergencias(request.user):
+        raise PermissionDenied
+    formulario = EmergenciaForm(request.POST or None, usuario=request.user)
+    if request.method == "POST" and formulario.is_valid():
+        emergencia = formulario.save(commit=False)
+        emergencia.registrado_por = request.user
+        emergencia.estado = Emergencia.Estado.REPORTADA
+        emergencia.save()
+        messages.success(request, "Emergencia registrada correctamente.")
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    return render(request, "emergencias/formulario.html", {"form": formulario})
 
 
 @login_required

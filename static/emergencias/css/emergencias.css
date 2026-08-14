@@ -34,7 +34,28 @@ td a { color: var(--color-red-700); }
 .empty-state { padding: 2rem; text-align: center; color: var(--color-slate-600); }
 .button--primary { color: var(--color-white); background: var(--color-red-700); }
 
+.emergency-form-panel { max-width: 920px; }
+.emergency-form-grid { display: grid; gap: 1rem; }
+.emergency-field { display: grid; min-width: 0; gap: 0.38rem; }
+.emergency-field label { color: var(--color-navy-900); font-size: 0.8rem; font-weight: 750; }
+.emergency-field label span, .field-error { color: var(--color-danger); }
+.emergency-field small, .field-error { margin: 0; font-size: 0.75rem; }
+.emergency-field small { color: var(--color-slate-600); }
+.emergency-field input, .emergency-field select, .emergency-field textarea {
+    width: 100%; min-height: 2.75rem; padding: 0.7rem 0.8rem;
+    border: 1px solid var(--color-slate-300); border-radius: var(--radius-sm);
+    background: var(--color-white); color: var(--color-navy-900); font: inherit;
+}
+.emergency-field textarea { min-height: 7rem; resize: vertical; }
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+
+@media (min-width: 701px) {
+    .emergency-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .emergency-field--wide { grid-column: 1 / -1; }
+}
+
 @media (max-width: 700px) {
     .panel__heading { align-items: stretch; flex-direction: column; }
     .detail-grid { grid-template-columns: 1fr; }
+    .form-actions { align-items: stretch; flex-direction: column-reverse; }
 }

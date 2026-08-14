@@ -331,6 +331,34 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, emergencia.codigo)
 
+    def test_responsable_puede_crear_emergencia_desde_la_aplicacion(self):
+        self.client.force_login(self.usuario_estacion)
+        respuesta = self.client.post("/emergencias/crear/", {
+            "codigo": "EM-WEB-001",
+            "tipo_emergencia": "Rescate",
+            "descripcion": "Atención desde la interfaz",
+            "prioridad": Emergencia.Prioridad.ALTA,
+            "fecha_reporte": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "direccion": "Latacunga",
+            "latitud": "-0.933333",
+            "longitud": "-78.616667",
+            "estacion_responsable": self.estacion_uno.pk,
+        })
+        emergencia = Emergencia.objects.get(codigo="EM-WEB-001")
+        self.assertRedirects(respuesta, f"/emergencias/{emergencia.pk}/")
+        self.assertEqual(emergencia.registrado_por, self.usuario_estacion)
+        self.assertEqual(emergencia.estado, Emergencia.Estado.REPORTADA)
+
+    def test_operador_de_consulta_no_puede_crear_emergencias(self):
+        self.client.force_login(self.usuario_consulta)
+        self.assertEqual(self.client.get("/emergencias/crear/").status_code, 403)
+
+    def test_listado_ofrece_crear_emergencia_al_responsable(self):
+        self.client.force_login(self.usuario_estacion)
+        respuesta = self.client.get("/emergencias/")
+        self.assertContains(respuesta, "Crear emergencia")
+        self.assertNotContains(respuesta, "Administrar emergencias")
+
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):
         emergencia = Emergencia.objects.create(
             codigo="EM-AJENA-001",

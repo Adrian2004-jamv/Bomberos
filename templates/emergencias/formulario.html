@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear emergencia{% endblock %}
+{% block page_title %}Crear emergencia{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
+
+{% block content %}
+<section class="panel emergency-form-panel">
+    <div class="panel__heading">
+        <div><p class="eyebrow">Registro operativo</p><h2>Nueva emergencia</h2></div>
+    </div>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="emergency-form-grid">
+            {% for field in form %}
+            <div class="emergency-field{% if field.name == 'descripcion' or field.name == 'direccion' %} emergency-field--wide{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {{ field }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="form-actions">
+            <a class="button" href="{% url 'emergencias:lista' %}">Cancelar</a>
+            <button class="button button--primary" type="submit">Registrar emergencia</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
