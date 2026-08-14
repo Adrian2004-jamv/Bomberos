@@ -175,7 +175,7 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Centro documental operativo")
         self.assertContains(respuesta, formulario.codigo)
         self.assertContains(respuesta, "Continuar edición")
-        self.assertContains(respuesta, "Vista imprimible")
+        self.assertContains(respuesta, "Imprimir")
         self.assertContains(respuesta, "Descargar PDF")
 
     def test_catalogo_muestra_los_doce_formularios_y_sus_fichas(self):
