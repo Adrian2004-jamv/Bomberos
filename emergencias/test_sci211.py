@@ -43,6 +43,9 @@ class SCI211Tests(TestCase):
         cls.otra_institucion = cls._usuario(
             "externo-sci", "0571000004", "Responsable institucional", cls.estacion_otra_institucion
         )
+        cls.superusuario = get_user_model().objects.create_superuser(
+            username="super-sci", cedula="0571000005", password="clave", estacion=None,
+        )
 
     @classmethod
     def _usuario(cls, nombre, cedula, grupo, estacion):
@@ -162,6 +165,18 @@ class SCI211Tests(TestCase):
             f'href="{reverse("emergencias:sci211_lista")}" aria-current="page"',
             html=False,
         )
+
+    def test_superusuario_sin_estacion_ve_boton_y_centro_de_formularios(self):
+        formulario = self.crear_formulario()
+        self.client.force_login(self.superusuario)
+        respuesta = self.client.get(reverse("emergencias:lista"))
+        self.assertContains(respuesta, "Formularios SCI")
+        respuesta = self.client.get(reverse("emergencias:sci211_lista"))
+        self.assertContains(respuesta, "Centro documental operativo")
+        self.assertContains(respuesta, formulario.codigo)
+        self.assertContains(respuesta, "Continuar edición")
+        self.assertContains(respuesta, "Vista imprimible")
+        self.assertContains(respuesta, "Descargar PDF")
 
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()
