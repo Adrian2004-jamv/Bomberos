@@ -205,6 +205,8 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
             {"nombre": nombre, "etiqueta": etiqueta, "tipo": tipo, "valor": formulario.datos.get(nombre, "")}
             for nombre, etiqueta, tipo in CAMPOS_FORMULARIOS_SCI[codigo]
         ],
+        "es_horizontal": codigo in {"202", "204", "207", "215", "222"},
+        "es_hoja_calculo": codigo in {"203", "222"},
     })
 
 
