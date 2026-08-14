@@ -252,8 +252,11 @@ class FormularioSCI211(models.Model):
         "punto de registro", max_length=150,
         help_text="Ejemplo: Puesto de Comando, Base, Helibase o Área de Espera.",
     )
-    preparado_por_nombre = models.CharField("preparado por", max_length=150, blank=True)
+    registrador_1 = models.CharField("nombre del registrador 1", max_length=150)
+    registrador_2 = models.CharField("nombre del registrador 2", max_length=150, blank=True)
+    registrador_3 = models.CharField("nombre del registrador 3", max_length=150, blank=True)
     emergencia_codigo_emitido = models.CharField(max_length=30, blank=True, editable=False)
+    incidente_nombre_emitido = models.CharField(max_length=120, blank=True, editable=False)
     incidente_fecha_emitida = models.DateTimeField(null=True, blank=True, editable=False)
     incidente_direccion_emitida = models.CharField(max_length=255, blank=True, editable=False)
     institucion_emitida = models.CharField(max_length=150, blank=True, editable=False)
@@ -311,7 +314,10 @@ class RegistroRecursoSCI211(models.Model):
     matricula_identificacion = models.CharField("matrícula o identificación", max_length=80)
     numero_personas = models.PositiveSmallIntegerField("número de personas", default=1)
     estado_recurso = models.CharField(max_length=20, choices=EstadoRecurso.choices)
-    ubicacion_recurso = models.CharField("ubicación del recurso", max_length=180, blank=True)
+    asignado_a = models.CharField(
+        "asignado a", max_length=180, blank=True,
+        help_text="Ubicación geográfica o asignación actual del recurso.",
+    )
     desmovilizado_por = models.CharField("desmovilización autorizada por", max_length=150, blank=True)
     fecha_hora_desmovilizacion = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(max_length=1500, blank=True)
@@ -336,7 +342,7 @@ class RegistroRecursoSCI211(models.Model):
             errores["fecha_hora_arribo"] = "El arribo no puede ser anterior a la solicitud."
         if bool(self.desmovilizado_por) != bool(self.fecha_hora_desmovilizacion):
             errores["desmovilizado_por"] = "Indique responsable y fecha de desmovilización juntos."
-        if self.estado_recurso == self.EstadoRecurso.DISPONIBLE and not self.ubicacion_recurso:
-            errores["ubicacion_recurso"] = "Indique la ubicación del recurso disponible."
+        if self.estado_recurso == self.EstadoRecurso.DISPONIBLE and not self.asignado_a:
+            errores["asignado_a"] = "Indique dónde está asignado el recurso disponible."
         if errores:
             raise ValidationError(errores)

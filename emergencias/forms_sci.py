@@ -7,7 +7,7 @@ from .models import FormularioSCI211, RegistroRecursoSCI211
 class FormularioSCI211Form(forms.ModelForm):
     class Meta:
         model = FormularioSCI211
-        fields = ("punto_registro", "preparado_por_nombre")
+        fields = ("punto_registro", "registrador_1", "registrador_2", "registrador_3")
         widgets = {"punto_registro": forms.TextInput(attrs={"autocomplete": "organization"})}
 
 

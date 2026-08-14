@@ -114,13 +114,13 @@ Limitación actual: todavía no existe almacenamiento offline de posiciones GPS 
 
 ## Formulario piloto SCI-211
 
-El único formulario SCI implementado es el **SCI-211 - Registro y Control de Recursos**. Desde el detalle de una emergencia, un responsable institucional o de estación autorizado puede crear un borrador. Los despliegues existentes se copian como filas iniciales; después se pueden completar solicitud, arribo, procedencia, matrícula, dotación, estado, desmovilización y observaciones.
+El único formulario SCI implementado es el **SCI-211 - Registro y Control de Recursos**. Desde el detalle de una emergencia, un responsable institucional o de estación autorizado puede crear un borrador. Los despliegues existentes se copian como filas iniciales; después se pueden completar solicitud, arribo, procedencia, matrícula, dotación, disponibilidad, asignación, desmovilización y observaciones. El encabezado conserva el nombre del incidente, la fecha de preparación y el lugar de registro; el cierre incluye hasta tres registradores, como el XLSX oficial.
 
 Un borrador puede guardarse y editarse. La acción **Finalizar** exige confirmación y valida que exista al menos un recurso y que sus campos obligatorios sean válidos. Al finalizar se congelan el código, fecha, dirección, institución, estación y coordenadas con los que se emitió el documento; desde entonces es de solo lectura. Los perfiles provinciales y de consulta acceden únicamente dentro de su ámbito, mientras inventario no obtiene edición SCI por ese solo rol.
 
-La vista imprimible y la descarga generan el PDF bajo demanda con WeasyPrint, HTML escapado por Django y sin acceso a recursos externos. En Windows, si WeasyPrint no encuentra sus bibliotecas nativas, instale GTK/Pango según la documentación oficial de WeasyPrint y reinicie la terminal. No se guarda el PDF en `media`.
+La vista imprimible y la descarga generan el PDF A4 horizontal bajo demanda con WeasyPrint, HTML escapado por Django y un cargador que rechaza archivos o URLs externos. Se eligió A4 porque el XLSX oficial define orientación horizontal y ajuste a dos páginas de ancho, pero no fija el tamaño de papel. En Windows, si WeasyPrint no encuentra sus bibliotecas nativas, instale GTK/Pango según la documentación oficial de WeasyPrint y reinicie la terminal. No se guarda el PDF en `media`.
 
-Limitaciones: el número de personas se inicia en 1 porque el sistema aún no administra dotaciones; debe confirmarlo el registrador. No se incluyen firmas electrónicas, modo offline ni otros formularios SCI.
+Limitaciones: el número de personas se inicia en 1 porque el sistema aún no administra dotaciones; debe confirmarlo el registrador. El XLSX muestra las columnas **Disponible**, **No disponible** y **Asignado a**, mientras su instructivo también menciona **Fuera de servicio**; para conservar ambos sentidos, el PDF marca ese caso como no disponible y escribe “Fuera de servicio” en la asignación. No se incluyen firmas electrónicas, modo offline ni otros formularios SCI.
 
 ## Protección de datos
 

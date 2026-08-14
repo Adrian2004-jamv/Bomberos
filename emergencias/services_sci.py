@@ -18,7 +18,7 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
         emergencia=emergencia,
         codigo=f"SCI-211-{emergencia.codigo}",
         punto_registro="Puesto de Comando",
-        preparado_por_nombre=_nombre_usuario(usuario),
+        registrador_1=_nombre_usuario(usuario),
         creado_por=usuario,
         modificado_por=usuario,
     )
@@ -42,7 +42,7 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
             matricula_identificacion=unidad.codigo_interno,
             numero_personas=1,
             estado_recurso=estado,
-            ubicacion_recurso=emergencia.direccion if estado == "disponible" else "",
+            asignado_a=emergencia.direccion if estado == "disponible" else "",
             desmovilizado_por=_nombre_usuario(despliegue.despachado_por) if despliegue.fecha_retorno else "",
             fecha_hora_desmovilizacion=despliegue.fecha_retorno,
             observaciones=despliegue.observaciones,
@@ -66,6 +66,7 @@ def finalizar_sci211(formulario, usuario):
     emergencia = actual.emergencia
     estacion = emergencia.estacion_responsable
     actual.emergencia_codigo_emitido = emergencia.codigo
+    actual.incidente_nombre_emitido = emergencia.tipo_emergencia
     actual.incidente_fecha_emitida = emergencia.fecha_reporte
     actual.incidente_direccion_emitida = emergencia.direccion
     actual.institucion_emitida = estacion.cuerpo_bomberos.nombre
@@ -87,6 +88,12 @@ def generar_pdf_sci211(formulario):
         raise RuntimeError("WeasyPrint no está disponible en este entorno.") from error
     html = render_to_string("emergencias/sci211/pdf.html", {"formulario": formulario})
     salida = BytesIO()
-    # No se define base_url: se bloquean accesos a archivos y URLs externas.
-    HTML(string=html).write_pdf(salida, stylesheets=[CSS(string="@page { size: A4 landscape; margin: 10mm; }")])
+
+    def bloquear_recurso_externo(url, timeout=10, ssl_context=None):
+        raise ValueError(f"El PDF SCI-211 no admite recursos externos: {url!r}")
+
+    HTML(string=html, url_fetcher=bloquear_recurso_externo).write_pdf(
+        salida,
+        stylesheets=[CSS(string="@page { size: A4 landscape; margin: 10mm; }")],
+    )
     return salida.getvalue()
