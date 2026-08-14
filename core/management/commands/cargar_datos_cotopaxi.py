@@ -14,6 +14,16 @@ CANTONES_COTOPAXI = (
     ("SIGCHOS", "Sigchos"),
 )
 
+INSTITUCIONES_COTOPAXI = (
+    ("LATACUNGA", "Cuerpo de Bomberos de Latacunga", "CBL", "PEND000000001", "LAT-CENTRAL", "Estación Central", "-0.933333", "-78.616667"),
+    ("LA-MANA", "Cuerpo de Bomberos de La Maná", "CBLM", "PEND000000002", "LAM-CENTRAL", "Estación Principal de La Maná", "-0.940940", "-79.225060"),
+    ("PANGUA", "Cuerpo de Bomberos de Pangua", "CBP", "PEND000000003", "PAN-CENTRAL", "Estación Principal de Pangua", "-1.126000", "-79.084000"),
+    ("PUJILI", "Cuerpo de Bomberos de Pujilí", "CBPU", "PEND000000004", "PUJ-CENTRAL", "Estación Principal de Pujilí", "-0.957600", "-78.696400"),
+    ("SALCEDO", "Cuerpo de Bomberos de Salcedo", "CBS", "PEND000000005", "SAL-CENTRAL", "Estación Principal de Salcedo", "-1.045500", "-78.590600"),
+    ("SAQUISILI", "Cuerpo de Bomberos de Saquisilí", "CBSA", "PEND000000006", "SAQ-CENTRAL", "Estación Principal de Saquisilí", "-0.839900", "-78.667000"),
+    ("SIGCHOS", "Cuerpo de Bomberos de Sigchos", "CBSI", "PEND000000007", "SIG-CENTRAL", "Estación Principal de Sigchos", "-0.701000", "-78.889000"),
+)
+
 
 class Command(BaseCommand):
     help = "Carga el catálogo inicial de los siete cantones de Cotopaxi."
@@ -68,6 +78,43 @@ class Command(BaseCommand):
             )
             creados += int(creado)
             actualizados += int(not creado)
+
+        cuerpos_creados = 0
+        estaciones_creadas = 0
+        for canton_codigo, nombre, sigla, ruc, codigo_estacion, nombre_estacion, latitud, longitud in INSTITUCIONES_COTOPAXI:
+            canton = Canton.objects.get(codigo=canton_codigo)
+            cuerpo, cuerpo_creado = CuerpoBomberos.objects.update_or_create(
+                sigla=sigla,
+                defaults={
+                    "canton": canton,
+                    "nombre": nombre,
+                    "ruc": ruc,
+                    "direccion": "Dirección pendiente de registro",
+                    "telefono": "",
+                    "correo": "",
+                    "sitio_web": "",
+                    "activo": True,
+                },
+            )
+            cuerpos_creados += int(cuerpo_creado)
+            if canton_codigo == "LATACUNGA":
+                Estacion.objects.filter(cuerpo_bomberos=cuerpo, codigo="CENTRAL").update(
+                    codigo=codigo_estacion, nombre=nombre_estacion
+                )
+            estacion, estacion_creada = Estacion.objects.get_or_create(
+                cuerpo_bomberos=cuerpo,
+                codigo=codigo_estacion,
+                defaults={
+                    "nombre": nombre_estacion,
+                    "direccion": "Dirección pendiente de registro",
+                    "telefono": "",
+                    "latitud": latitud,
+                    "longitud": longitud,
+                    "activo": True,
+                },
+            )
+            estaciones_creadas += int(estacion_creada)
         self.stdout.write(self.style.SUCCESS(
-            f"Cantones de Cotopaxi disponibles: 7 ({creados} creados, {actualizados} actualizados)."
+            f"Cotopaxi disponible: 7 cantones, 7 Cuerpos de Bomberos y 7 estaciones principales. "
+            f"Nuevos: {creados} cantones, {cuerpos_creados} cuerpos y {estaciones_creadas} estaciones."
         ))

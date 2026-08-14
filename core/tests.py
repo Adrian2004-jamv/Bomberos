@@ -3,8 +3,11 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+
+from instituciones.models import Canton, CuerpoBomberos, Estacion
 
 
 class InicioTests(TestCase):
@@ -31,6 +34,19 @@ class InicioTests(TestCase):
         respuesta = self.client.get(reverse("core:inicio"))
 
         self.assertRedirects(respuesta, reverse("dashboard:principal"))
+
+
+class DatosCotopaxiTests(TestCase):
+    def test_carga_es_repetible_y_crea_siete_instituciones_con_estacion(self):
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+
+        self.assertEqual(Canton.objects.count(), 7)
+        self.assertEqual(CuerpoBomberos.objects.count(), 7)
+        self.assertEqual(Estacion.objects.count(), 7)
+        for canton in Canton.objects.all():
+            self.assertEqual(canton.cuerpos_bomberos.count(), 1)
+            self.assertEqual(canton.cuerpos_bomberos.get().estaciones.count(), 1)
 
 
 class PwaTests(TestCase):
