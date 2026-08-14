@@ -14,7 +14,7 @@ from inventario.permissions import estaciones_permitidas
 
 from .forms import EmergenciaForm
 from .models import DespliegueUnidad, Emergencia
-from .models import FormularioSCI211
+from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
 from .permissions import (puede_consultar_emergencias, puede_consultar_sci,
                           puede_editar_sci, puede_gestionar_emergencias)
@@ -36,6 +36,20 @@ CATALOGO_FORMULARIOS_SCI = (
     {"codigo": "221", "nombre": "Verificación de la Desmovilización", "formato": "Carta vertical · 4 páginas", "estructura": "Lista de verificación, liberación de recursos, observaciones y firmas."},
     {"codigo": "222", "nombre": "Prioridades y Asignación de Recursos", "formato": "Horizontal · matriz", "estructura": "Prioridad de incidentes, recursos requeridos, disponibles y reasignados."},
 )
+
+CAMPOS_FORMULARIOS_SCI = {
+    "201": (("evaluacion", "Evaluación inicial", "textarea"), ("amenazas", "Amenazas y daños", "textarea"), ("objetivos", "Objetivos iniciales", "textarea"), ("organizacion", "Organización inicial", "textarea"), ("croquis", "Descripción del croquis", "textarea"), ("aprobacion", "Responsable de aprobación", "text")),
+    "202": (("periodo", "Periodo operacional", "text"), ("objetivos", "Objetivos", "textarea"), ("estrategias", "Estrategias", "textarea"), ("tacticas", "Tácticas", "textarea"), ("recursos", "Recursos requeridos", "textarea"), ("aprobado_por", "Aprobado por", "text")),
+    "203": (("comandante", "Comandante del Incidente", "text"), ("seguridad", "Oficial de Seguridad", "text"), ("operaciones", "Jefe de Operaciones", "text"), ("planificacion", "Jefe de Planificación", "text"), ("logistica", "Jefe de Logística", "text"), ("finanzas", "Administración y Finanzas", "text"), ("organizacion", "Organización adicional", "textarea")),
+    "204": (("rama", "Rama", "text"), ("division_grupo", "División o grupo", "text"), ("supervisor", "Supervisor", "text"), ("recursos", "Recursos asignados", "textarea"), ("instrucciones", "Instrucciones tácticas", "textarea"), ("comunicaciones", "Comunicaciones", "textarea")),
+    "205": (("periodo", "Periodo operacional", "text"), ("sistemas", "Sistemas de comunicación", "textarea"), ("canales", "Canales y frecuencias", "textarea"), ("indicativos", "Indicativos", "textarea"), ("asignaciones", "Asignaciones", "textarea"), ("observaciones", "Observaciones", "textarea")),
+    "206": (("responsable", "Responsable médico", "text"), ("instalaciones", "Instalaciones médicas", "textarea"), ("ambulancias", "Ambulancias y transporte", "textarea"), ("hospitales", "Hospitales de referencia", "textarea"), ("procedimientos", "Procedimientos de emergencia", "textarea"), ("aprobado_por", "Aprobado por", "text")),
+    "207": (("responsable", "Responsable del registro", "text"), ("pacientes", "Pacientes o víctimas", "textarea"), ("clasificacion", "Clasificación", "textarea"), ("atencion", "Atención proporcionada", "textarea"), ("traslados", "Unidades, destinos y horas de traslado", "textarea"), ("observaciones", "Observaciones", "textarea")),
+    "214": (("responsable", "Nombre y cargo SCI", "text"), ("periodo", "Periodo operacional", "text"), ("actividades", "Registro cronológico de actividades", "textarea"), ("decisiones", "Decisiones y novedades", "textarea"), ("observaciones", "Observaciones", "textarea"), ("firma", "Responsable de firma", "text")),
+    "215": (("preparado_por", "Preparado por", "text"), ("areas", "Áreas de trabajo", "textarea"), ("peligros", "Peligros identificados", "textarea"), ("riesgos", "Nivel y descripción de riesgos", "textarea"), ("mitigacion", "Acciones de mitigación", "textarea"), ("responsables", "Responsables", "textarea")),
+    "221": (("responsable", "Responsable de desmovilización", "text"), ("planificacion", "Verificación de planificación", "textarea"), ("recursos", "Liberación de recursos", "textarea"), ("logistica", "Verificación logística", "textarea"), ("comunicaciones", "Verificación de comunicaciones", "textarea"), ("observaciones", "Observaciones y firmas", "textarea")),
+    "222": (("preparado_por", "Preparado por", "text"), ("prioridades", "Prioridades de incidentes", "textarea"), ("requeridos", "Recursos requeridos", "textarea"), ("disponibles", "Recursos disponibles", "textarea"), ("asignaciones", "Asignaciones y reasignaciones", "textarea"), ("observaciones", "Observaciones", "textarea")),
+}
 
 
 def _emergencias_permitidas(usuario):
@@ -145,10 +159,52 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
+    formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()
+    datos = formulario.datos if formulario else {}
     return render(request, "emergencias/sci_preview.html", {
         "emergencia": emergencia,
         "formulario_catalogo": formulario_catalogo,
         "filas": range(8),
+        "formulario_generico": formulario,
+        "campos_renderizados": [
+            {"nombre": nombre, "etiqueta": etiqueta, "valor": datos.get(nombre, "")}
+            for nombre, etiqueta, _tipo in CAMPOS_FORMULARIOS_SCI.get(codigo, ())
+        ],
+    })
+
+
+@login_required
+def formulario_sci_editar(request, codigo, emergencia_pk):
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    if codigo == "211":
+        formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+        if formulario is None:
+            formulario = crear_sci211_desde_emergencia(emergencia, request.user)
+        return redirect("emergencias:sci211_editar", pk=formulario.pk)
+    if not puede_editar_sci(request.user, emergencia) or codigo not in CAMPOS_FORMULARIOS_SCI:
+        raise PermissionDenied
+    formulario_catalogo = next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo)
+    formulario, _ = FormularioSCI.objects.get_or_create(
+        emergencia=emergencia, codigo_sci=codigo,
+        defaults={"creado_por": request.user, "modificado_por": request.user},
+    )
+    if request.method == "POST":
+        formulario.datos = {
+            nombre: request.POST.get(nombre, "").strip()[:5000]
+            for nombre, _etiqueta, _tipo in CAMPOS_FORMULARIOS_SCI[codigo]
+        }
+        formulario.modificado_por = request.user
+        formulario.save()
+        messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
+        return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+    return render(request, "emergencias/sci_editar.html", {
+        "emergencia": emergencia,
+        "formulario_catalogo": formulario_catalogo,
+        "formulario_generico": formulario,
+        "campos_edicion": [
+            {"nombre": nombre, "etiqueta": etiqueta, "tipo": tipo, "valor": formulario.datos.get(nombre, "")}
+            for nombre, etiqueta, tipo in CAMPOS_FORMULARIOS_SCI[codigo]
+        ],
     })
 
 

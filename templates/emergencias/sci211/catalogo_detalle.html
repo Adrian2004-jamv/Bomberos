@@ -5,12 +5,11 @@
 <section class="panel sci-reference">
     <div class="sci-reference__code">SCI-{{ formulario_catalogo.codigo }}</div>
     <div><p class="eyebrow">Sistema de Comando de Incidentes</p><h2>{{ formulario_catalogo.nombre }}</h2><p>{{ formulario_catalogo.estructura }}</p></div>
-    <span class="sci-status{% if formulario_catalogo.implementado %} sci-status--ready{% endif %}">{% if formulario_catalogo.implementado %}Operativo{% else %}Vista informativa{% endif %}</span>
+    <span class="sci-status sci-status--ready">Editable</span>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Características del documento</p><h2>Vista general</h2></div></div>
-    <dl class="detail-grid"><div><dt>Formato</dt><dd>{{ formulario_catalogo.formato }}</dd></div><div><dt>Contenido</dt><dd>{{ formulario_catalogo.estructura }}</dd></div><div><dt>Disponibilidad</dt><dd>{% if formulario_catalogo.implementado %}Edición, consulta e impresión habilitadas{% else %}Referencia habilitada; digitalización pendiente{% endif %}</dd></div></dl>
+    <dl class="detail-grid"><div><dt>Formato</dt><dd>{{ formulario_catalogo.formato }}</dd></div><div><dt>Contenido</dt><dd>{{ formulario_catalogo.estructura }}</dd></div><div><dt>Disponibilidad</dt><dd>Edición, consulta e impresión habilitadas</dd></div></dl>
     <div class="sci-reference__actions"><a class="button" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a>{% if emergencia_visualizacion %}<a class="button button--primary" href="{% url 'emergencias:sci_visualizar' formulario_catalogo.codigo emergencia_visualizacion.pk %}">Visualizar con emergencia</a>{% endif %}</div>
 </section>
-{% if not formulario_catalogo.implementado %}<section class="sci-notice" role="note"><span data-lucide="info" aria-hidden="true"></span><div><strong>Este formulario todavía no almacena datos.</strong><p>La ficha permite revisar su propósito antes de construir su modelo, validaciones, permisos y versión imprimible respetando el documento oficial.</p></div></section>{% endif %}
 {% endblock %}

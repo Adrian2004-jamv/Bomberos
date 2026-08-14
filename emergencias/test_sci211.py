@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
-from .models import Emergencia, FormularioSCI211, RegistroRecursoSCI211
+from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services_sci import finalizar_sci211, generar_pdf_sci211
 
 
@@ -174,22 +174,20 @@ class SCI211Tests(TestCase):
         respuesta = self.client.get(reverse("emergencias:sci211_lista"))
         self.assertContains(respuesta, "Centro documental operativo")
         self.assertContains(respuesta, formulario.codigo)
-        self.assertContains(respuesta, "Continuar edición")
-        self.assertContains(respuesta, "Imprimir")
-        self.assertContains(respuesta, "Descargar PDF")
+        self.assertContains(respuesta, "Editar")
+        self.assertContains(respuesta, "Visualizar e imprimir")
 
     def test_catalogo_muestra_los_doce_formularios_y_sus_fichas(self):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:sci211_lista"))
         for codigo in ("201", "202", "203", "204", "205", "206", "207", "211", "214", "215", "221", "222"):
             self.assertContains(respuesta, f"SCI-{codigo}")
-        self.assertContains(respuesta, "Vista informativa", count=11)
-        self.assertContains(respuesta, "Operativo", count=1)
+        self.assertContains(respuesta, "Editable", count=12)
 
         ficha = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["205"]))
         self.assertEqual(ficha.status_code, 200)
         self.assertContains(ficha, "Plan de Comunicaciones")
-        self.assertContains(ficha, "digitalización pendiente")
+        self.assertContains(ficha, "Edición, consulta e impresión habilitadas")
 
         inexistente = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["999"]))
         self.assertEqual(inexistente.status_code, 404)
@@ -204,6 +202,28 @@ class SCI211Tests(TestCase):
             self.assertContains(respuesta, f"Formulario SCI-{codigo}")
             self.assertContains(respuesta, self.emergencia.tipo_emergencia)
             self.assertContains(respuesta, "Imprimir")
+
+    def test_formulario_generico_se_crea_edita_y_conserva_datos(self):
+        self.client.force_login(self.usuario)
+        url = reverse("emergencias:sci_editar", args=["205", self.emergencia.pk])
+        respuesta = self.client.post(url, {
+            "periodo": "08:00 a 20:00",
+            "sistemas": "Radio institucional",
+            "canales": "Canal operativo 1",
+            "indicativos": "Comando",
+            "asignaciones": "Operaciones",
+            "observaciones": "Sin novedades",
+        })
+        self.assertRedirects(
+            respuesta, reverse("emergencias:sci_visualizar", args=["205", self.emergencia.pk])
+        )
+        formulario = FormularioSCI.objects.get(emergencia=self.emergencia, codigo_sci="205")
+        self.assertEqual(formulario.datos["canales"], "Canal operativo 1")
+        impresion = self.client.get(reverse(
+            "emergencias:sci_visualizar", args=["205", self.emergencia.pk]
+        ))
+        self.assertContains(impresion, "Canal operativo 1")
+        self.assertContains(impresion, "Editar formulario")
 
     def test_pdf_protegido_no_vacio_y_original_intacto(self):
         formulario = self.crear_formulario()

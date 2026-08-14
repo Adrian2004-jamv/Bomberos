@@ -291,6 +291,40 @@ class FormularioSCI211(models.Model):
         return self.estado == self.Estado.BORRADOR
 
 
+class FormularioSCI(models.Model):
+    """Borrador editable para formularios SCI distintos del registro especializado 211."""
+
+    emergencia = models.ForeignKey(
+        Emergencia, on_delete=models.PROTECT, related_name="formularios_sci",
+        verbose_name="emergencia",
+    )
+    codigo_sci = models.CharField("código SCI", max_length=3)
+    datos = models.JSONField(default=dict, blank=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="formularios_sci_creados", editable=False,
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="formularios_sci_modificados", editable=False,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "formulario SCI"
+        verbose_name_plural = "formularios SCI"
+        ordering = ("codigo_sci", "pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("emergencia", "codigo_sci"), name="formulario_sci_unico_por_emergencia"
+            )
+        ]
+
+    def __str__(self):
+        return f"SCI-{self.codigo_sci}-{self.emergencia.codigo}"
+
+
 class RegistroRecursoSCI211(models.Model):
     class EstadoRecurso(models.TextChoices):
         DISPONIBLE = "disponible", "Disponible"

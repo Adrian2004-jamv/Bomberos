@@ -10,6 +10,7 @@ urlpatterns = [
     path("formularios-sci/211/", views.sci211_lista, name="sci211_lista"),
     path("formularios-sci/catalogo/<str:codigo>/", views.formulario_sci_catalogo_detalle, name="sci_catalogo_detalle"),
     path("formularios-sci/<str:codigo>/emergencia/<int:emergencia_pk>/visualizar/", views.formulario_sci_visualizar, name="sci_visualizar"),
+    path("formularios-sci/<str:codigo>/emergencia/<int:emergencia_pk>/editar/", views.formulario_sci_editar, name="sci_editar"),
     path("formularios-sci/211/<int:pk>/", views.sci211_detalle, name="sci211_detalle"),
     path("formularios-sci/211/<int:pk>/editar/", views.sci211_editar, name="sci211_editar"),
     path("formularios-sci/211/<int:pk>/finalizar/", views.sci211_finalizar, name="sci211_finalizar"),
