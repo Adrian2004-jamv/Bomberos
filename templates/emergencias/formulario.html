@@ -3,12 +3,16 @@
 
 {% block title %}Crear emergencia{% endblock %}
 {% block page_title %}Crear emergencia{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2">{% endblock %}
 
 {% block content %}
 <section class="panel emergency-form-panel">
     <div class="panel__heading">
-        <div><p class="eyebrow">Registro operativo</p><h2>Nueva emergencia</h2></div>
+        <div><p class="eyebrow">Paso 1 de 2 · Registro operativo</p><h2>Datos iniciales del incidente</h2></div>
+    </div>
+    <div class="workflow-notice">
+        <strong>Este registro no es el formulario SCI-211.</strong>
+        <span>Después de guardar la emergencia podrás abrir el documento oficial “SCI-211 · Registro y Control de Recursos” desde su detalle.</span>
     </div>
     <form method="post" novalidate>
         {% csrf_token %}
