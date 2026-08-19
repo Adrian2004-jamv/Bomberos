@@ -220,9 +220,9 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, "data-inventory-table")
         self.assertContains(respuesta, "datatables-2.3.8.min.js")
         self.assertContains(respuesta, 'data-inventory-column-filter="2"', html=False)
-        self.assertContains(respuesta, "Todas las instituciones")
+        self.assertContains(respuesta, "Buscar recurso…")
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
-        self.assertContains(respuesta, "Todos los registros")
+        self.assertContains(respuesta, 'aria-label="Filtrar por registro"', html=False)
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
         self.client.force_login(self.usuarios["provincial"])

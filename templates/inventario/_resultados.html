@@ -1,19 +1,21 @@
 {% if recursos %}
 <section class="inventory-table-panel" aria-label="Tabla de recursos institucionales">
-<div class="inventory-column-filters" data-inventory-column-filters aria-label="Filtros rápidos del inventario">
-    <div class="inventory-column-filters__heading"><div><strong>Filtrar registros</strong><span>Selecciona uno o varios criterios.</span></div><button type="button" data-clear-inventory-filters>Limpiar filtros</button></div>
-    <div class="inventory-column-filters__grid">
-        <label>Institución<select data-inventory-column-filter="2"><option value="">Todas las instituciones</option></select></label>
-        <label>Estación<select data-inventory-column-filter="3"><option value="">Todas las estaciones</option></select></label>
-        <label>Categoría<select data-inventory-column-filter="4"><option value="">Todas las categorías</option></select></label>
-        <label>Tipo<select data-inventory-column-filter="5"><option value="">Todos los tipos</option></select></label>
-        <label>Estado<select data-inventory-column-filter="6"><option value="">Todos los estados</option></select></label>
-        <label>Disponibilidad<select data-inventory-column-filter="7"><option value="">Todas</option></select></label>
-        <label>Registro<select data-inventory-column-filter="8"><option value="">Todos los registros</option></select></label>
-    </div>
-</div>
 <table id="inventory-datatable" class="inventory-datatable display responsive nowrap" data-inventory-table style="width:100%">
-    <thead><tr><th class="all" aria-label="Detalle"></th><th class="all">Recurso</th><th>Institución</th><th>Estación</th><th>Categoría</th><th>Tipo</th><th>Estado</th><th>Disponibilidad</th><th>Registro</th><th class="all">Acciones</th></tr></thead>
+    <thead data-inventory-column-filters>
+        <tr><th class="all" aria-label="Detalle"></th><th class="all">Recurso</th><th>Institución</th><th>Estación</th><th>Categoría</th><th>Tipo</th><th>Estado</th><th>Disponibilidad</th><th>Registro</th><th class="all">Acciones</th></tr>
+        <tr class="inventory-filter-row">
+            <th></th>
+            <th><input type="search" data-inventory-global-search placeholder="Buscar recurso…" aria-label="Buscar en el inventario"></th>
+            <th><select data-inventory-column-filter="2" aria-label="Filtrar por institución"><option value="">Todas</option></select></th>
+            <th><select data-inventory-column-filter="3" aria-label="Filtrar por estación"><option value="">Todas</option></select></th>
+            <th><select data-inventory-column-filter="4" aria-label="Filtrar por categoría"><option value="">Todas</option></select></th>
+            <th><select data-inventory-column-filter="5" aria-label="Filtrar por tipo"><option value="">Todos</option></select></th>
+            <th><select data-inventory-column-filter="6" aria-label="Filtrar por estado"><option value="">Todos</option></select></th>
+            <th><select data-inventory-column-filter="7" aria-label="Filtrar por disponibilidad"><option value="">Todas</option></select></th>
+            <th><select data-inventory-column-filter="8" aria-label="Filtrar por registro"><option value="">Todos</option></select></th>
+            <th><button type="button" data-clear-inventory-filters>Limpiar</button></th>
+        </tr>
+    </thead>
     <tbody>{% for recurso in recursos %}<tr>
         <td></td>
         <td data-order="{{ recurso.codigo_interno }}"><div class="inventory-cell-resource"><span class="inventory-cell-icon" aria-hidden="true"><i data-lucide="{% if recurso.tipo.es_unidad_desplegable %}truck{% else %}package-open{% endif %}"></i></span><div><strong>{{ recurso.codigo_interno }}</strong><a href="{% url 'inventario:detalle' recurso.pk %}">{{ recurso.nombre }}</a>{% if recurso.marca or recurso.modelo %}<small>{{ recurso.marca }} {{ recurso.modelo }}</small>{% endif %}</div></div></td>
