@@ -78,10 +78,6 @@ def lista(request):
         "codigo_interno",
         "pk",
     ).distinct()
-    pagina = Paginator(recursos, 24).get_page(request.GET.get("pagina"))
-    parametros = request.GET.copy()
-    parametros.pop("pagina", None)
-
     estaciones = estaciones_permitidas(request.user).order_by(
         "cuerpo_bomberos__nombre", "nombre"
     )
@@ -89,9 +85,7 @@ def lista(request):
         "nombre"
     )
     contexto = {
-            "recursos": pagina,
-            "pagina": pagina,
-            "querystring": parametros.urlencode(),
+            "recursos": recursos,
             "estaciones": estaciones,
             "cuerpos": cuerpos,
             "categorias": CategoriaRecurso.objects.filter(activo=True),

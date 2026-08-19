@@ -210,12 +210,15 @@ class InterfazInventarioTests(TestCase):
         self.assertEqual(self.client.get(ruta).status_code, 200)
         self.assertEqual(self.client.post(ruta, {}).status_code, 405)
 
-    def test_paginacion_conserva_busqueda(self):
+    def test_datatable_recibe_todos_los_resultados_filtrados(self):
         for indice in range(25):
             Recurso.objects.create(estacion=self.estacion_uno, tipo=self.tipo, codigo_interno=f"PAG-{indice:02}", nombre=f"Equipo paginado {indice}")
         self.client.force_login(self.usuarios["encargado"])
         respuesta = self.client.get(reverse("inventario:lista"), {"q": "paginado"})
-        self.assertContains(respuesta, "q=paginado&amp;pagina=2")
+        self.assertContains(respuesta, "PAG-00")
+        self.assertContains(respuesta, "PAG-24")
+        self.assertContains(respuesta, "data-inventory-table")
+        self.assertContains(respuesta, "datatables-2.3.8.min.js")
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
         self.client.force_login(self.usuarios["provincial"])
