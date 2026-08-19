@@ -26,11 +26,14 @@
         const search = filters.querySelector("[data-inventory-global-search]");
         search?.addEventListener("input", () => dataTable.search(search.value).draw());
         filters.querySelectorAll("[data-inventory-column-filter]").forEach((select) => {
-            const column = dataTable.column(Number(select.dataset.inventoryColumnFilter));
-            column.cache("search").unique().sort().each((value) => {
-                const cleanValue = String(value).trim();
-                if (cleanValue) select.add(new Option(cleanValue, cleanValue));
-            });
+            const columnIndex = Number(select.dataset.inventoryColumnFilter);
+            const column = dataTable.column(columnIndex);
+            const values = [...table.tBodies[0].rows]
+                .map((row) => row.cells[columnIndex]?.dataset.search || row.cells[columnIndex]?.textContent || "")
+                .map((value) => value.trim())
+                .filter(Boolean);
+            [...new Set(values)].sort((a, b) => a.localeCompare(b, "es", {sensitivity: "base"}))
+                .forEach((value) => select.add(new Option(value, value)));
             select.addEventListener("change", () => column.search(select.value, {exact: true}).draw());
         });
         filters.querySelector("[data-clear-inventory-filters]")?.addEventListener("click", () => {
