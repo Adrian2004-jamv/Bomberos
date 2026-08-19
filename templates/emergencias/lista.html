@@ -1,23 +1,28 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Emergencias{% endblock %}
-{% block page_title %}Emergencias{% endblock %}
+{% block title %}Incidentes reportados{% endblock %}
+{% block page_title %}Incidentes reportados{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
 
 {% block content %}
-<section class="panel">
+<nav class="incident-actions" aria-label="Acciones de incidentes">
+    <strong><span data-lucide="list-checks" aria-hidden="true"></span> Acciones</strong>
+    <a class="incident-action incident-action--active" href="{% url 'emergencias:lista' %}" aria-current="page"><span data-lucide="clipboard-list" aria-hidden="true"></span> Registro</a>
+    {% if puede_crear %}<a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}"><span data-lucide="plus" aria-hidden="true"></span> Nuevo</a>{% endif %}
+</nav>
+<section class="panel incident-register">
     <div class="panel__heading">
-        <div><p class="eyebrow">Seguimiento operativo</p><h2>Emergencias registradas</h2></div>
-        {% if puede_crear %}<a class="button button--primary" href="{% url 'emergencias:crear' %}">Crear emergencia</a>{% endif %}
+        <div><p class="eyebrow">Seguimiento operativo</p><h2>Listado de incidentes</h2><p>Incidentes reportados dentro de su ámbito institucional.</p></div>
+        {% if puede_crear %}<a class="button button--primary" href="{% url 'emergencias:crear' %}"><span data-lucide="plus" aria-hidden="true"></span> Nuevo incidente</a>{% endif %}
     </div>
     {% if emergencias %}
         <div class="table-responsive"><table>
-            <thead><tr><th>Código</th><th>Tipo</th><th>Prioridad</th><th>Estado</th><th>Estación</th><th>Reporte</th></tr></thead>
+            <thead><tr><th>Código</th><th>Tipo</th><th>Prioridad</th><th>Estado</th><th>Estación</th><th>Reporte</th><th>Acciones</th></tr></thead>
             <tbody>{% for emergencia in emergencias %}<tr>
                 <td><a href="{% url 'emergencias:detalle' emergencia.pk %}"><strong>{{ emergencia.codigo }}</strong></a></td>
                 <td>{{ emergencia.tipo_emergencia }}</td><td>{{ emergencia.get_prioridad_display }}</td><td>{{ emergencia.get_estado_display }}</td>
-                <td>{{ emergencia.estacion_responsable.nombre }}</td><td>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</td>
+                <td>{{ emergencia.estacion_responsable.nombre }}</td><td>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</td><td><a class="table-action" href="{% url 'emergencias:detalle' emergencia.pk %}">Ver registro <span aria-hidden="true">→</span></a></td>
             </tr>{% endfor %}</tbody>
         </table></div>
     {% else %}<div class="empty-state"><p>No existen emergencias registradas en su ámbito autorizado.</p></div>{% endif %}

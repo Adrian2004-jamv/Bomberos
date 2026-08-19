@@ -356,7 +356,7 @@ class EmergenciasYDesplieguesTests(TestCase):
     def test_listado_ofrece_crear_emergencia_al_responsable(self):
         self.client.force_login(self.usuario_estacion)
         respuesta = self.client.get("/emergencias/")
-        self.assertContains(respuesta, "Crear emergencia")
+        self.assertContains(respuesta, "Nuevo incidente")
         self.assertNotContains(respuesta, "Administrar emergencias")
 
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):

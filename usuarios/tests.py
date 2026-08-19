@@ -38,7 +38,7 @@ class AutenticacionTests(TestCase):
 
         self.assertRedirects(
             respuesta,
-            reverse("dashboard:principal"),
+            reverse("emergencias:lista"),
             fetch_redirect_response=False,
         )
         self.assertIn("_auth_user_id", self.client.session)
