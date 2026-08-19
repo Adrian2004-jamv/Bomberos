@@ -1,8 +1,10 @@
 .incident-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.65rem;
-    margin: 0 0 1rem;
+    width: fit-content;
+    margin: 0 auto 1rem;
     padding: 0.4rem;
     border: 1px solid var(--color-slate-200);
     border-radius: 0.75rem;
@@ -38,6 +40,6 @@
 .incident-action--new { border-color: var(--color-red-700); color: #fff; background: var(--color-red-700); }
 
 @media (max-width: 520px) {
-    .incident-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .incident-actions { display: grid; width: 100%; margin-inline: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .incident-action { width: 100%; min-width: 0; }
 }

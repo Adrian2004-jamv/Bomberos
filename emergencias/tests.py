@@ -362,6 +362,9 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "/mapa/datos/")
         self.assertContains(respuesta, "emergencias/js/mapa_incidentes.js")
         self.assertNotContains(respuesta, "Filtros operativos")
+        contenido = respuesta.content.decode()
+        self.assertLess(contenido.index('data-incident-map'), contenido.index('class="incident-actions"'))
+        self.assertLess(contenido.index('class="incident-actions"'), contenido.index('class="panel incident-register"'))
 
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):
         emergencia = Emergencia.objects.create(
