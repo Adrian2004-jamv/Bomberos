@@ -6,12 +6,9 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
-from instituciones.models import CuerpoBomberos
-
 from .forms import CambioEstadoRecursoForm, RecursoForm
-from .models import CategoriaRecurso, Recurso, TipoRecurso
+from .models import Recurso
 from .permissions import (
-    estaciones_permitidas,
     puede_consultar_inventario,
     puede_gestionar_inventario,
     puede_gestionar_recurso,
@@ -78,22 +75,9 @@ def lista(request):
         "codigo_interno",
         "pk",
     ).distinct()
-    estaciones = estaciones_permitidas(request.user).order_by(
-        "cuerpo_bomberos__nombre", "nombre"
-    )
-    cuerpos = CuerpoBomberos.objects.filter(estaciones__in=estaciones).distinct().order_by(
-        "nombre"
-    )
     contexto = {
             "recursos": recursos,
-            "estaciones": estaciones,
-            "cuerpos": cuerpos,
-            "categorias": CategoriaRecurso.objects.filter(activo=True),
-            "tipos": TipoRecurso.objects.filter(activo=True).select_related("categoria"),
-            "estados": Recurso.EstadoOperativo.choices,
-            "disponibilidades": Recurso.Disponibilidad.choices,
             "puede_gestionar": puede_gestionar_inventario(request.user),
-            "filtros_activos": bool(request.GET),
     }
     plantilla = (
         "inventario/_resultados.html"

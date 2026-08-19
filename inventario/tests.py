@@ -251,6 +251,13 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, "R-I-001")
         self.assertNotContains(respuesta, "Buscar y filtrar inventario")
 
+    def test_listado_no_muestra_bloque_de_filtros_duplicado(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertNotContains(respuesta, "Buscar y filtrar inventario")
+        self.assertNotContains(respuesta, "Aplicar filtros")
+        self.assertNotContains(respuesta, "htmx-2.0.10.min.js")
+
     def test_opcion_invalida_produce_error(self):
         with self.assertRaises(ValidationError):
             actualizar_estado_recurso(

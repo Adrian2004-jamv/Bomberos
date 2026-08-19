@@ -40,5 +40,4 @@
         });
     };
     document.addEventListener("DOMContentLoaded", () => initialise());
-    document.addEventListener("htmx:afterSwap", (event) => initialise(event.detail.target));
 })();
