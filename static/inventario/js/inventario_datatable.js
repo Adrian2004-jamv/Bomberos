@@ -3,7 +3,7 @@
     const initialise = (scope = document) => {
         const table = scope.querySelector?.("[data-inventory-table]");
         if (!table || typeof DataTable === "undefined" || DataTable.isDataTable(table)) return;
-        new DataTable(table, {
+        const dataTable = new DataTable(table, {
             responsive: {details: {type: "column", target: 0}},
             columnDefs: [
                 {className: "dtr-control", orderable: false, searchable: false, targets: 0},
@@ -19,6 +19,20 @@
                 infoEmpty: "No hay recursos disponibles", infoFiltered: "(filtrados de _MAX_)", zeroRecords: "No se encontraron recursos con ese criterio",
                 emptyTable: "No existen recursos registrados", paginate: {first: "Primera", previous: "Anterior", next: "Siguiente", last: "Última"},
             },
+        });
+        const filters = table.closest(".inventory-table-panel")?.querySelector("[data-inventory-column-filters]");
+        if (!filters) return;
+        filters.querySelectorAll("[data-inventory-column-filter]").forEach((select) => {
+            const column = dataTable.column(Number(select.dataset.inventoryColumnFilter));
+            column.cache("search").unique().sort().each((value) => {
+                const cleanValue = String(value).trim();
+                if (cleanValue) select.add(new Option(cleanValue, cleanValue));
+            });
+            select.addEventListener("change", () => column.search(select.value, {exact: true}).draw());
+        });
+        filters.querySelector("[data-clear-inventory-filters]")?.addEventListener("click", () => {
+            filters.querySelectorAll("select").forEach((select) => { select.value = ""; });
+            dataTable.search("").columns().search("").draw();
         });
     };
     document.addEventListener("DOMContentLoaded", () => initialise());
