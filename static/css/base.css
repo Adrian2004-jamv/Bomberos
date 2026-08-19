@@ -61,11 +61,11 @@ a {
 .content {
     width: min(100%, 90rem);
     margin: 0 auto;
-    padding: 2rem clamp(1rem, 3vw, 3rem) 3rem;
+    padding: 1.25rem clamp(1rem, 3vw, 3rem) 3rem;
 }
 
 .page-heading {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.15rem;
 }
 
 .page-heading h1,
