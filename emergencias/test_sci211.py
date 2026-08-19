@@ -166,6 +166,31 @@ class SCI211Tests(TestCase):
             html=False,
         )
 
+    def test_accion_es_primer_modulo_y_formularios_no_activa_accion(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:lista"))
+        contenido = respuesta.content.decode()
+        self.assertLess(contenido.index("> Acción"), contenido.index("> Dashboard"))
+        self.assertContains(
+            respuesta,
+            f'href="{reverse("emergencias:lista")}" aria-current="page"',
+            html=False,
+        )
+
+        formulario_sci = self.client.get(reverse(
+            "emergencias:sci_editar", args=["215", self.emergencia.pk]
+        ))
+        self.assertContains(
+            formulario_sci,
+            f'href="{reverse("emergencias:sci211_lista")}" aria-current="page"',
+            html=False,
+        )
+        self.assertNotContains(
+            formulario_sci,
+            f'href="{reverse("emergencias:lista")}" aria-current="page"',
+            html=False,
+        )
+
     def test_superusuario_sin_estacion_ve_boton_y_centro_de_formularios(self):
         formulario = self.crear_formulario()
         self.client.force_login(self.superusuario)
