@@ -38,6 +38,22 @@
         </a>
     </nav>
 
+    <section class="sidebar-user" aria-label="Sesión actual">
+        <span class="sidebar-user__icon" data-lucide="circle-user-round" aria-hidden="true"></span>
+        <div class="sidebar-user__identity">
+            <strong>{{ user.get_full_name|default:user.username }}</strong>
+            {% if user.estacion %}
+                <span>{{ user.estacion.nombre }}</span>
+            {% else %}
+                <span>Sin estación asignada</span>
+            {% endif %}
+        </div>
+        <form method="post" action="{% url 'usuarios:logout' %}">
+            {% csrf_token %}
+            <button type="submit"><span data-lucide="log-out" aria-hidden="true"></span>Cerrar sesión</button>
+        </form>
+    </section>
+
     <div class="sidebar__footer">
         <span class="status-dot" aria-hidden="true"></span>
         Módulos en construcción

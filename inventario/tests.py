@@ -259,6 +259,14 @@ class InterfazInventarioTests(TestCase):
         self.assertNotContains(respuesta, "Aplicar filtros")
         self.assertNotContains(respuesta, "htmx-2.0.10.min.js")
 
+    def test_usuario_y_cierre_de_sesion_estan_en_menu_lateral(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertContains(respuesta, 'class="sidebar-user"', html=False)
+        self.assertContains(respuesta, "Cerrar sesión")
+        contenido = respuesta.content.decode()
+        self.assertLess(contenido.index("Mapa operativo"), contenido.index('class="sidebar-user"'))
+
     def test_opcion_invalida_produce_error(self):
         with self.assertRaises(ValidationError):
             actualizar_estado_recurso(
