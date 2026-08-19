@@ -358,6 +358,10 @@ class EmergenciasYDesplieguesTests(TestCase):
         respuesta = self.client.get("/emergencias/")
         self.assertContains(respuesta, "> Nuevo<", html=False)
         self.assertNotContains(respuesta, "Administrar emergencias")
+        self.assertContains(respuesta, 'data-incident-map', html=False)
+        self.assertContains(respuesta, "/mapa/datos/")
+        self.assertContains(respuesta, "emergencias/js/mapa_incidentes.js")
+        self.assertNotContains(respuesta, "Filtros operativos")
 
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):
         emergencia = Emergencia.objects.create(

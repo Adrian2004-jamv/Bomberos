@@ -3,7 +3,7 @@
 
 {% block title %}Incidentes reportados{% endblock %}
 {% block page_title %}Incidentes reportados{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}">{% endblock %}
 
 {% block content %}
 <nav class="incident-actions" aria-label="Acciones de incidentes">
@@ -25,4 +25,9 @@
         </table></div>
     {% else %}<div class="empty-state"><p>No existen emergencias registradas en su ámbito autorizado.</p></div>{% endif %}
 </section>
+<section class="incident-map-panel" aria-label="Mapa operativo de incidentes">
+    <div id="incidents-operational-map" class="incident-operational-map" data-incident-map data-data-url="{% url 'mapas:datos' %}" role="application" aria-label="Ubicación de incidentes y unidades desplegadas"></div>
+    <div class="incident-map-status" data-incident-map-status role="status" aria-live="polite">Cargando mapa operativo…</div>
+</section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'emergencias/js/mapa_incidentes.js' %}" defer></script>{% endblock %}
