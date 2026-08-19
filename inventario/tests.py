@@ -224,6 +224,7 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
         self.assertContains(respuesta, 'aria-label="Filtrar por registro"', html=False)
         self.assertContains(respuesta, "inventario_datatable.js?v=3")
+        self.assertContains(respuesta, "inventario_datatable.css?v=4")
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
         self.client.force_login(self.usuarios["provincial"])
