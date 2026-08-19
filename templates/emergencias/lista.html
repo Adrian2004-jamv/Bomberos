@@ -3,18 +3,16 @@
 
 {% block title %}Incidentes reportados{% endblock %}
 {% block page_title %}Incidentes reportados{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}">{% endblock %}
 
 {% block content %}
 <nav class="incident-actions" aria-label="Acciones de incidentes">
-    <strong><span data-lucide="list-checks" aria-hidden="true"></span> Acciones</strong>
     <a class="incident-action incident-action--active" href="{% url 'emergencias:lista' %}" aria-current="page"><span data-lucide="clipboard-list" aria-hidden="true"></span> Registro</a>
     {% if puede_crear %}<a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}"><span data-lucide="plus" aria-hidden="true"></span> Nuevo</a>{% endif %}
 </nav>
 <section class="panel incident-register">
     <div class="panel__heading">
         <div><p class="eyebrow">Seguimiento operativo</p><h2>Listado de incidentes</h2><p>Incidentes reportados dentro de su ámbito institucional.</p></div>
-        {% if puede_crear %}<a class="button button--primary" href="{% url 'emergencias:crear' %}"><span data-lucide="plus" aria-hidden="true"></span> Nuevo incidente</a>{% endif %}
     </div>
     {% if emergencias %}
         <div class="table-responsive"><table>
