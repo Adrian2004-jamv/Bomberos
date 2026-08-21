@@ -127,9 +127,15 @@ elif CHANNEL_LAYER_BACKEND == "redis":
         raise ImproperlyConfigured(
             "Configure REDIS_URL cuando CHANNEL_LAYER_BACKEND=redis."
         )
+    # Se usa la capa pub/sub y no channels_redis.core.RedisChannelLayer. Aquella
+    # mantiene una suscripcion abierta, mientras que esta lee cada mensaje con
+    # una operacion bloqueante contra Redis; cuando esa lectura excede su tiempo
+    # de espera, la excepcion sube hasta el consumidor y corta la conexion del
+    # cliente. El sistema solo usa group_add, group_discard y group_send, que la
+    # capa pub/sub cubre por completo.
     CHANNEL_LAYERS = {
         "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
             "CONFIG": {"hosts": [REDIS_URL]},
         }
     }
