@@ -95,6 +95,38 @@ class PosicionesGPSTests(TestCase):
         self.assertAlmostEqual(posicion.ubicacion.x, -78.616667)
         self.assertAlmostEqual(posicion.ubicacion.y, -0.933333)
 
+    def test_servicio_acepta_los_decimales_que_entrega_el_navegador(self):
+        """La API Geolocation entrega flotantes sin redondear.
+
+        El modelo guarda precisión, rumbo y altitud con dos decimales y
+        velocidad con tres. Enviar los valores crudos hacía fallar el registro
+        con «Asegúrese de que no haya más de 2 dígitos decimales», de modo que
+        la transmisión GPS no funcionaba desde ningún dispositivo real.
+        """
+        posicion = self.crear_posicion(
+            precision=23.456789012345,
+            velocidad=4.2571828182845,
+            rumbo=181.9999999,
+            altitud=2750.987654321,
+        )
+        self.assertEqual(str(posicion.precision), "23.46")
+        self.assertEqual(str(posicion.velocidad), "4.257")
+        self.assertEqual(str(posicion.rumbo), "182.00")
+        self.assertEqual(str(posicion.altitud), "2750.99")
+
+    def test_servicio_conserva_los_metadatos_ausentes(self):
+        """El navegador manda null cuando el sensor no entrega el dato."""
+        posicion = self.crear_posicion(velocidad=None, rumbo=None, altitud=None)
+        self.assertIsNone(posicion.velocidad)
+        self.assertIsNone(posicion.rumbo)
+        self.assertIsNone(posicion.altitud)
+
+    def test_servicio_rechaza_metadatos_no_numericos(self):
+        for campo in ("precision", "velocidad", "rumbo", "altitud"):
+            with self.subTest(campo=campo):
+                with self.assertRaises(ValidationError):
+                    self.crear_posicion(**{campo: "cuarenta"})
+
     def test_modelo_rechaza_coordenadas_invalidas(self):
         for longitud, latitud in ((-78, 91), (-181, -1)):
             with self.subTest(longitud=longitud, latitud=latitud):

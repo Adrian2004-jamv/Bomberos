@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from inventario.models import Recurso
 from inventario.services import actualizar_estado_recurso
@@ -182,6 +183,28 @@ def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
 
 
 @transaction.atomic
+def _ajustar_a_campo(valor, nombre_campo):
+    """Ajusta un dato del sensor a los decimales que admite su campo.
+
+    El navegador entrega precisión, velocidad, rumbo y altitud con toda la
+    resolución del flotante, mientras que el modelo las guarda con dos o tres
+    decimales. El ajuste se hace aquí y no en el navegador porque este extremo
+    atiende peticiones de cualquier cliente, y es el servidor el que conoce el
+    formato de almacenamiento. Los decimales se leen del propio campo para que
+    la regla siga valiendo si el modelo cambia.
+    """
+    if valor is None or valor == "":
+        return None
+    try:
+        numero = Decimal(str(valor))
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValidationError({nombre_campo: "Debe ser un valor numérico."}) from error
+    if not numero.is_finite():
+        raise ValidationError({nombre_campo: "Debe ser un valor numérico."})
+    decimales = PosicionUnidad._meta.get_field(nombre_campo).decimal_places
+    return numero.quantize(Decimal(1).scaleb(-decimales))
+
+
 def registrar_posicion_unidad(
     despliegue,
     usuario_responsable,
@@ -231,10 +254,10 @@ def registrar_posicion_unidad(
     posicion = PosicionUnidad(
         despliegue=actual,
         ubicacion=Point(longitud_num, latitud_num, srid=4326),
-        precision=precision,
-        velocidad=velocidad,
-        rumbo=rumbo,
-        altitud=altitud,
+        precision=_ajustar_a_campo(precision, "precision"),
+        velocidad=_ajustar_a_campo(velocidad, "velocidad"),
+        rumbo=_ajustar_a_campo(rumbo, "rumbo"),
+        altitud=_ajustar_a_campo(altitud, "altitud"),
         fecha_dispositivo=fecha_dispositivo,
         reportado_por=usuario_responsable,
         fuente=fuente,
