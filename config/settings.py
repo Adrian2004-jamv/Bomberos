@@ -209,16 +209,25 @@ def _libreria_de_wheel(paquete, patrones):
     Los wheels de rasterio y shapely publican sus dependencias compiladas en un
     directorio `<paquete>.libs`. El nombre del archivo lleva un hash que cambia
     con cada versión, por eso se busca por patrón y no por nombre fijo.
+
+    El paquete se importa, no basta con localizarlo. GDAL depende a su vez de
+    otras bibliotecas que viajan en esa misma carpeta, entre ellas una copia
+    privada de libcurl. En Linux esas vecinas solo se encuentran a través de la
+    ruta de búsqueda que llevan grabada los módulos de extensión del paquete,
+    de modo que importarlo es lo que las deja cargadas y disponibles. Abrir
+    GDAL por su ruta absoluta sin ese paso previo falla con
+    `cannot open shared object file` sobre una dependencia, no sobre GDAL.
     """
-    import importlib.util
+    import importlib
 
     try:
-        especificacion = importlib.util.find_spec(paquete)
-    except (ImportError, ValueError):
+        modulo = importlib.import_module(paquete)
+    except Exception:
         return None
-    if especificacion is None or not especificacion.origin:
+    origen = getattr(modulo, "__file__", None)
+    if not origen:
         return None
-    carpeta = Path(especificacion.origin).parent.parent / f"{paquete}.libs"
+    carpeta = Path(origen).parent.parent / f"{paquete}.libs"
     for patron in patrones:
         encontradas = sorted(carpeta.glob(patron))
         if encontradas:
