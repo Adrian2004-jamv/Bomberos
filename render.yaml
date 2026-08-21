@@ -41,6 +41,8 @@ services:
       pip install -r requirements.txt
       python manage.py collectstatic --no-input
       python manage.py migrate --no-input
+      python manage.py cargar_datos_cotopaxi
+      python manage.py crear_superusuario_inicial
     # Daphne atiende HTTP y WebSockets en el mismo proceso.
     startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
     envVars:
@@ -67,6 +69,19 @@ services:
           name: bomberos-keyvalue
           type: keyvalue
           property: connectionString
+      # Credenciales del primer superusuario. Render las pide al crear el
+      # Blueprint y no quedan escritas en el repositorio. El comando solo actua
+      # si la base no tiene ningun superusuario, de modo que los despliegues
+      # siguientes no lo repiten. Es la unica via para entrar al sistema: el
+      # plan gratuito no ofrece consola remota.
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_CEDULA
+        sync: false
       # DJANGO_ALLOWED_HOSTS y DJANGO_CSRF_TRUSTED_ORIGINS no se declaran aqui:
       # settings.py toma el dominio de RENDER_EXTERNAL_HOSTNAME, que la propia
       # plataforma define. Agreguelas solo si publica un dominio propio.
