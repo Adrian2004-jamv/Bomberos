@@ -144,16 +144,46 @@ DATABASES = {
 }
 
 # Librerías geoespaciales instaladas con QGIS en el equipo de desarrollo.
-# En producción pueden definirse rutas diferentes mediante variables de entorno.
-_GDAL_LOCAL = Path(r"C:\Program Files\QGIS 3.44.12\bin\gdal313.dll")
-_GEOS_LOCAL = Path(r"C:\Program Files\QGIS 3.44.12\bin\geos_c.dll")
+# Se detecta cualquier versión de QGIS presente para no depender de un número
+# de versión fijo. En producción pueden definirse rutas diferentes mediante
+# las variables de entorno GDAL_LIBRARY_PATH y GEOS_LIBRARY_PATH.
+def _buscar_librerias_qgis():
+    """Devuelve (gdal, geos) de la instalación de QGIS más reciente."""
+    import re
+
+    for base in (Path(r"C:\Program Files"), Path(r"C:\Program Files (x86)")):
+        if not base.exists():
+            continue
+        instalaciones = sorted(
+            base.glob("QGIS *"),
+            key=lambda ruta: [
+                int(parte) for parte in re.findall(r"\d+", ruta.name)
+            ],
+            reverse=True,
+        )
+        for instalacion in instalaciones:
+            geos = instalacion / "bin" / "geos_c.dll"
+            gdal = next(
+                (
+                    dll
+                    for dll in sorted((instalacion / "bin").glob("gdal*.dll"))
+                    if re.fullmatch(r"gdal\d+\.dll", dll.name)
+                ),
+                None,
+            )
+            if gdal and geos.exists():
+                return gdal, geos
+    return None, None
+
+
+_GDAL_LOCAL, _GEOS_LOCAL = _buscar_librerias_qgis()
 if os.environ.get("GDAL_LIBRARY_PATH"):
     GDAL_LIBRARY_PATH = os.environ["GDAL_LIBRARY_PATH"]
-elif _GDAL_LOCAL.exists():
+elif _GDAL_LOCAL:
     GDAL_LIBRARY_PATH = str(_GDAL_LOCAL)
 if os.environ.get("GEOS_LIBRARY_PATH"):
     GEOS_LIBRARY_PATH = os.environ["GEOS_LIBRARY_PATH"]
-elif _GEOS_LOCAL.exists():
+elif _GEOS_LOCAL:
     GEOS_LIBRARY_PATH = str(_GEOS_LOCAL)
 
 
