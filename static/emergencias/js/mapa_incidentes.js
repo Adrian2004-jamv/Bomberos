@@ -14,14 +14,14 @@
     const normalise = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const emergencyIcon = (type) => {
         const value = normalise(type);
-        if (value.includes("forest")) return {kind: "forest", symbol: "🌲", label: "Incendio forestal"};
-        if (value.includes("incend") || value.includes("fuego")) return {kind: "fire", symbol: "🔥", label: "Incendio"};
-        if (value.includes("rescat")) return {kind: "rescue", symbol: "🛟", label: "Rescate"};
-        if (value.includes("accident") || value.includes("transit") || value.includes("choque")) return {kind: "traffic", symbol: "🚗", label: "Accidente vehicular"};
-        if (value.includes("inund") || value.includes("desbord") || value.includes("agua")) return {kind: "flood", symbol: "🌊", label: "Inundación"};
-        if (value.includes("material") || value.includes("quim") || value.includes("hazmat") || value.includes("gas")) return {kind: "hazmat", symbol: "☣", label: "Materiales peligrosos"};
-        if (value.includes("medic") || value.includes("salud") || value.includes("prehospital")) return {kind: "medical", symbol: "✚", label: "Emergencia médica"};
-        return {kind: "emergency", symbol: "!", label: "Emergencia"};
+        if (value.includes("forest")) return {kind: "forest", icon: "ti-trees", label: "Incendio forestal"};
+        if (value.includes("incend") || value.includes("fuego")) return {kind: "fire", icon: "ti-flame", label: "Incendio"};
+        if (value.includes("rescat")) return {kind: "rescue", icon: "ti-lifebuoy", label: "Rescate"};
+        if (value.includes("accident") || value.includes("transit") || value.includes("choque")) return {kind: "traffic", icon: "ti-car-crash", label: "Accidente vehicular"};
+        if (value.includes("inund") || value.includes("desbord") || value.includes("agua")) return {kind: "flood", icon: "ti-flood", label: "Inundación"};
+        if (value.includes("material") || value.includes("quim") || value.includes("hazmat") || value.includes("gas")) return {kind: "hazmat", icon: "ti-biohazard", label: "Materiales peligrosos"};
+        if (value.includes("medic") || value.includes("salud") || value.includes("prehospital")) return {kind: "medical", icon: "ti-ambulance", label: "Emergencia médica"};
+        return {kind: "emergency", icon: "ti-alert-triangle", label: "Emergencia"};
     };
     const popup = (feature) => {
         const p = feature.properties;
@@ -40,8 +40,8 @@
                 const [longitude, latitude] = feature.geometry.coordinates;
                 const marker = feature.properties.clase === "emergencia"
                     ? emergencyIcon(feature.properties.tipo)
-                    : {kind: "unit", symbol: "🚒", label: "Unidad operativa"};
-                const icon = L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<span class="incident-map-marker incident-map-marker--${marker.kind}" role="img" aria-label="${escapeHtml(marker.label)}" title="${escapeHtml(marker.label)}">${marker.symbol}</span>`});
+                    : {kind: "unit", icon: "ti-firetruck", label: "Unidad operativa"};
+                const icon = L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<span class="incident-map-marker incident-map-marker--${marker.kind}" role="img" aria-label="${escapeHtml(marker.label)}" title="${escapeHtml(marker.label)}"><i class="ti ${marker.icon}" aria-hidden="true"></i></span>`});
                 L.marker([latitude, longitude], {icon}).bindPopup(popup(feature)).addTo(layer);
                 bounds.push([latitude, longitude]);
             });

@@ -1,7 +1,7 @@
 "use strict";
 
 const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
-const STATIC_CACHE = `${CACHE_PREFIX}static-v2`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v3`;
 const OFFLINE_URL = "/sin-conexion/";
 const SAFE_ASSETS = [
     OFFLINE_URL,
@@ -11,7 +11,8 @@ const SAFE_ASSETS = [
     "/static/css/login.css",
     "/static/pwa/css/pwa.css",
     "/static/js/app.js",
-    "/static/vendor/lucide-1.27.0.min.js",
+    "/static/vendor/tabler-icons/tabler-icons.min.css",
+    "/static/vendor/tabler-icons/fonts/tabler-icons.woff2",
     "/static/vendor/tom-select-2.6.2.min.js",
     "/static/vendor/tom-select-2.6.2.css",
     "/static/img/logos/Logo.png",

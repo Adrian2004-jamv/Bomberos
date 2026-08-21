@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from .forms import CambioEstadoRecursoForm, RecursoForm
 from .models import Recurso
@@ -172,6 +172,26 @@ def cambiar_estado(request, pk):
         "inventario/cambio_estado.html",
         {"form": form, "recurso": recurso},
     )
+
+
+@login_required
+@require_POST
+def confirmar_disponibilidad(request, pk):
+    """Confirma en un paso que el recurso está operativo y disponible."""
+    _exigir_gestion(request.user)
+    recurso = get_object_or_404(_recursos_base(request.user), pk=pk)
+    if not puede_gestionar_recurso(request.user, recurso):
+        raise PermissionDenied
+    actualizar_estado_recurso(
+        recurso=recurso,
+        nuevo_estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+        nueva_disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+        usuario_responsable=request.user,
+        motivo="Confirmación rápida de disponibilidad",
+        confirmar_disponibilidad=True,
+    )
+    messages.success(request, f"{recurso.codigo_interno} quedó confirmado como operativo y disponible.")
+    return redirect("inventario:lista")
 
 
 @login_required

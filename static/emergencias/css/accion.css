@@ -35,7 +35,7 @@
     box-shadow: var(--shadow-sm);
 }
 
-.incident-action svg { width: 1.05rem; height: 1.05rem; }
+.incident-action .ti { font-size: 1.12rem; }
 .incident-action--active { border-color: var(--color-navy-900); color: #fff; background: var(--color-navy-900); }
 .incident-action--new { border-color: var(--color-red-700); color: #fff; background: var(--color-red-700); }
 

@@ -3,9 +3,13 @@
 
 {% block title %}Crear emergencia{% endblock %}
 {% block page_title %}Crear emergencia{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=4"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2">{% endblock %}
 
 {% block content %}
+<nav class="incident-actions" aria-label="Acciones de incidentes">
+    <a class="incident-action" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Registro</a>
+    <a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}" aria-current="page"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo</a>
+</nav>
 <section class="panel emergency-form-panel">
     <div class="panel__heading">
         <div><p class="eyebrow">Paso 1 de 2 · Registro operativo</p><h2>Datos iniciales del incidente</h2></div>
@@ -28,7 +32,7 @@
             {% endfor %}
         </div>
         <div class="form-actions">
-            <a class="button" href="{% url 'emergencias:lista' %}">Cancelar</a>
+            <a class="button" href="{% url 'emergencias:lista' %}#registro-incidentes">Cancelar</a>
             <button class="button button--primary" type="submit">Registrar emergencia</button>
         </div>
     </form>

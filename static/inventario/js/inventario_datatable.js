@@ -9,7 +9,7 @@
             columnDefs: [
                 {className: "dtr-control", orderable: false, searchable: false, targets: 0},
                 {orderable: false, searchable: false, targets: -1},
-                {responsivePriority: 1, targets: [1, 9]},
+                {responsivePriority: 1, targets: [1, 8, 9]},
                 {responsivePriority: 2, targets: [6, 7]},
                 {responsivePriority: 3, targets: 2},
                 {responsivePriority: 4, targets: 3},

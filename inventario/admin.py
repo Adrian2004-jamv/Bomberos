@@ -39,6 +39,7 @@ class RecursoAdmin(admin.ModelAdmin):
         "estacion",
         "estado_operativo",
         "disponibilidad",
+        "fecha_confirmacion_disponibilidad",
         "activo",
     )
     search_fields = (
@@ -67,7 +68,7 @@ class RecursoAdmin(admin.ModelAdmin):
         "tipo",
         "tipo__categoria",
     )
-    readonly_fields = ("fecha_creacion", "fecha_actualizacion")
+    readonly_fields = ("fecha_creacion", "fecha_actualizacion", "fecha_confirmacion_disponibilidad")
     fieldsets = (
         (
             "Identificación y clasificación",
@@ -76,7 +77,7 @@ class RecursoAdmin(admin.ModelAdmin):
         ("Descripción", {"fields": ("descripcion", "marca", "modelo", "numero_serie", "anio_fabricacion")}),
         ("Estado", {"fields": ("estado_operativo", "disponibilidad")}),
         ("Observaciones", {"fields": ("observaciones",)}),
-        ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
+        ("Auditoría", {"fields": ("fecha_confirmacion_disponibilidad", "fecha_creacion", "fecha_actualizacion")}),
     )
 
 

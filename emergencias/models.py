@@ -86,6 +86,14 @@ class Emergencia(models.Model):
     def admite_despliegues(self):
         return self.estado not in {self.Estado.CERRADA, self.Estado.CANCELADA}
 
+    @property
+    def esta_terminada(self):
+        return self.estado in {self.Estado.CERRADA, self.Estado.CANCELADA}
+
+    @property
+    def fase_operativa(self):
+        return "Terminada" if self.esta_terminada else "En curso"
+
     def __str__(self):
         return f"{self.codigo} - {self.tipo_emergencia}"
 

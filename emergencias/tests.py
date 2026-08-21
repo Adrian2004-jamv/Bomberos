@@ -354,9 +354,12 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertEqual(self.client.get("/emergencias/crear/").status_code, 403)
 
     def test_listado_ofrece_crear_emergencia_al_responsable(self):
+        self.crear_emergencia()
         self.client.force_login(self.usuario_estacion)
         respuesta = self.client.get("/emergencias/")
         self.assertContains(respuesta, "> Nuevo<", html=False)
+        self.assertContains(respuesta, 'href="/emergencias/#registro-incidentes"', html=False)
+        self.assertContains(respuesta, 'id="registro-incidentes"', html=False)
         self.assertNotContains(respuesta, "Administrar emergencias")
         self.assertContains(respuesta, 'data-incident-map', html=False)
         self.assertContains(respuesta, "/mapa/datos/")
@@ -365,10 +368,24 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "Incendio forestal")
         self.assertContains(respuesta, "Accidente vehicular")
         self.assertContains(respuesta, "Unidad operativa")
+        self.assertContains(respuesta, "Registro dinámico de incidentes")
+        self.assertContains(respuesta, 'data-incident-phase="curso"', html=False)
+        self.assertContains(respuesta, 'data-incident-document-stage', html=False)
+        self.assertContains(respuesta, "0/12 formularios")
+        self.assertContains(respuesta, "registro_incidentes.js?v=1")
         self.assertNotContains(respuesta, "Filtros operativos")
         contenido = respuesta.content.decode()
         self.assertLess(contenido.index('data-incident-map'), contenido.index('class="incident-actions"'))
         self.assertLess(contenido.index('class="incident-actions"'), contenido.index('class="panel incident-register"'))
+
+    def test_nuevo_muestra_formulario_y_navegacion_de_acciones(self):
+        self.client.force_login(self.usuario_estacion)
+        respuesta = self.client.get("/emergencias/crear/")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Datos iniciales del incidente")
+        self.assertContains(respuesta, 'href="/emergencias/#registro-incidentes"', html=False)
+        self.assertContains(respuesta, 'aria-current="page"', html=False)
+        self.assertContains(respuesta, "Registrar emergencia")
 
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):
         emergencia = Emergencia.objects.create(

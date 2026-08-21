@@ -1,9 +1,9 @@
 {% if recursos %}
 <section class="inventory-table-panel" aria-label="Tabla de recursos institucionales">
-<p class="inventory-scroll-hint"><span data-lucide="move-horizontal" aria-hidden="true"></span>Desplázate horizontalmente para consultar todas las columnas y acciones.</p>
+<p class="inventory-scroll-hint"><i class="ti ti-arrows-horizontal" aria-hidden="true"></i>Desplázate horizontalmente para consultar todas las columnas y acciones.</p>
 <table id="inventory-datatable" class="inventory-datatable display responsive nowrap" data-inventory-table style="width:100%">
     <thead data-inventory-column-filters>
-        <tr><th class="all" aria-label="Detalle"></th><th class="all">Recurso</th><th>Institución</th><th>Estación</th><th>Categoría</th><th>Tipo</th><th>Estado</th><th>Disponibilidad</th><th>Registro</th><th class="all">Acciones</th></tr>
+        <tr><th class="all" aria-label="Detalle"></th><th class="all">Recurso</th><th>Institución</th><th>Estación</th><th>Categoría</th><th>Tipo</th><th>Estado</th><th>Disponibilidad</th><th class="all inventory-focus-column">Foco</th><th class="all">Acciones</th></tr>
         <tr class="inventory-filter-row">
             <th></th>
             <th><input type="search" data-inventory-global-search placeholder="Buscar recurso…" aria-label="Buscar en el inventario"></th>
@@ -13,21 +13,21 @@
             <th><select data-inventory-column-filter="5" aria-label="Filtrar por tipo"><option value="">Todos</option></select></th>
             <th><select data-inventory-column-filter="6" aria-label="Filtrar por estado"><option value="">Todos</option></select></th>
             <th><select data-inventory-column-filter="7" aria-label="Filtrar por disponibilidad"><option value="">Todas</option></select></th>
-            <th><select data-inventory-column-filter="8" aria-label="Filtrar por registro"><option value="">Todos</option></select></th>
+            <th><select data-inventory-column-filter="8" aria-label="Filtrar por actualización"><option value="">Todas</option></select></th>
             <th><button type="button" data-clear-inventory-filters>Limpiar</button></th>
         </tr>
     </thead>
     <tbody>{% for recurso in recursos %}<tr>
         <td></td>
-        <td data-order="{{ recurso.codigo_interno }}"><div class="inventory-cell-resource"><span class="inventory-cell-icon" aria-hidden="true"><i data-lucide="{% if recurso.tipo.es_unidad_desplegable %}truck{% else %}package-open{% endif %}"></i></span><div><strong>{{ recurso.codigo_interno }}</strong><a href="{% url 'inventario:detalle' recurso.pk %}">{{ recurso.nombre }}</a>{% if recurso.marca or recurso.modelo %}<small>{{ recurso.marca }} {{ recurso.modelo }}</small>{% endif %}</div></div></td>
+        <td data-order="{{ recurso.codigo_interno }}"><div class="inventory-cell-resource"><span class="inventory-cell-icon" aria-hidden="true"><i class="ti {% if recurso.tipo.es_unidad_desplegable %}ti-truck{% else %}ti-package{% endif %}"></i></span><div><strong>{{ recurso.codigo_interno }}</strong><a href="{% url 'inventario:detalle' recurso.pk %}">{{ recurso.nombre }}</a>{% if recurso.marca or recurso.modelo %}<small>{{ recurso.marca }} {{ recurso.modelo }}</small>{% endif %}</div></div></td>
         <td data-search="{{ recurso.estacion.cuerpo_bomberos.nombre }}"><strong>{{ recurso.estacion.cuerpo_bomberos.sigla }}</strong><small>{{ recurso.estacion.cuerpo_bomberos.nombre }}</small></td>
         <td data-search="{{ recurso.estacion.nombre }}">{{ recurso.estacion.nombre }}</td>
         <td data-search="{{ recurso.tipo.categoria.nombre }}">{{ recurso.tipo.categoria.nombre }}</td>
         <td data-search="{{ recurso.tipo.nombre }}">{{ recurso.tipo.nombre }}</td>
         <td data-order="{{ recurso.get_estado_operativo_display }}" data-search="{{ recurso.get_estado_operativo_display }}"><span class="resource-status resource-status--{{ recurso.estado_operativo }}">{{ recurso.get_estado_operativo_display }}</span></td>
         <td data-order="{{ recurso.get_disponibilidad_display }}" data-search="{{ recurso.get_disponibilidad_display }}"><span class="resource-status resource-status--{{ recurso.disponibilidad }}">{{ recurso.get_disponibilidad_display }}</span></td>
-        <td data-order="{% if recurso.activo %}1{% else %}0{% endif %}" data-search="{% if recurso.activo %}Activo{% else %}Inactivo{% endif %}"><span class="inventory-record-state{% if not recurso.activo %} inventory-record-state--inactive{% endif %}">{% if recurso.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
-        <td><div class="inventory-row-actions"><a href="{% url 'inventario:detalle' recurso.pk %}" title="Ver ficha"><span data-lucide="eye" aria-hidden="true"></span><span>Ver</span></a>{% if puede_gestionar %}<a href="{% url 'inventario:editar' recurso.pk %}" title="Editar datos"><span data-lucide="pencil" aria-hidden="true"></span><span>Editar</span></a><a class="inventory-row-actions__state" href="{% url 'inventario:cambiar_estado' recurso.pk %}" title="Cambiar estado"><span data-lucide="refresh-cw" aria-hidden="true"></span><span>Estado</span></a>{% endif %}</div></td>
+        <td data-order="{% if recurso.disponibilidad_actualizada %}1{% else %}0{% endif %}" data-search="{% if recurso.disponibilidad_actualizada %}Actualizada{% else %}Pendiente{% endif %}"><span class="availability-light{% if recurso.disponibilidad_actualizada %} availability-light--fresh{% endif %}" title="{% if recurso.disponibilidad_actualizada %}Confirmada el {{ recurso.fecha_confirmacion_disponibilidad|date:'d/m/Y H:i' }}{% else %}La disponibilidad no fue confirmada durante las últimas 24 horas{% endif %}"><i class="ti ti-bulb" aria-hidden="true"></i><span>{% if recurso.disponibilidad_actualizada %}Actualizada{% else %}Pendiente{% endif %}</span></span></td>
+        <td><div class="inventory-row-actions"><a href="{% url 'inventario:detalle' recurso.pk %}" title="Ver ficha"><i class="ti ti-eye" aria-hidden="true"></i><span>Ver</span></a>{% if puede_gestionar %}<a href="{% url 'inventario:editar' recurso.pk %}" title="Editar datos"><i class="ti ti-pencil" aria-hidden="true"></i><span>Editar</span></a><form method="post" action="{% url 'inventario:confirmar_disponibilidad' recurso.pk %}">{% csrf_token %}<button class="inventory-row-actions__state" type="submit" title="Confirmar como operativo y disponible"><i class="ti ti-circle-check" aria-hidden="true"></i><span>Confirmar</span></button></form>{% endif %}</div></td>
     </tr>{% endfor %}</tbody>
 </table>
 </section>

@@ -65,6 +65,7 @@ class ActualizarEstadoRecursoTests(TestCase):
         recurso.refresh_from_db()
         self.assertEqual(recurso.estado_operativo, Recurso.EstadoOperativo.MANTENIMIENTO)
         self.assertEqual(recurso.disponibilidad, Recurso.Disponibilidad.NO_DISPONIBLE)
+        self.assertTrue(recurso.disponibilidad_actualizada)
         self.assertEqual(HistorialEstadoRecurso.objects.count(), 1)
         self.assertEqual(historial.estado_anterior, Recurso.EstadoOperativo.OPERATIVO)
         self.assertEqual(historial.disponibilidad_anterior, Recurso.Disponibilidad.DISPONIBLE)
@@ -157,6 +158,10 @@ class InterfazInventarioTests(TestCase):
         for ruta in (reverse("inventario:crear"), reverse("inventario:editar", args=[self.recurso_uno.pk]), reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk])):
             with self.subTest(ruta=ruta):
                 self.assertEqual(self.client.get(ruta).status_code, 403)
+        self.assertEqual(
+            self.client.post(reverse("inventario:confirmar_disponibilidad", args=[self.recurso_uno.pk])).status_code,
+            403,
+        )
 
     def test_recurso_ajeno_no_es_accesible_por_url(self):
         self.client.force_login(self.usuarios["encargado"])
@@ -198,6 +203,22 @@ class InterfazInventarioTests(TestCase):
         self.client.post(ruta, {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": "Sin novedades", "observaciones": ""})
         self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
 
+    def test_confirmacion_rapida_deja_operativo_disponible_y_enciende_foco(self):
+        self.recurso_uno.estado_operativo = Recurso.EstadoOperativo.MANTENIMIENTO
+        self.recurso_uno.disponibilidad = Recurso.Disponibilidad.NO_DISPONIBLE
+        self.recurso_uno.save()
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.post(
+            reverse("inventario:confirmar_disponibilidad", args=[self.recurso_uno.pk])
+        )
+        self.assertRedirects(respuesta, reverse("inventario:lista"))
+        self.recurso_uno.refresh_from_db()
+        self.assertEqual(self.recurso_uno.estado_operativo, Recurso.EstadoOperativo.OPERATIVO)
+        self.assertEqual(self.recurso_uno.disponibilidad, Recurso.Disponibilidad.DISPONIBLE)
+        self.assertIsNotNone(self.recurso_uno.fecha_confirmacion_disponibilidad)
+        self.assertTrue(self.recurso_uno.disponibilidad_actualizada)
+        self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
+
     def test_motivo_es_obligatorio(self):
         self.client.force_login(self.usuarios["encargado"])
         respuesta = self.client.post(reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk]), {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": ""})
@@ -222,9 +243,10 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, 'data-inventory-column-filter="2"', html=False)
         self.assertContains(respuesta, "Buscar recurso…")
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
-        self.assertContains(respuesta, 'aria-label="Filtrar por registro"', html=False)
-        self.assertContains(respuesta, "inventario_datatable.js?v=4")
-        self.assertContains(respuesta, "inventario_datatable.css?v=5")
+        self.assertContains(respuesta, 'aria-label="Filtrar por actualización"', html=False)
+        self.assertContains(respuesta, "inventario_datatable.js?v=5")
+        self.assertContains(respuesta, "inventario_datatable.css?v=7")
+        self.assertContains(respuesta, '>Foco</th>', html=False)
         self.assertContains(respuesta, "jquery-3.7.1.min.js")
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
@@ -266,7 +288,7 @@ class InterfazInventarioTests(TestCase):
         respuesta = self.client.get(reverse("inventario:lista"))
         self.assertContains(respuesta, 'class="sidebar-user"', html=False)
         self.assertContains(respuesta, "Cerrar sesión")
-        self.assertContains(respuesta, "css/componentes.css?v=2")
+        self.assertContains(respuesta, "css/componentes.css?v=3")
         contenido = respuesta.content.decode()
         self.assertLess(contenido.index("Mapa operativo"), contenido.index('class="sidebar-user"'))
 
