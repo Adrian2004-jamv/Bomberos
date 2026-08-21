@@ -9,6 +9,10 @@
             columnDefs: [
                 {className: "dtr-control", orderable: false, searchable: false, targets: 0},
                 {orderable: false, searchable: false, targets: -1},
+                {responsivePriority: 1, targets: [1, 9]},
+                {responsivePriority: 2, targets: [6, 7]},
+                {responsivePriority: 3, targets: 2},
+                {responsivePriority: 4, targets: 3},
             ],
             order: [[2, "asc"], [4, "asc"], [5, "asc"], [1, "asc"]],
             pageLength: 25,
@@ -23,6 +27,7 @@
         });
         const filters = table.querySelector("[data-inventory-column-filters]");
         if (!filters) return;
+        table.dataset.datatableReady = "true";
         const search = filters.querySelector("[data-inventory-global-search]");
         search?.addEventListener("input", () => dataTable.search(search.value).draw());
         filters.querySelectorAll("[data-inventory-column-filter]").forEach((select) => {
