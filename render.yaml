@@ -1,0 +1,72 @@
+# Blueprint de Render para el Sistema de Bomberos de Cotopaxi.
+#
+# Declara los tres servicios que necesita el sistema: la aplicacion web sobre
+# ASGI, la base de datos PostgreSQL con PostGIS y la instancia Key Value que
+# comparte los mensajes de los WebSockets del mapa operativo.
+#
+# El despliegue no usa contenedores. Las bibliotecas nativas GDAL y GEOS que
+# exige django.contrib.gis llegan dentro de los wheels de rasterio y shapely,
+# declarados en requirements.txt; config/settings.py las localiza dentro de
+# esos paquetes. La extension PostGIS la crea la migracion 0003 de emergencias,
+# de modo que una base recien creada queda lista sin intervencion manual.
+
+databases:
+  - name: bomberos-postgres
+    databaseName: bomberos_cotopaxi
+    user: bomberos
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"
+    # Sin direcciones externas autorizadas: solo se accede desde la red interna.
+    ipAllowList: []
+
+services:
+  - name: bomberos-keyvalue
+    type: keyvalue
+    plan: free
+    region: oregon
+    ipAllowList: []
+    # channels-redis no tolera que se descarten mensajes en cola.
+    maxmemoryPolicy: noeviction
+
+  - name: bomberos-web
+    type: web
+    runtime: python
+    plan: free
+    region: oregon
+    # Responde 200 sin autenticacion, asi que sirve como sonda de salud.
+    healthCheckPath: /manifest.json
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python manage.py collectstatic --no-input
+      python manage.py migrate --no-input
+    # Daphne atiende HTTP y WebSockets en el mismo proceso.
+    startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: DJANGO_DEBUG
+        value: "False"
+      # DJANGO_STATICFILES_BACKEND queda sin definir a proposito. Existe
+      # core.storage.EstaticosConManifiesto, que agrega un hash al nombre de
+      # cada archivo estatico, pero activarlo ahora dejaria sin efecto la lista
+      # de precarga del service worker, que enumera rutas sin hash. Primero hay
+      # que generar esa lista con la etiqueta {% static %}; ver el README.
+      # Render genera la clave y la conserva entre despliegues.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bomberos-postgres
+          property: connectionString
+      - key: CHANNEL_LAYER_BACKEND
+        value: redis
+      - key: REDIS_URL
+        fromService:
+          name: bomberos-keyvalue
+          type: keyvalue
+          property: connectionString
+      # DJANGO_ALLOWED_HOSTS y DJANGO_CSRF_TRUSTED_ORIGINS no se declaran aqui:
+      # settings.py toma el dominio de RENDER_EXTERNAL_HOSTNAME, que la propia
+      # plataforma define. Agreguelas solo si publica un dominio propio.

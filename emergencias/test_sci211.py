@@ -10,7 +10,7 @@ from django.urls import reverse
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
-from .services_sci import finalizar_sci211, generar_pdf_sci211
+from .services_sci import finalizar_sci211
 
 
 class SCI211Tests(TestCase):
@@ -127,7 +127,7 @@ class SCI211Tests(TestCase):
         self.client.force_login(self.consulta)
         self.assertEqual(self.client.get(reverse("emergencias:sci211_detalle", args=[formulario.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk])).status_code, 403)
-        self.assertEqual(self.client.get(reverse("emergencias:sci211_pdf", args=[formulario.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("emergencias:sci211_imprimir", args=[formulario.pk])).status_code, 200)
         self.client.force_login(self.otra_institucion)
         self.assertEqual(self.client.get(reverse("emergencias:sci211_detalle", args=[formulario.pk])).status_code, 404)
         self.assertEqual(self.client.post(reverse("emergencias:sci211_crear", args=[self.emergencia.pk])).status_code, 404)
@@ -137,7 +137,7 @@ class SCI211Tests(TestCase):
         for nombre, args in (
             ("sci211_lista", []), ("sci211_detalle", [formulario.pk]),
             ("sci211_editar", [formulario.pk]), ("sci211_finalizar", [formulario.pk]),
-            ("sci211_pdf", [formulario.pk]), ("sci211_imprimir", [formulario.pk]),
+            ("sci211_imprimir", [formulario.pk]),
         ):
             self.assertEqual(self.client.get(reverse(f"emergencias:{nombre}", args=args)).status_code, 302)
 
@@ -152,7 +152,7 @@ class SCI211Tests(TestCase):
         finalizar_sci211(formulario, self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
         self.assertContains(respuesta, "Consultar SCI-211")
-        self.assertContains(respuesta, "Descargar PDF")
+        self.assertContains(respuesta, "Vista imprimible")
         self.assertContains(respuesta, 'class="sci-panel-action sci-panel-action--primary"', html=False)
         self.assertContains(respuesta, 'class="sci-form-tabs"', html=False)
         self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--featured"', html=False)
@@ -368,25 +368,22 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Guardar cambios")
         self.assertContains(respuesta, "Vista de impresión")
 
-    def test_pdf_protegido_no_vacio_y_original_intacto(self):
+    def test_vista_imprimible_protegida_y_original_intacto(self):
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")
         antes = original.read_bytes()
-        self.assertEqual(self.client.get(reverse("emergencias:sci211_pdf", args=[formulario.pk])).status_code, 302)
+        self.assertEqual(self.client.get(reverse("emergencias:sci211_imprimir", args=[formulario.pk])).status_code, 302)
         self.client.force_login(self.usuario)
-        respuesta = self.client.get(reverse("emergencias:sci211_pdf", args=[formulario.pk]))
+        respuesta = self.client.get(reverse("emergencias:sci211_imprimir", args=[formulario.pk]))
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta["Content-Type"], "application/pdf")
-        self.assertIn("SCI_211_EM-SCI-001.pdf", respuesta["Content-Disposition"])
-        self.assertGreater(len(respuesta.content), 1000)
+        self.assertContains(respuesta, "Formulario SCI - 211")
+        self.assertContains(respuesta, "window.print()")
         self.assertEqual(original.read_bytes(), antes)
 
-    def test_pdf_escapa_html_y_representa_espanol(self):
+    def test_hoja_imprimible_escapa_html_y_representa_espanol(self):
         formulario = self.crear_formulario()
         html = render_to_string("emergencias/sci211/pdf.html", {"formulario": formulario})
         self.assertNotIn("<script>alert", html)
         self.assertIn("&lt;script&gt;", html)
         self.assertIn("Matrícula", html)
-        pdf = generar_pdf_sci211(formulario)
-        self.assertTrue(pdf.startswith(b"%PDF"))
-        self.assertGreater(len(pdf), 1000)
+        self.assertIn("@page", html)

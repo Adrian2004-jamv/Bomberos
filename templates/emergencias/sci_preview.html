@@ -37,20 +37,15 @@ th{background:#eee;font-size:9px}
 @media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;padding:0;box-shadow:none}}
 </style></head><body>
 
-{% if not modo_pdf %}
 <nav class="toolbar">
   <button onclick="window.print()">Imprimir</button>
-  {% if not solo_vista %}
-  <a href="{% url 'emergencias:sci_pdf' codigo emergencia.pk %}">Descargar PDF</a>
-  {% if puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar formulario</a>{% endif %}
-  {% endif %}
+  {% if not solo_vista and puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar formulario</a>{% endif %}
   <a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver a Formularios SCI</a>
 </nav>
-{% endif %}
 
 <main class="paper">
   <header class="head">
-    <img src="{% if modo_pdf %}{{ logo_sci_data_uri }}{% else %}{% static 'emergencias/img/sci-logo.png' %}{% endif %}" alt="SCI">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI">
     <div>
       <h1>Formulario SCI-{{ codigo }}</h1>
       <p>{{ esquema.nombre|upper }}</p>

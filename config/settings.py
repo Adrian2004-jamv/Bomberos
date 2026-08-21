@@ -31,7 +31,31 @@ SECRET_KEY = os.environ.get(
 # El valor predeterminado solo es apropiado para desarrollo local.
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes", "on")
 
-ALLOWED_HOSTS = []
+if not DEBUG and SECRET_KEY.startswith("django-insecure-"):
+    raise ImproperlyConfigured(
+        "Defina DJANGO_SECRET_KEY con un valor propio antes de desplegar."
+    )
+
+
+def _lista_de_entorno(nombre):
+    """Lee una variable separada por comas y devuelve sus valores sin espacios."""
+    return [valor.strip() for valor in os.environ.get(nombre, "").split(",") if valor.strip()]
+
+
+ALLOWED_HOSTS = _lista_de_entorno("DJANGO_ALLOWED_HOSTS")
+CSRF_TRUSTED_ORIGINS = _lista_de_entorno("DJANGO_CSRF_TRUSTED_ORIGINS")
+
+# Render publica el dominio asignado al servicio en esta variable, de modo que
+# el despliegue funciona sin escribir el dominio a mano en la configuracion.
+_DOMINIO_RENDER = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if _DOMINIO_RENDER:
+    ALLOWED_HOSTS.append(_DOMINIO_RENDER)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_DOMINIO_RENDER}")
+
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "Defina DJANGO_ALLOWED_HOSTS con los dominios que atendera el sitio."
+    )
 
 
 # Application definition
@@ -59,6 +83,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -123,31 +148,84 @@ LOGOUT_REDIRECT_URL = "usuarios:login"
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-POSTGRES_PASSWORD_FILE = BASE_DIR / "secrets" / "postgresql_password.txt"
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
-if not POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE.exists():
-    POSTGRES_PASSWORD = POSTGRES_PASSWORD_FILE.read_text(encoding="utf-8").strip()
-if not POSTGRES_PASSWORD:
-    raise ImproperlyConfigured(
-        "Configure POSTGRES_PASSWORD o cree secrets/postgresql_password.txt."
-    )
+# Un servicio administrado entrega la conexion en una sola URL. Cuando esta
+# presente tiene prioridad; en desarrollo se siguen usando las variables sueltas
+# y el archivo de secreto local, sin cambio alguno.
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL:
+    from urllib.parse import unquote, urlparse
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
+    _conexion_url = urlparse(DATABASE_URL)
+    _CONEXION = {
+        "NAME": unquote(_conexion_url.path).lstrip("/"),
+        "USER": unquote(_conexion_url.username or ""),
+        "PASSWORD": unquote(_conexion_url.password or ""),
+        "HOST": _conexion_url.hostname or "",
+        "PORT": str(_conexion_url.port or 5432),
+    }
+else:
+    POSTGRES_PASSWORD_FILE = BASE_DIR / "secrets" / "postgresql_password.txt"
+    POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+    if not POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE.exists():
+        POSTGRES_PASSWORD = POSTGRES_PASSWORD_FILE.read_text(encoding="utf-8").strip()
+    if not POSTGRES_PASSWORD:
+        raise ImproperlyConfigured(
+            "Configure POSTGRES_PASSWORD, cree secrets/postgresql_password.txt "
+            "o defina DATABASE_URL."
+        )
+    _CONEXION = {
         "NAME": os.environ.get("POSTGRES_DB", "bomberos_cotopaxi"),
         "USER": os.environ.get("POSTGRES_USER", "postgres"),
         "PASSWORD": POSTGRES_PASSWORD,
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+    }
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        **_CONEXION,
         "CONN_MAX_AGE": 60,
+        # Las conexiones reutilizadas se verifican antes de usarse, porque un
+        # servicio administrado puede cerrarlas por su cuenta.
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {"sslmode": os.environ.get("POSTGRES_SSLMODE", "prefer")},
     },
 }
 
-# Librerías geoespaciales instaladas con QGIS en el equipo de desarrollo.
-# Se detecta cualquier versión de QGIS presente para no depender de un número
-# de versión fijo. En producción pueden definirse rutas diferentes mediante
-# las variables de entorno GDAL_LIBRARY_PATH y GEOS_LIBRARY_PATH.
+# Bibliotecas geoespaciales nativas que exige django.contrib.gis. No son
+# paquetes de Python: django.contrib.gis.geos las carga con ctypes al importar
+# el módulo, así que sin ellas la aplicación no arranca. Se resuelven en tres
+# pasos, del más explícito al más circunstancial:
+#
+#   1. Las variables de entorno GDAL_LIBRARY_PATH y GEOS_LIBRARY_PATH.
+#   2. Las bibliotecas que traen consigo los wheels de rasterio y shapely.
+#      Es la vía que iguala desarrollo y producción, y la única disponible en
+#      plataformas de despliegue que no permiten instalar paquetes del sistema.
+#   3. La instalación local de QGIS, como respaldo para el equipo de desarrollo.
+def _libreria_de_wheel(paquete, patrones):
+    """Devuelve la biblioteca nativa incluida dentro del wheel de `paquete`.
+
+    Los wheels de rasterio y shapely publican sus dependencias compiladas en un
+    directorio `<paquete>.libs`. El nombre del archivo lleva un hash que cambia
+    con cada versión, por eso se busca por patrón y no por nombre fijo.
+    """
+    import importlib.util
+
+    try:
+        especificacion = importlib.util.find_spec(paquete)
+    except (ImportError, ValueError):
+        return None
+    if especificacion is None or not especificacion.origin:
+        return None
+    carpeta = Path(especificacion.origin).parent.parent / f"{paquete}.libs"
+    for patron in patrones:
+        encontradas = sorted(carpeta.glob(patron))
+        if encontradas:
+            return encontradas[0]
+    return None
+
+
 def _buscar_librerias_qgis():
     """Devuelve (gdal, geos) de la instalación de QGIS más reciente."""
     import re
@@ -177,15 +255,33 @@ def _buscar_librerias_qgis():
     return None, None
 
 
-_GDAL_LOCAL, _GEOS_LOCAL = _buscar_librerias_qgis()
-if os.environ.get("GDAL_LIBRARY_PATH"):
-    GDAL_LIBRARY_PATH = os.environ["GDAL_LIBRARY_PATH"]
-elif _GDAL_LOCAL:
-    GDAL_LIBRARY_PATH = str(_GDAL_LOCAL)
-if os.environ.get("GEOS_LIBRARY_PATH"):
-    GEOS_LIBRARY_PATH = os.environ["GEOS_LIBRARY_PATH"]
-elif _GEOS_LOCAL:
-    GEOS_LIBRARY_PATH = str(_GEOS_LOCAL)
+def _resolver_libreria(variable, paquete, patrones, respaldo):
+    if os.environ.get(variable):
+        return os.environ[variable]
+    empaquetada = _libreria_de_wheel(paquete, patrones)
+    if empaquetada is not None:
+        return str(empaquetada)
+    return str(respaldo) if respaldo else None
+
+
+_GDAL_QGIS, _GEOS_QGIS = _buscar_librerias_qgis()
+
+_GDAL_RESUELTA = _resolver_libreria(
+    "GDAL_LIBRARY_PATH", "rasterio",
+    ("libgdal-*.so*", "gdal-*.dll", "libgdal*.dylib"), _GDAL_QGIS,
+)
+_GEOS_RESUELTA = _resolver_libreria(
+    "GEOS_LIBRARY_PATH", "shapely",
+    ("libgeos_c-*.so*", "geos_c-*.dll", "libgeos_c*.dylib"), _GEOS_QGIS,
+)
+
+# Si ninguna vía dio resultado no se define el ajuste, para que Django
+# conserve su propia búsqueda en las rutas del sistema y falle con su
+# mensaje habitual en lugar de con una ruta inventada.
+if _GDAL_RESUELTA:
+    GDAL_LIBRARY_PATH = _GDAL_RESUELTA
+if _GEOS_RESUELTA:
+    GEOS_LIBRARY_PATH = _GEOS_RESUELTA
 
 
 # Password validation
@@ -230,12 +326,62 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# WhiteNoise comprime los archivos recolectados. En produccion se usa ademas el
+# manifiesto, que agrega un hash al nombre de cada archivo y hace innecesario
+# versionarlos a mano en las plantillas.
+#
+# El valor predeterminado es el almacenamiento sin manifiesto por dos razones:
+# el manifiesto obliga a ejecutar collectstatic antes que las pruebas, porque la
+# suite corre con DEBUG=False y resolveria cada archivo contra un manifiesto que
+# aun no existe en una copia recien clonada; y la lista de precarga del service
+# worker enumera rutas sin hash, que ninguna pagina volveria a pedir.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": os.environ.get(
+            "DJANGO_STATICFILES_BACKEND",
+            "whitenoise.storage.CompressedStaticFilesStorage",
+        ),
+    },
+}
+
+
+# Seguridad del transporte. Solo se activa fuera de desarrollo, para no exigir
+# HTTPS en el servidor local.
+if not DEBUG:
+    # El proxy de la plataforma termina el TLS y anuncia el esquema original.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+    # Avisos de `check --deploy` revisados uno por uno y descartados con motivo:
+    #
+    # mail.E001  El sistema no envia correo. Django exige un backend SMTP en
+    #            produccion, pero declarar uno sin servidor detras seria falso.
+    #            Cuando exista notificacion por correo se definira
+    #            DJANGO_EMAIL_BACKEND con SMTP y se retirara este silenciamiento.
+    # security.W021  No se activa SECURE_HSTS_PRELOAD porque la lista de
+    #            precarga de los navegadores solo admite dominios propios, no
+    #            subdominios de la plataforma, y la inscripcion es dificil de
+    #            revertir. Debe reconsiderarse al publicar un dominio propio.
+    SILENCED_SYSTEM_CHECKS = ["mail.E001", "security.W021"]
+
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
+# El sistema no envia correo todavia. Se deja configurable para que, cuando lo
+# haga, baste con definir DJANGO_EMAIL_BACKEND y los datos del servidor.
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': os.environ.get(
+            "DJANGO_EMAIL_BACKEND",
+            "django.core.mail.backends.console.EmailBackend",
+        ),
     },
 }
 

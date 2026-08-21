@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Exists, OuterRef
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -26,7 +26,7 @@ from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           secciones_con_valores)
 from .services import registrar_posicion_unidad
 from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
-                          finalizar_sci211, generar_pdf_sci, generar_pdf_sci211)
+                          finalizar_sci211)
 
 
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
@@ -348,20 +348,6 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk):
 
 
 @login_required
-def formulario_sci_pdf(request, codigo, emergencia_pk):
-    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
-    if not puede_consultar_sci(request.user, emergencia):
-        raise PermissionDenied
-    contexto = _contexto_documento_sci(request.user, emergencia, codigo)
-    contenido = generar_pdf_sci(contexto)
-    respuesta = HttpResponse(contenido, content_type="application/pdf")
-    respuesta["Content-Disposition"] = (
-        f'attachment; filename="SCI_{codigo}_{emergencia.codigo}.pdf"'
-    )
-    return respuesta
-
-
-@login_required
 @require_POST
 def sci211_crear(request, emergencia_pk):
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
@@ -427,20 +413,10 @@ def sci211_finalizar(request, pk):
 
 
 @login_required
-def sci211_pdf(request, pk):
-    formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
-    contenido = generar_pdf_sci211(formulario)
-    respuesta = HttpResponse(contenido, content_type="application/pdf")
-    respuesta["Content-Disposition"] = f'attachment; filename="SCI_211_{formulario.emergencia.codigo}.pdf"'
-    return respuesta
-
-
-@login_required
 def sci211_imprimir(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
     return render(request, "emergencias/sci211/pdf.html", {
         "formulario": formulario,
-        "vista_web": True,
         "filas_vacias": range(max(0, 24 - formulario.registros.count())),
     })
 

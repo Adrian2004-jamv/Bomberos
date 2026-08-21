@@ -47,7 +47,7 @@
                                         <div class="sci-document-card__actions">
                                             {% if documento.editable %}<a class="sci-doc-action sci-doc-action--edit" href="{% url 'emergencias:sci_editar' documento.codigo incidente.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>{% endif %}
                                             <a class="sci-doc-action sci-doc-action--view" href="{% url 'emergencias:sci_visualizar' documento.codigo incidente.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> Visualizar e imprimir</a>
-                                            {% if documento.sci211 %}<a class="sci-doc-action sci-doc-action--pdf" href="{% url 'emergencias:sci211_pdf' documento.sci211.pk %}"><i class="ti ti-file-type-pdf" aria-hidden="true"></i> PDF</a>{% endif %}
+                                            {% if documento.sci211 %}<a class="sci-doc-action sci-doc-action--pdf" href="{% url 'emergencias:sci211_imprimir' documento.sci211.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> Imprimir</a>{% endif %}
                                         </div>
                                     </article>
                                 {% endfor %}

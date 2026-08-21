@@ -2,4 +2,13 @@ Django==6.1
 psycopg[binary]==3.3.4
 channels[daphne]==4.3.2
 channels-redis==4.3.0
-WeasyPrint==69.0
+# Sirve los archivos estaticos desde el propio proceso de la aplicacion,
+# porque el servicio web no tiene un servidor de archivos delante.
+whitenoise[brotli]==6.11.0
+
+# Aportan las bibliotecas nativas GEOS y GDAL que django.contrib.gis carga
+# con ctypes. Se instalan como wheels precompilados porque el entorno de
+# despliegue no permite instalar paquetes del sistema; config/settings.py
+# localiza las bibliotecas dentro de ellos.
+shapely==2.1.2
+rasterio==1.4.3

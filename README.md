@@ -20,11 +20,10 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - Django 6.1.
 - PostgreSQL 18 con PostGIS 3.6.
 - Psycopg 3.
-- GDAL y GEOS (disponibles en desarrollo mediante QGIS 3.44.12).
+- GDAL y GEOS, bibliotecas nativas que `django.contrib.gis` carga con `ctypes`. Se obtienen de los wheels de `rasterio` y `shapely`, iguales en desarrollo y en producción; si no están instalados, el sistema usa la instalación local de QGIS.
 - Django Channels 4.3 y Daphne, para HTTP y WebSockets sobre ASGI.
 - Redis 5 o posterior en producción, como capa de canales compartida.
 - Git, para control de versiones.
-- WeasyPrint 69.0 y sus bibliotecas nativas (Pango, Cairo y GLib) para generar PDF.
 
 El proyecto utiliza PostgreSQL como única base de datos activa. La base SQLite utilizada durante la etapa inicial fue retirada después de verificar la migración.
 
@@ -95,6 +94,35 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 El valor de respaldo de `DJANGO_SECRET_KEY` incluido en el código es únicamente para desarrollo y no es seguro para producción.
 
+## Despliegue en Render
+
+El despliegue se declara en [`render.yaml`](render.yaml) y **no utiliza contenedores**. Render crea tres recursos: el servicio web sobre ASGI, la base PostgreSQL y la instancia Key Value que comparte los mensajes de los WebSockets.
+
+El punto delicado es que `django.contrib.gis` carga GDAL y GEOS con `ctypes` al importar el modulo: son bibliotecas del sistema, no paquetes de Python, y el entorno nativo de Render trae un conjunto fijo de herramientas que no las incluye. Se resuelve declarando `rasterio` y `shapely` en `requirements.txt`, cuyos wheels precompilados traen esas bibliotecas dentro; `config/settings.py` las localiza por patron, porque el nombre del archivo cambia con cada version. La misma version de GDAL queda en desarrollo y en produccion.
+
+La extension espacial la crea la migracion `emergencias/0003_posicionunidad_postgis.py` mediante `CreateExtension("postgis")`, que emite `CREATE EXTENSION IF NOT EXISTS`. Una base recien creada queda lista sin pasos manuales y las bases existentes no se alteran.
+
+Configuracion que toma el servicio del entorno:
+
+| Variable | Origen | Efecto |
+| --- | --- | --- |
+| `DJANGO_DEBUG` | `render.yaml` | `False` activa HTTPS obligatorio, cookies seguras y HSTS. |
+| `DJANGO_SECRET_KEY` | generada por Render | Sin ella el arranque falla; no se acepta la clave de desarrollo. |
+| `DATABASE_URL` | base de datos | Tiene prioridad sobre las variables `POSTGRES_*` del entorno local. |
+| `REDIS_URL` | instancia Key Value | Capa de canales compartida para los WebSockets. |
+| `RENDER_EXTERNAL_HOSTNAME` | plataforma | Alimenta `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` sin escribir el dominio. |
+
+Para un dominio propio se definen ademas `DJANGO_ALLOWED_HOSTS` y `DJANGO_CSRF_TRUSTED_ORIGINS`, ambas separadas por comas.
+
+Los archivos estaticos los sirve WhiteNoise desde el propio proceso, con `CompressedStaticFilesStorage`. El versionado de cada archivo se hace a mano, con el sufijo `?v=` en las plantillas.
+
+El proyecto incluye `core.storage.EstaticosConManifiesto`, que agrega un hash al nombre de cada archivo y haria innecesario ese sufijo. **No esta activo**, y conviene entender por que antes de encenderlo con la variable `DJANGO_STATICFILES_BACKEND`:
+
+1. El service worker precarga catorce rutas escritas sin hash en `static/pwa/service-worker.js`. Con el manifiesto activo, ninguna pagina volveria a pedir esas rutas, de modo que la precarga quedaria sin efecto y el modo sin conexion dependeria de lo que se acumule durante la navegacion. Para activarlo hay que generar antes esa lista con la etiqueta `{% static %}`, sirviendo el archivo como plantilla.
+2. Las pruebas corren con `DEBUG=False` y resuelven cada archivo contra el manifiesto, que no existe en una copia recien clonada hasta ejecutar `collectstatic`.
+
+Los planes gratuitos de Render tienen dos limites que conviene tener presentes: el servicio web se suspende tras un periodo sin trafico y la primera peticion siguiente tarda cerca de un minuto, y las bases de datos gratuitas caducan a los treinta dias de creadas.
+
 ## Aplicación web progresiva
 
 El sistema incluye manifiesto web, iconos instalables, service worker, indicador de conexión, aviso controlado de actualizaciones y una página institucional sin conexión. En navegadores compatibles, el botón **Instalar aplicación** aparece únicamente cuando el navegador autoriza la instalación.
@@ -118,9 +146,9 @@ El único formulario SCI implementado es el **SCI-211 - Registro y Control de Re
 
 Un borrador puede guardarse y editarse. La acción **Finalizar** exige confirmación y valida que exista al menos un recurso y que sus campos obligatorios sean válidos. Al finalizar se congelan el código, fecha, dirección, institución, estación y coordenadas con los que se emitió el documento; desde entonces es de solo lectura. Los perfiles provinciales y de consulta acceden únicamente dentro de su ámbito, mientras inventario no obtiene edición SCI por ese solo rol.
 
-La vista imprimible y la descarga generan el PDF A4 horizontal bajo demanda con WeasyPrint, HTML escapado por Django y un cargador que rechaza archivos o URLs externos. Se eligió A4 porque el XLSX oficial define orientación horizontal y ajuste a dos páginas de ancho, pero no fija el tamaño de papel. En Windows, si WeasyPrint no encuentra sus bibliotecas nativas, instale GTK/Pango según la documentación oficial de WeasyPrint y reinicie la terminal. No se guarda el PDF en `media`.
+La vista imprimible reproduce el formulario en HTML con la regla `@page` en A4 horizontal y se envía a la impresora desde el navegador; quien necesite un archivo usa la opción **Guardar como PDF** del propio diálogo de impresión. Se eligió A4 porque el XLSX oficial define orientación horizontal y ajuste a dos páginas de ancho, pero no fija el tamaño de papel. El contenido lo escapa Django y la hoja no carga recursos externos. El sistema no genera ni almacena archivos PDF en el servidor.
 
-Limitaciones: el número de personas se inicia en 1 porque el sistema aún no administra dotaciones; debe confirmarlo el registrador. El XLSX muestra las columnas **Disponible**, **No disponible** y **Asignado a**, mientras su instructivo también menciona **Fuera de servicio**; para conservar ambos sentidos, el PDF marca ese caso como no disponible y escribe “Fuera de servicio” en la asignación. No se incluyen firmas electrónicas, modo offline ni otros formularios SCI.
+Limitaciones: el número de personas se inicia en 1 porque el sistema aún no administra dotaciones; debe confirmarlo el registrador. El XLSX muestra las columnas **Disponible**, **No disponible** y **Asignado a**, mientras su instructivo también menciona **Fuera de servicio**; para conservar ambos sentidos, la hoja imprimible marca ese caso como no disponible y escribe “Fuera de servicio” en la asignación. No se incluyen firmas electrónicas, modo offline ni otros formularios SCI.
 
 ## Protección de datos
 

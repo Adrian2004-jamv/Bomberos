@@ -1,5 +1,6 @@
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point
+from django.contrib.postgres.operations import CreateExtension
 from django.db import migrations
 
 
@@ -18,6 +19,11 @@ class Migration(migrations.Migration):
     dependencies = [("emergencias", "0002_posicionunidad")]
 
     operations = [
+        # La extension debe existir antes del primer campo geografico. La
+        # operacion emite CREATE EXTENSION IF NOT EXISTS, asi que no altera las
+        # bases donde PostGIS ya estaba instalado y evita un paso manual al
+        # crear una base nueva.
+        CreateExtension("postgis"),
         migrations.AddField(
             model_name="posicionunidad",
             name="ubicacion",
