@@ -44,7 +44,18 @@ services:
       python manage.py cargar_datos_cotopaxi
       python manage.py crear_superusuario_inicial
       if [ "${DJANGO_CARGAR_ESCENARIOS:-}" = "1" ]; then
-        python manage.py cargar_escenarios_sci
+        # El escenario exige que la estacion de Latacunga tenga las unidades
+        # AB-01 y AMB-01. cargar_datos_cotopaxi no crea la ambulancia, asi que
+        # el inventario bomberil va primero. Los dos comandos son idempotentes.
+        #
+        # El bloque no interrumpe la construccion a proposito: son datos de
+        # demostracion, y un fallo aqui no debe impedir que se publique la
+        # aplicacion ni retener correcciones ya aprobadas.
+        if python manage.py cargar_inventario_bomberil && python manage.py cargar_escenarios_sci; then
+          echo "Incidentes de demostracion cargados."
+        else
+          echo "AVISO: fallo la carga de los datos de demostracion. La aplicacion se publica igual."
+        fi
       else
         echo "DJANGO_CARGAR_ESCENARIOS no vale 1: se omiten los incidentes de demostracion."
       fi
