@@ -3,6 +3,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -59,15 +60,52 @@ def _emergencias_permitidas(usuario):
         "estacion_responsable",
         "estacion_responsable__cuerpo_bomberos",
         "registrado_por",
+    ).annotate(
+        cantidad_formularios_genericos=Count("formularios_sci", distinct=True),
+        tiene_sci211=Exists(
+            FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk"))
+        ),
+        sci211_finalizado=Exists(
+            FormularioSCI211.objects.filter(
+                emergencia_id=OuterRef("pk"),
+                estado=FormularioSCI211.Estado.FINALIZADO,
+            )
+        ),
     )
+
+
+def _preparar_avance_documental(emergencias):
+    for emergencia in emergencias:
+        emergencia.formularios_completados = (
+            emergencia.cantidad_formularios_genericos + int(emergencia.tiene_sci211)
+        )
+        emergencia.porcentaje_formularios = round(
+            emergencia.formularios_completados / len(CATALOGO_FORMULARIOS_SCI) * 100
+        )
+        if emergencia.formularios_completados == 0:
+            emergencia.etapa_formularios = "Sin iniciar"
+            emergencia.clave_etapa_formularios = "sin_iniciar"
+        elif emergencia.formularios_completados == len(CATALOGO_FORMULARIOS_SCI):
+            emergencia.etapa_formularios = "Completa"
+            emergencia.clave_etapa_formularios = "completa"
+        elif emergencia.sci211_finalizado:
+            emergencia.etapa_formularios = "SCI-211 finalizado"
+            emergencia.clave_etapa_formularios = "en_elaboracion"
+        else:
+            emergencia.etapa_formularios = "En elaboración"
+            emergencia.clave_etapa_formularios = "en_elaboracion"
+    return emergencias
 
 
 @login_required
 def lista(request):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
+    emergencias = list(_emergencias_permitidas(request.user))
     return render(request, "emergencias/lista.html", {
-        "emergencias": _emergencias_permitidas(request.user),
+        "emergencias": _preparar_avance_documental(emergencias),
+        "total_en_curso": sum(not emergencia.esta_terminada for emergencia in emergencias),
+        "total_terminadas": sum(emergencia.esta_terminada for emergencia in emergencias),
         "puede_crear": puede_gestionar_emergencias(request.user),
     })
 

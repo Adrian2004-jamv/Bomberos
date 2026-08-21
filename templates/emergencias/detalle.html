@@ -3,7 +3,7 @@
 
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=4">{% endblock %}
 
 {% block content %}
 <section class="panel">
@@ -20,7 +20,7 @@
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
     </dl>
 </section>
-<section class="panel">
+<section id="formularios-sci" class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
     {% if sci211 and sci211.es_editable %}<a class="button button--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}">Continuar SCI-211</a>
     {% elif sci211 %}<div class="button-group"><a class="button button--primary" href="{% url 'emergencias:sci211_detalle' sci211.pk %}">Consultar SCI-211</a><a class="button" href="{% url 'emergencias:sci211_pdf' sci211.pk %}">Descargar PDF</a></div>

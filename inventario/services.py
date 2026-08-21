@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from .models import HistorialEstadoRecurso, Recurso
 from .permissions import puede_gestionar_recurso
@@ -14,6 +15,7 @@ def actualizar_estado_recurso(
     usuario_responsable,
     motivo,
     observaciones="",
+    confirmar_disponibilidad=False,
 ):
     """Actualiza el recurso y registra su historial en una única transacción."""
     Usuario = get_user_model()
@@ -51,13 +53,21 @@ def actualizar_estado_recurso(
     if (
         estado_anterior == nuevo_estado_operativo
         and disponibilidad_anterior == nueva_disponibilidad
+        and not confirmar_disponibilidad
     ):
         return recurso_actual, None
 
     recurso_actual.estado_operativo = nuevo_estado_operativo
     recurso_actual.disponibilidad = nueva_disponibilidad
+    recurso_actual.fecha_confirmacion_disponibilidad = timezone.now()
+    campos_actualizados = [
+        "estado_operativo",
+        "disponibilidad",
+        "fecha_actualizacion",
+        "fecha_confirmacion_disponibilidad",
+    ]
     recurso_actual.save(
-        update_fields=("estado_operativo", "disponibilidad", "fecha_actualizacion")
+        update_fields=campos_actualizados
     )
 
     historial = HistorialEstadoRecurso.objects.create(

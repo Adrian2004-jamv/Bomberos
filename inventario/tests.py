@@ -65,6 +65,7 @@ class ActualizarEstadoRecursoTests(TestCase):
         recurso.refresh_from_db()
         self.assertEqual(recurso.estado_operativo, Recurso.EstadoOperativo.MANTENIMIENTO)
         self.assertEqual(recurso.disponibilidad, Recurso.Disponibilidad.NO_DISPONIBLE)
+        self.assertTrue(recurso.disponibilidad_actualizada)
         self.assertEqual(HistorialEstadoRecurso.objects.count(), 1)
         self.assertEqual(historial.estado_anterior, Recurso.EstadoOperativo.OPERATIVO)
         self.assertEqual(historial.disponibilidad_anterior, Recurso.Disponibilidad.DISPONIBLE)
@@ -157,6 +158,10 @@ class InterfazInventarioTests(TestCase):
         for ruta in (reverse("inventario:crear"), reverse("inventario:editar", args=[self.recurso_uno.pk]), reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk])):
             with self.subTest(ruta=ruta):
                 self.assertEqual(self.client.get(ruta).status_code, 403)
+        self.assertEqual(
+            self.client.post(reverse("inventario:confirmar_disponibilidad", args=[self.recurso_uno.pk])).status_code,
+            403,
+        )
 
     def test_recurso_ajeno_no_es_accesible_por_url(self):
         self.client.force_login(self.usuarios["encargado"])
@@ -198,6 +203,22 @@ class InterfazInventarioTests(TestCase):
         self.client.post(ruta, {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": "Sin novedades", "observaciones": ""})
         self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
 
+    def test_confirmacion_rapida_deja_operativo_disponible_y_enciende_foco(self):
+        self.recurso_uno.estado_operativo = Recurso.EstadoOperativo.MANTENIMIENTO
+        self.recurso_uno.disponibilidad = Recurso.Disponibilidad.NO_DISPONIBLE
+        self.recurso_uno.save()
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.post(
+            reverse("inventario:confirmar_disponibilidad", args=[self.recurso_uno.pk])
+        )
+        self.assertRedirects(respuesta, reverse("inventario:lista"))
+        self.recurso_uno.refresh_from_db()
+        self.assertEqual(self.recurso_uno.estado_operativo, Recurso.EstadoOperativo.OPERATIVO)
+        self.assertEqual(self.recurso_uno.disponibilidad, Recurso.Disponibilidad.DISPONIBLE)
+        self.assertIsNotNone(self.recurso_uno.fecha_confirmacion_disponibilidad)
+        self.assertTrue(self.recurso_uno.disponibilidad_actualizada)
+        self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
+
     def test_motivo_es_obligatorio(self):
         self.client.force_login(self.usuarios["encargado"])
         respuesta = self.client.post(reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk]), {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": ""})
@@ -210,12 +231,23 @@ class InterfazInventarioTests(TestCase):
         self.assertEqual(self.client.get(ruta).status_code, 200)
         self.assertEqual(self.client.post(ruta, {}).status_code, 405)
 
-    def test_paginacion_conserva_busqueda(self):
+    def test_datatable_recibe_todos_los_resultados_filtrados(self):
         for indice in range(25):
             Recurso.objects.create(estacion=self.estacion_uno, tipo=self.tipo, codigo_interno=f"PAG-{indice:02}", nombre=f"Equipo paginado {indice}")
         self.client.force_login(self.usuarios["encargado"])
         respuesta = self.client.get(reverse("inventario:lista"), {"q": "paginado"})
-        self.assertContains(respuesta, "q=paginado&amp;pagina=2")
+        self.assertContains(respuesta, "PAG-00")
+        self.assertContains(respuesta, "PAG-24")
+        self.assertContains(respuesta, "data-inventory-table")
+        self.assertContains(respuesta, "datatables-2.3.8.min.js")
+        self.assertContains(respuesta, 'data-inventory-column-filter="2"', html=False)
+        self.assertContains(respuesta, "Buscar recurso…")
+        self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
+        self.assertContains(respuesta, 'aria-label="Filtrar por actualización"', html=False)
+        self.assertContains(respuesta, "inventario_datatable.js?v=5")
+        self.assertContains(respuesta, "inventario_datatable.css?v=7")
+        self.assertContains(respuesta, '>Foco</th>', html=False)
+        self.assertContains(respuesta, "jquery-3.7.1.min.js")
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
         self.client.force_login(self.usuarios["provincial"])
@@ -243,6 +275,22 @@ class InterfazInventarioTests(TestCase):
         self.assertTemplateUsed(respuesta, "inventario/_resultados.html")
         self.assertContains(respuesta, "R-I-001")
         self.assertNotContains(respuesta, "Buscar y filtrar inventario")
+
+    def test_listado_no_muestra_bloque_de_filtros_duplicado(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertNotContains(respuesta, "Buscar y filtrar inventario")
+        self.assertNotContains(respuesta, "Aplicar filtros")
+        self.assertNotContains(respuesta, "htmx-2.0.10.min.js")
+
+    def test_usuario_y_cierre_de_sesion_estan_en_menu_lateral(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertContains(respuesta, 'class="sidebar-user"', html=False)
+        self.assertContains(respuesta, "Cerrar sesión")
+        self.assertContains(respuesta, "css/componentes.css?v=3")
+        contenido = respuesta.content.decode()
+        self.assertLess(contenido.index("Mapa operativo"), contenido.index('class="sidebar-user"'))
 
     def test_opcion_invalida_produce_error(self):
         with self.assertRaises(ValidationError):

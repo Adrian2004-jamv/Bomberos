@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class CategoriaRecurso(models.Model):
@@ -10,7 +13,6 @@ class CategoriaRecurso(models.Model):
     activo = models.BooleanField("activo", default=True)
     fecha_creacion = models.DateTimeField("fecha de creación", auto_now_add=True)
     fecha_actualizacion = models.DateTimeField("fecha de actualización", auto_now=True)
-
     class Meta:
         verbose_name = "categoría de recurso"
         verbose_name_plural = "categorías de recursos"
@@ -38,7 +40,6 @@ class TipoRecurso(models.Model):
     )
     fecha_creacion = models.DateTimeField("fecha de creación", auto_now_add=True)
     fecha_actualizacion = models.DateTimeField("fecha de actualización", auto_now=True)
-
     class Meta:
         verbose_name = "tipo de recurso"
         verbose_name_plural = "tipos de recursos"
@@ -107,6 +108,16 @@ class Recurso(models.Model):
     activo = models.BooleanField("activo", default=True)
     fecha_creacion = models.DateTimeField("fecha de creación", auto_now_add=True)
     fecha_actualizacion = models.DateTimeField("fecha de actualización", auto_now=True)
+    fecha_confirmacion_disponibilidad = models.DateTimeField(
+        "fecha de confirmación de disponibilidad", null=True, blank=True
+    )
+
+    @property
+    def disponibilidad_actualizada(self):
+        """La confirmación operativa se considera vigente durante 24 horas."""
+        if not self.fecha_confirmacion_disponibilidad:
+            return False
+        return self.fecha_confirmacion_disponibilidad >= timezone.now() - timedelta(hours=24)
 
     class Meta:
         verbose_name = "recurso"
