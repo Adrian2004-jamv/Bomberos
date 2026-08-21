@@ -120,6 +120,69 @@ class SCI211Tests(TestCase):
         self.assertEqual(respuesta.status_code, 302)
         self.assertEqual(formulario.estado, FormularioSCI211.Estado.BORRADOR)
 
+    def _datos_edicion(self, formulario, accion=None):
+        """POST completo de la pantalla de edicion, con un recurso valido."""
+        datos = {
+            "punto_registro": "Puesto de Comando",
+            "registrador_1": "Usuario de Prueba",
+            "registrador_2": "",
+            "registrador_3": "",
+            "registros-TOTAL_FORMS": "1",
+            "registros-INITIAL_FORMS": "0",
+            "registros-MIN_NUM_FORMS": "1",
+            "registros-MAX_NUM_FORMS": "1000",
+            "registros-0-id": "",
+            "registros-0-formulario": str(formulario.pk),
+            "registros-0-solicitado_por": "Comandante de Incidente",
+            "registros-0-fecha_hora_solicitud": "2026-08-21T09:15",
+            "registros-0-clase_recurso": "Vehículos",
+            "registros-0-tipo_recurso": "Autobomba",
+            "registros-0-fecha_hora_arribo": "2026-08-21T09:32",
+            "registros-0-institucion_procedencia": "Cuerpo de Bomberos de Latacunga",
+            "registros-0-matricula_identificacion": "AB-01",
+            "registros-0-numero_personas": "4",
+            "registros-0-estado_recurso": "disponible",
+            "registros-0-asignado_a": "Sector El Salto",
+            "registros-0-desmovilizado_por": "",
+            "registros-0-fecha_hora_desmovilizacion": "",
+            "registros-0-observaciones": "Unidad en ataque inicial.",
+        }
+        if accion:
+            datos["accion"] = accion
+        return datos
+
+    def test_finalizar_desde_la_edicion_guarda_antes_de_continuar(self):
+        """El boton de finalizar debe enviar el formulario, no navegar fuera de el.
+
+        Cuando era un enlace, lo escrito se perdia y el usuario chocaba con
+        «Debe registrar al menos un recurso antes de finalizar».
+        """
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            self._datos_edicion(formulario, accion="finalizar"),
+        )
+        self.assertRedirects(
+            respuesta, reverse("emergencias:sci211_finalizar", args=[formulario.pk])
+        )
+        self.assertEqual(formulario.registros.count(), 1)
+        registro = formulario.registros.get()
+        self.assertEqual(registro.matricula_identificacion, "AB-01")
+        self.assertEqual(registro.orden, 1)
+
+    def test_guardar_borrador_se_queda_en_la_edicion(self):
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            self._datos_edicion(formulario),
+        )
+        self.assertRedirects(
+            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
+        self.assertEqual(formulario.registros.count(), 1)
+
     def test_restriccion_estacion_y_solo_lectura(self):
         formulario = self.crear_formulario()
         self.client.force_login(self.otro)

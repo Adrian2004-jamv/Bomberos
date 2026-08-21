@@ -380,6 +380,9 @@ def sci211_editar(request, pk):
         for orden, instancia in enumerate(instancias, start=1):
             instancia.orden = orden
             instancia.save()
+        if request.POST.get("accion") == "finalizar":
+            messages.success(request, "Borrador guardado. Confirme para finalizar.")
+            return redirect("emergencias:sci211_finalizar", pk=pk)
         messages.success(request, "Borrador SCI-211 guardado.")
         return redirect("emergencias:sci211_editar", pk=pk)
     return render(request, "emergencias/sci211/formulario.html", {
