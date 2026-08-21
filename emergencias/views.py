@@ -18,38 +18,38 @@ from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
 from .permissions import (puede_consultar_emergencias, puede_consultar_sci,
                           puede_editar_sci, puede_gestionar_emergencias)
+from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
+                          obtener_esquema, secciones_con_valores)
 from .services import registrar_posicion_unidad
-from .services_sci import crear_sci211_desde_emergencia, finalizar_sci211, generar_pdf_sci211
+from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
+                          finalizar_sci211, generar_pdf_sci, generar_pdf_sci211)
 
 
-CATALOGO_FORMULARIOS_SCI = (
-    {"codigo": "201", "nombre": "Resumen del Incidente", "formato": "Carta vertical · 4 páginas", "estructura": "Datos generales, evaluación, objetivos, organización, croquis y aprobación."},
-    {"codigo": "202", "nombre": "Plan de Acción del Incidente", "formato": "Carta horizontal · 2 páginas", "estructura": "Periodo operacional, objetivos, estrategias, tácticas y recursos."},
-    {"codigo": "203", "nombre": "Listado de Asignación en la Organización", "formato": "Vertical · 2 hojas estimadas", "estructura": "Estructura de mando, cargos y responsables del incidente."},
-    {"codigo": "204", "nombre": "Asignaciones Tácticas", "formato": "Carta horizontal · 1 página", "estructura": "Rama, división o grupo, recursos, instrucciones y comunicaciones."},
-    {"codigo": "205", "nombre": "Plan de Comunicaciones", "formato": "Carta vertical · 1 página", "estructura": "Sistemas, canales, frecuencias, indicativos y asignaciones."},
-    {"codigo": "206", "nombre": "Plan Médico", "formato": "Carta vertical · 1 página", "estructura": "Instalaciones, ambulancias, hospitales, rutas y procedimientos médicos."},
-    {"codigo": "207", "nombre": "Registro de Pacientes/Víctimas", "formato": "Carta horizontal · 1 página", "estructura": "Identificación, clasificación, condición, traslado y destino de pacientes."},
-    {"codigo": "211", "nombre": "Registro y Control de Recursos", "formato": "A4 horizontal · imprimible", "estructura": "Solicitud, arribo, institución, estado, asignación y desmovilización de recursos.", "implementado": True},
-    {"codigo": "214", "nombre": "Registro de Actividades", "formato": "Carta vertical · páginas repetibles", "estructura": "Bitácora cronológica, responsable, novedades, decisiones y firma."},
-    {"codigo": "215", "nombre": "Análisis de Seguridad del PAI", "formato": "Carta horizontal · 1 página", "estructura": "Áreas de trabajo, peligros, riesgos y acciones de mitigación."},
-    {"codigo": "221", "nombre": "Verificación de la Desmovilización", "formato": "Carta vertical · 4 páginas", "estructura": "Lista de verificación, liberación de recursos, observaciones y firmas."},
-    {"codigo": "222", "nombre": "Prioridades y Asignación de Recursos", "formato": "Horizontal · matriz", "estructura": "Prioridad de incidentes, recursos requeridos, disponibles y reasignados."},
-)
+_ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
 
-CAMPOS_FORMULARIOS_SCI = {
-    "201": (("evaluacion", "Evaluación inicial", "textarea"), ("amenazas", "Amenazas y daños", "textarea"), ("objetivos", "Objetivos iniciales", "textarea"), ("organizacion", "Organización inicial", "textarea"), ("croquis", "Descripción del croquis", "textarea"), ("aprobacion", "Responsable de aprobación", "text")),
-    "202": (("periodo", "Periodo operacional", "text"), ("objetivos", "Objetivos", "textarea"), ("estrategias", "Estrategias", "textarea"), ("tacticas", "Tácticas", "textarea"), ("recursos", "Recursos requeridos", "textarea"), ("aprobado_por", "Aprobado por", "text")),
-    "203": (("comandante", "Comandante del Incidente", "text"), ("seguridad", "Oficial de Seguridad", "text"), ("operaciones", "Jefe de Operaciones", "text"), ("planificacion", "Jefe de Planificación", "text"), ("logistica", "Jefe de Logística", "text"), ("finanzas", "Administración y Finanzas", "text"), ("organizacion", "Organización adicional", "textarea")),
-    "204": (("rama", "Rama", "text"), ("division_grupo", "División o grupo", "text"), ("supervisor", "Supervisor", "text"), ("recursos", "Recursos asignados", "textarea"), ("instrucciones", "Instrucciones tácticas", "textarea"), ("comunicaciones", "Comunicaciones", "textarea")),
-    "205": (("periodo", "Periodo operacional", "text"), ("sistemas", "Sistemas de comunicación", "textarea"), ("canales", "Canales y frecuencias", "textarea"), ("indicativos", "Indicativos", "textarea"), ("asignaciones", "Asignaciones", "textarea"), ("observaciones", "Observaciones", "textarea")),
-    "206": (("responsable", "Responsable médico", "text"), ("instalaciones", "Instalaciones médicas", "textarea"), ("ambulancias", "Ambulancias y transporte", "textarea"), ("hospitales", "Hospitales de referencia", "textarea"), ("procedimientos", "Procedimientos de emergencia", "textarea"), ("aprobado_por", "Aprobado por", "text")),
-    "207": (("responsable", "Responsable del registro", "text"), ("pacientes", "Pacientes o víctimas", "textarea"), ("clasificacion", "Clasificación", "textarea"), ("atencion", "Atención proporcionada", "textarea"), ("traslados", "Unidades, destinos y horas de traslado", "textarea"), ("observaciones", "Observaciones", "textarea")),
-    "214": (("responsable", "Nombre y cargo SCI", "text"), ("periodo", "Periodo operacional", "text"), ("actividades", "Registro cronológico de actividades", "textarea"), ("decisiones", "Decisiones y novedades", "textarea"), ("observaciones", "Observaciones", "textarea"), ("firma", "Responsable de firma", "text")),
-    "215": (("preparado_por", "Preparado por", "text"), ("areas", "Áreas de trabajo", "textarea"), ("peligros", "Peligros identificados", "textarea"), ("riesgos", "Nivel y descripción de riesgos", "textarea"), ("mitigacion", "Acciones de mitigación", "textarea"), ("responsables", "Responsables", "textarea")),
-    "221": (("responsable", "Responsable de desmovilización", "text"), ("planificacion", "Verificación de planificación", "textarea"), ("recursos", "Liberación de recursos", "textarea"), ("logistica", "Verificación logística", "textarea"), ("comunicaciones", "Verificación de comunicaciones", "textarea"), ("observaciones", "Observaciones y firmas", "textarea")),
-    "222": (("preparado_por", "Preparado por", "text"), ("prioridades", "Prioridades de incidentes", "textarea"), ("requeridos", "Recursos requeridos", "textarea"), ("disponibles", "Recursos disponibles", "textarea"), ("asignaciones", "Asignaciones y reasignaciones", "textarea"), ("observaciones", "Observaciones", "textarea")),
-}
+
+def _entrada_catalogo(codigo, esquema):
+    paginas = esquema["paginas"]
+    return {
+        "codigo": codigo,
+        "nombre": esquema["nombre"],
+        "formato": f"{_ORIENTACION[esquema['orientacion']]} · {paginas} página{'s' if paginas > 1 else ''}",
+        "estructura": esquema["proposito"],
+        "implementado": True,
+    }
+
+
+CATALOGO_FORMULARIOS_SCI = tuple(sorted(
+    [_entrada_catalogo(codigo, esquema) for codigo, esquema in ESQUEMAS_SCI.items()] + [{
+        "codigo": "211",
+        "nombre": "Registro y Control de Recursos",
+        "formato": "Horizontal · 2 páginas",
+        "estructura": "Fuente maestra de recursos: solicitud, arribo, institución, estado, "
+                      "asignación y desmovilización de cada recurso del incidente.",
+        "implementado": True,
+    }],
+    key=lambda entrada: entrada["codigo"],
+))
 
 
 def _emergencias_permitidas(usuario):
@@ -146,31 +146,34 @@ def formulario_sci_catalogo_detalle(request, codigo):
 
 @login_required
 def formulario_sci_visualizar(request, codigo, emergencia_pk):
-    if not puede_consultar_emergencias(request.user):
-        raise PermissionDenied
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
-    formulario_catalogo = next(
-        (formulario for formulario in CATALOGO_FORMULARIOS_SCI if formulario["codigo"] == codigo),
-        None,
-    )
-    if formulario_catalogo is None:
-        raise Http404
+    if not puede_consultar_sci(request.user, emergencia):
+        raise PermissionDenied
     if codigo == "211":
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
+    contexto = _contexto_documento_sci(request.user, emergencia, codigo)
+    contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
+    return render(request, "emergencias/sci_preview.html", contexto)
+
+
+def _contexto_documento_sci(usuario, emergencia, codigo):
+    esquema = obtener_esquema(codigo)
+    if esquema is None:
+        raise Http404
     formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()
     datos = formulario.datos if formulario else {}
-    return render(request, "emergencias/sci_preview.html", {
+    return {
         "emergencia": emergencia,
-        "formulario_catalogo": formulario_catalogo,
-        "filas": range(8),
+        "esquema": esquema,
+        "codigo": codigo,
+        "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": formulario,
-        "campos_renderizados": [
-            {"nombre": nombre, "etiqueta": etiqueta, "valor": datos.get(nombre, "")}
-            for nombre, etiqueta, _tipo in CAMPOS_FORMULARIOS_SCI.get(codigo, ())
-        ],
-    })
+        "campos_periodo": [dict(campo, valor=datos.get(campo["nombre"], ""))
+                           for campo in campos_periodo(esquema)],
+        "secciones": secciones_con_valores(esquema, datos),
+    }
 
 
 @login_required
@@ -181,33 +184,58 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
         if formulario is None:
             formulario = crear_sci211_desde_emergencia(emergencia, request.user)
         return redirect("emergencias:sci211_editar", pk=formulario.pk)
-    if not puede_editar_sci(request.user, emergencia) or codigo not in CAMPOS_FORMULARIOS_SCI:
+    esquema = obtener_esquema(codigo)
+    if esquema is None:
+        raise Http404
+    if not puede_editar_sci(request.user, emergencia):
         raise PermissionDenied
-    formulario_catalogo = next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo)
     formulario, _ = FormularioSCI.objects.get_or_create(
         emergencia=emergencia, codigo_sci=codigo,
         defaults={"creado_por": request.user, "modificado_por": request.user},
     )
+    if not formulario.es_editable:
+        messages.info(request, f"El formulario SCI-{codigo} está finalizado y es de solo lectura.")
+        return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
     if request.method == "POST":
-        formulario.datos = {
-            nombre: request.POST.get(nombre, "").strip()[:5000]
-            for nombre, _etiqueta, _tipo in CAMPOS_FORMULARIOS_SCI[codigo]
-        }
+        formulario.datos = extraer_datos(esquema, request.POST)
+        formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
         formulario.modificado_por = request.user
         formulario.save()
         messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
         return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
-    return render(request, "emergencias/sci_editar.html", {
-        "emergencia": emergencia,
-        "formulario_catalogo": formulario_catalogo,
-        "formulario_generico": formulario,
-        "campos_edicion": [
-            {"nombre": nombre, "etiqueta": etiqueta, "tipo": tipo, "valor": formulario.datos.get(nombre, "")}
-            for nombre, etiqueta, tipo in CAMPOS_FORMULARIOS_SCI[codigo]
-        ],
-        "es_horizontal": codigo in {"202", "204", "207", "215", "222"},
-        "es_hoja_calculo": codigo in {"203", "222"},
-    })
+    contexto = _contexto_documento_sci(request.user, emergencia, codigo)
+    contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
+    return render(request, "emergencias/sci_editar.html", contexto)
+
+
+@login_required
+def formulario_sci_finalizar(request, codigo, emergencia_pk):
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    if not puede_editar_sci(request.user, emergencia) or obtener_esquema(codigo) is None:
+        raise PermissionDenied
+    formulario = get_object_or_404(FormularioSCI, emergencia=emergencia, codigo_sci=codigo)
+    if request.method == "POST":
+        try:
+            finalizar_sci(formulario, request.user)
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+        else:
+            messages.success(request, f"Formulario SCI-{codigo} finalizado. Ahora es de solo lectura.")
+    return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+
+
+@login_required
+def formulario_sci_pdf(request, codigo, emergencia_pk):
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    if not puede_consultar_sci(request.user, emergencia):
+        raise PermissionDenied
+    contexto = _contexto_documento_sci(request.user, emergencia, codigo)
+    contenido = generar_pdf_sci(contexto)
+    respuesta = HttpResponse(contenido, content_type="application/pdf")
+    respuesta["Content-Disposition"] = (
+        f'attachment; filename="SCI_{codigo}_{emergencia.codigo}.pdf"'
+    )
+    return respuesta
 
 
 @login_required

@@ -1,13 +1,139 @@
 {% extends "base.html" %}{% load static %}
-{% block title %}Editar SCI-{{ formulario_catalogo.codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ formulario_catalogo.codigo }}{% endblock %}
+{% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
-<div class="sci-workspace__toolbar"><div><strong>SCI-{{ formulario_catalogo.codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }}</span></div><div><a class="button" href="{% url 'emergencias:sci211_lista' %}">Cerrar</a><a class="button" href="{% url 'emergencias:sci_visualizar' formulario_catalogo.codigo emergencia.pk %}">Vista de impresión</a><button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button></div></div>
-<form method="post" id="sci-document-form" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %}{% if es_hoja_calculo %} sci-paper--spreadsheet{% else %} sci-paper--word{% endif %}">{% csrf_token %}
-<header class="sci-paper__header"><img src="{% static 'emergencias/img/sci-logo.png' %}" alt="Sistema de Comando de Incidentes"><div><small>SISTEMA DE COMANDO DE INCIDENTES</small><h2>Formulario SCI-{{ formulario_catalogo.codigo }}</h2><strong>{{ formulario_catalogo.nombre }}</strong></div><span>Rev. 06-2015</span></header>
-<section class="sci-paper__meta"><label>Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label><label>Fecha y hora<input value="{{ emergencia.fecha_reporte|date:'d/m/Y H:i' }}" readonly></label><label>Lugar<input value="{{ emergencia.direccion }}" readonly></label><label>Institución<input value="{{ emergencia.estacion_responsable.cuerpo_bomberos.nombre }}" readonly></label></section>
-{% if es_hoja_calculo %}<section class="sci-sheet-grid"><div class="sci-sheet-grid__title">REGISTRO OPERATIVO SCI-{{ formulario_catalogo.codigo }}</div>{% for campo in campos_edicion %}<label><span>{{ forloop.counter }}. {{ campo.etiqueta }}</span>{% if campo.tipo == 'textarea' %}<textarea id="id_{{ campo.nombre }}" name="{{ campo.nombre }}" rows="5">{{ campo.valor }}</textarea>{% else %}<input id="id_{{ campo.nombre }}" name="{{ campo.nombre }}" value="{{ campo.valor }}" maxlength="5000">{% endif %}</label>{% endfor %}</section>{% else %}<section class="sci-word-sections">{% for campo in campos_edicion %}<fieldset><legend>{{ forloop.counter }}. {{ campo.etiqueta }}</legend>{% if campo.tipo == 'textarea' %}<textarea id="id_{{ campo.nombre }}" name="{{ campo.nombre }}" rows="{% if es_horizontal %}4{% else %}5{% endif %}">{{ campo.valor }}</textarea>{% else %}<input id="id_{{ campo.nombre }}" name="{{ campo.nombre }}" value="{{ campo.valor }}" maxlength="5000">{% endif %}</fieldset>{% endfor %}</section>{% endif %}
-<footer class="sci-paper__footer"><div><strong>Preparado por:</strong>{{ request.user.get_full_name|default:request.user.username }}</div><div><strong>Cargo:</strong></div><div><strong>Fecha:</strong>{% now "d/m/Y H:i" %}</div></footer>
-</form></div>
+  <div class="sci-workspace__toolbar">
+    <div><strong>SCI-{{ codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }}</span></div>
+    <div>
+      <a class="button" href="{% url 'emergencias:sci211_lista' %}">Cerrar</a>
+      <a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>
+      <button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>
+    </div>
+  </div>
+
+  <form method="post" id="sci-document-form" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %} sci-paper--word">{% csrf_token %}
+    <header class="sci-paper__header">
+      <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="Sistema de Comando de Incidentes">
+      <div>
+        <small>SISTEMA DE COMANDO DE INCIDENTES</small>
+        <h2>Formulario SCI-{{ codigo }}</h2>
+        <strong>{{ esquema.nombre }}</strong>
+      </div>
+      <span>{{ esquema.paginas }} pág.</span>
+    </header>
+
+    <p class="sci-proposito">{{ esquema.proposito }}</p>
+    {% if esquema.aviso %}<p class="sci-aviso">{{ esquema.aviso }}</p>{% endif %}
+
+    <section class="sci-paper__meta">
+      <label>1. Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label>
+      <label>2. Fecha y hora de preparación<input value="{{ emergencia.fecha_reporte|date:'d/m/Y H:i' }}" readonly></label>
+      <label>Lugar del incidente<input value="{{ emergencia.direccion }}" readonly></label>
+      <label>Institución<input value="{{ emergencia.estacion_responsable.cuerpo_bomberos.nombre }}" readonly></label>
+    </section>
+
+    {% if campos_periodo %}
+    <section class="sci-periodo">
+      {% for campo in campos_periodo %}
+      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}</span>
+        <input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}">
+      </label>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="sci-word-sections">
+      {% for seccion in secciones %}
+        {% if seccion.tipo == 'tabla' %}
+        <fieldset class="sci-tabla" data-seccion="{{ seccion.nombre }}">
+          <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
+          {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
+          <table>
+            <thead><tr>{% for columna in seccion.columnas %}<th{% if columna.ancho %} style="width:{{ columna.ancho }}"{% endif %}>{{ columna.etiqueta }}</th>{% endfor %}{% if not seccion.filas_fijas %}<th class="sci-tabla__acciones"></th>{% endif %}</tr></thead>
+            <tbody>
+              {% for fila in seccion.filas %}
+              <tr>
+                {% for celda in fila.celdas %}
+                <td>
+                  {% if celda.fija %}
+                    <span class="sci-tabla__fija">{{ celda.fija }}</span>
+                    <input type="hidden" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.fija }}">
+                  {% else %}
+                    <input name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" maxlength="5000">
+                  {% endif %}
+                </td>
+                {% endfor %}
+                {% if not seccion.filas_fijas %}<td class="sci-tabla__acciones"><button type="button" class="sci-tabla__quitar" title="Quitar fila">&times;</button></td>{% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if not seccion.filas_fijas %}<button type="button" class="button sci-tabla__agregar">Agregar fila</button>{% endif %}
+          {% if seccion.firma %}
+          <label class="sci-firma"><span>{{ seccion.firma }}</span><input name="{{ seccion.nombre }}__firma" value="{{ seccion.firma_valor }}" maxlength="150"></label>
+          {% endif %}
+        </fieldset>
+        {% else %}
+        <fieldset>
+          <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
+          {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
+          {% if seccion.tipo == 'textarea' %}
+            <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:4 }}" maxlength="5000">{{ seccion.valor }}</textarea>
+          {% elif seccion.tipo == 'fecha_hora' %}
+            <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}">
+          {% else %}
+            <input name="{{ seccion.nombre }}" value="{{ seccion.valor }}" maxlength="5000">
+          {% endif %}
+        </fieldset>
+        {% endif %}
+      {% endfor %}
+    </section>
+
+    <footer class="sci-paper__footer">
+      <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:'' }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
+      <div><strong>Posición:</strong>{{ esquema.preparado_por }}</div>
+      <div><strong>Fecha:</strong>{% now "d/m/Y H:i" %}</div>
+    </footer>
+  </form>
+
+  {% if formulario_generico and formulario_generico.pk %}
+  <form method="post" action="{% url 'emergencias:sci_finalizar' codigo emergencia.pk %}" class="sci-finalizar">{% csrf_token %}
+    <p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar.</p>
+    <button class="button" type="submit">Finalizar formulario SCI-{{ codigo }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll(".sci-tabla").forEach((tabla) => {
+    const cuerpo = tabla.querySelector("tbody");
+    const seccion = tabla.dataset.seccion;
+
+    const renumerar = () => {
+        cuerpo.querySelectorAll("tr").forEach((fila, indice) => {
+            fila.querySelectorAll("input[name]").forEach((campo) => {
+                campo.name = campo.name.replace(/^(.+?)-\d+-(.+)$/, `$1-${indice}-$2`);
+            });
+        });
+    };
+
+    tabla.querySelector(".sci-tabla__agregar")?.addEventListener("click", () => {
+        const ultima = cuerpo.querySelector("tr:last-child");
+        const copia = ultima.cloneNode(true);
+        copia.querySelectorAll("input").forEach((campo) => { campo.value = ""; });
+        cuerpo.appendChild(copia);
+        renumerar();
+        copia.querySelector("input")?.focus();
+    });
+
+    cuerpo.addEventListener("click", (evento) => {
+        if (!evento.target.classList.contains("sci-tabla__quitar")) return;
+        if (cuerpo.querySelectorAll("tr").length <= 1) return;
+        evento.target.closest("tr").remove();
+        renumerar();
+    });
+});
+</script>
 {% endblock %}

@@ -8,7 +8,8 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import FormularioSCI211, RegistroRecursoSCI211
+from .esquemas_sci import TABLA
+from .models import FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 
 
 def _nombre_usuario(usuario):
@@ -102,6 +103,56 @@ def generar_pdf_sci211(formulario):
         if url.startswith("data:image/png;base64,"):
             return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
         raise ValueError(f"El PDF SCI-211 no admite recursos externos: {url!r}")
+
+    HTML(string=html, url_fetcher=bloquear_recurso_externo).write_pdf(salida)
+    return salida.getvalue()
+
+
+@transaction.atomic
+def finalizar_sci(formulario, usuario):
+    """Bloquea un formulario SCI genérico tras verificar que tenga contenido."""
+    actual = FormularioSCI.objects.select_for_update().get(pk=formulario.pk)
+    if not actual.es_editable:
+        raise ValidationError(f"El formulario SCI-{actual.codigo_sci} ya está finalizado.")
+    if not _tiene_contenido(actual.datos):
+        raise ValidationError("Complete al menos un campo antes de finalizar el formulario.")
+    actual.estado = FormularioSCI.Estado.FINALIZADO
+    actual.finalizado_por = usuario
+    actual.modificado_por = usuario
+    actual.fecha_finalizacion = timezone.now()
+    actual.save()
+    return actual
+
+
+def _tiene_contenido(datos):
+    for valor in (datos or {}).values():
+        if isinstance(valor, list):
+            if any(any(celda for celda in fila.values()) for fila in valor if isinstance(fila, dict)):
+                return True
+        elif str(valor or "").strip():
+            return True
+    return False
+
+
+def generar_pdf_sci(contexto):
+    """Genera el PDF de un formulario SCI genérico a partir del contexto del documento."""
+    try:
+        from weasyprint import HTML, default_url_fetcher
+    except (ImportError, OSError) as error:
+        raise RuntimeError("WeasyPrint no está disponible en este entorno.") from error
+    logo = Path(settings.BASE_DIR) / "static" / "emergencias" / "img" / "sci-logo.png"
+    contexto = dict(
+        contexto,
+        modo_pdf=True,
+        logo_sci_data_uri="data:image/png;base64," + base64.b64encode(logo.read_bytes()).decode("ascii"),
+    )
+    html = render_to_string("emergencias/sci_preview.html", contexto)
+    salida = BytesIO()
+
+    def bloquear_recurso_externo(url, timeout=10, ssl_context=None):
+        if url.startswith("data:image/png;base64,"):
+            return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+        raise ValueError(f"El PDF SCI no admite recursos externos: {url!r}")
 
     HTML(string=html, url_fetcher=bloquear_recurso_externo).write_pdf(salida)
     return salida.getvalue()

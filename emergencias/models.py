@@ -292,7 +292,15 @@ class FormularioSCI211(models.Model):
 
 
 class FormularioSCI(models.Model):
-    """Borrador editable para formularios SCI distintos del registro especializado 211."""
+    """Formulario SCI distinto del registro especializado 211.
+
+    La estructura de cada código vive en ``esquemas_sci.ESQUEMAS_SCI``; aquí solo
+    se guardan los valores capturados y el ciclo de vida del documento.
+    """
+
+    class Estado(models.TextChoices):
+        BORRADOR = "borrador", "Borrador"
+        FINALIZADO = "finalizado", "Finalizado"
 
     emergencia = models.ForeignKey(
         Emergencia, on_delete=models.PROTECT, related_name="formularios_sci",
@@ -300,6 +308,8 @@ class FormularioSCI(models.Model):
     )
     codigo_sci = models.CharField("código SCI", max_length=3)
     datos = models.JSONField(default=dict, blank=True)
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
+    preparado_por = models.CharField("preparado por", max_length=150, blank=True)
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="formularios_sci_creados", editable=False,
@@ -308,8 +318,13 @@ class FormularioSCI(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="formularios_sci_modificados", editable=False,
     )
+    finalizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="formularios_sci_finalizados", null=True, blank=True, editable=False,
+    )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fecha_finalizacion = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name = "formulario SCI"
@@ -323,6 +338,10 @@ class FormularioSCI(models.Model):
 
     def __str__(self):
         return f"SCI-{self.codigo_sci}-{self.emergencia.codigo}"
+
+    @property
+    def es_editable(self):
+        return self.estado == self.Estado.BORRADOR
 
 
 class RegistroRecursoSCI211(models.Model):
