@@ -43,6 +43,11 @@ services:
       python manage.py migrate --no-input
       python manage.py cargar_datos_cotopaxi
       python manage.py crear_superusuario_inicial
+      if [ "${DJANGO_CARGAR_ESCENARIOS:-}" = "1" ]; then
+        python manage.py cargar_escenarios_sci
+      else
+        echo "DJANGO_CARGAR_ESCENARIOS no vale 1: se omiten los incidentes de demostracion."
+      fi
     # Daphne atiende HTTP y WebSockets en el mismo proceso.
     startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
     envVars:
@@ -82,6 +87,12 @@ services:
         sync: false
       - key: DJANGO_SUPERUSER_CEDULA
         sync: false
+      # DJANGO_CARGAR_ESCENARIOS tampoco se declara aqui. Definala a mano y con
+      # valor 1 para que la construccion cree los incidentes INC-2026-001 e
+      # INC-2026-002, con sus unidades desplegadas y su SCI-211 ya armado. Es la
+      # unica via de poblar el panel de despliegues, porque el sistema todavia
+      # no permite crearlos desde la interfaz. Retirela despues de la carga.
+      #
       # DJANGO_ALLOWED_HOSTS y DJANGO_CSRF_TRUSTED_ORIGINS no se declaran aqui:
       # settings.py toma el dominio de RENDER_EXTERNAL_HOSTNAME, que la propia
       # plataforma define. Agreguelas solo si publica un dominio propio.
