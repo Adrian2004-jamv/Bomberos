@@ -10,6 +10,6 @@
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Características del documento</p><h2>Vista general</h2></div></div>
     <dl class="detail-grid"><div><dt>Formato</dt><dd>{{ formulario_catalogo.formato }}</dd></div><div><dt>Contenido</dt><dd>{{ formulario_catalogo.estructura }}</dd></div><div><dt>Disponibilidad</dt><dd>Edición, consulta e impresión habilitadas</dd></div></dl>
-    <div class="sci-reference__actions"><a class="button" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a>{% if emergencia_visualizacion %}<a class="button button--primary" href="{% url 'emergencias:sci_visualizar' formulario_catalogo.codigo emergencia_visualizacion.pk %}">Visualizar con emergencia</a>{% endif %}</div>
+    <div class="sci-reference__actions"><a class="button" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a><a class="button button--primary" href="{% if emergencia_visualizacion %}{% url 'emergencias:sci_visualizar' formulario_catalogo.codigo emergencia_visualizacion.pk %}{% else %}{% url 'emergencias:sci_catalogo_visualizar' formulario_catalogo.codigo %}{% endif %}">Visualizar formulario</a></div>
 </section>
 {% endblock %}

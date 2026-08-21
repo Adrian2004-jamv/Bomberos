@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Nueva cuenta{% endblock %}
+{% block page_title %}Crear cuenta institucional{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}">{% endblock %}
+{% block content %}
+<section class="user-form-card" aria-labelledby="form-title">
+    <header><p class="eyebrow">Acceso institucional</p><h2 id="form-title">Datos del nuevo usuario</h2><p>La estación y el rol determinan la información que podrá consultar y gestionar.</p></header>
+    <form method="post" class="user-form" novalidate>
+        {% csrf_token %}
+        {% if formulario.non_field_errors %}<div class="form-errors">{{ formulario.non_field_errors }}</div>{% endif %}
+        <div class="user-form-grid">
+            {% for field in formulario %}
+                <div class="user-field{% if field.name == 'password1' or field.name == 'password2' %} user-field--password{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span aria-hidden="true"> *</span>{% endif %}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}
+                    {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+        <div class="user-form-actions">
+            <a class="action action--secondary" href="{% url 'usuarios:lista' %}">Cancelar</a>
+            <button class="action action--primary" type="submit"><i class="ti ti-user-check" aria-hidden="true"></i> Crear cuenta</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

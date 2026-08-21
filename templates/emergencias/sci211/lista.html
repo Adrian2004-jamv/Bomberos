@@ -1,19 +1,77 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Formularios SCI{% endblock %}{% block page_title %}Formularios SCI{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=5">{% endblock %}
 {% block content %}
-<section class="panel sci-catalog-panel">
-    <div class="panel__heading"><div><p class="eyebrow">Centro documental operativo</p><h2>Catálogo completo de formularios</h2><p>Consulta la finalidad y estructura de los doce formularios SCI identificados.</p></div></div>
+<section class="panel sci-incidents-panel" aria-labelledby="sci-incidents-title">
+    <div class="panel__heading">
+        <div>
+            <p class="eyebrow">Expedientes operativos</p>
+            <h2 id="sci-incidents-title">Formularios organizados por incidente</h2>
+            <p>Despliega un incidente para consultar únicamente los documentos que ya fueron creados.</p>
+        </div>
+        <span class="sci-incident-total"><strong>{{ expedientes|length }}</strong> incidente{{ expedientes|length|pluralize }}</span>
+    </div>
+    {% if expedientes %}
+        <div class="sci-incident-list">
+            {% for incidente in expedientes %}
+                <details class="sci-incident" data-sci-incident data-incident-code="{{ incidente.codigo }}">
+                    <summary>
+                        <span class="sci-incident__icon" aria-hidden="true"><i class="ti ti-folder"></i></span>
+                        <span class="sci-incident__identity">
+                            <strong>{{ incidente.codigo }}</strong>
+                            <span>{{ incidente.tipo_emergencia }}</span>
+                            <small>{{ incidente.estacion_responsable.nombre }} · {{ incidente.fecha_reporte|date:"d/m/Y H:i" }}</small>
+                        </span>
+                        <span class="sci-incident__phase sci-incident__phase--{% if incidente.esta_terminada %}finished{% else %}active{% endif %}"><i class="ti {% if incidente.esta_terminada %}ti-circle-check{% else %}ti-activity-heartbeat{% endif %}" aria-hidden="true"></i>{{ incidente.fase_operativa }}</span>
+                        <span class="sci-incident__progress">
+                            <span><strong>{{ incidente.formularios_completados }}/12</strong> formularios</span>
+                            <span class="sci-incident__bar" role="progressbar" aria-valuemin="0" aria-valuemax="12" aria-valuenow="{{ incidente.formularios_completados }}"><i style="width:{{ incidente.porcentaje_formularios }}%"></i></span>
+                        </span>
+                        <i class="ti ti-chevron-down sci-incident__chevron" aria-hidden="true"></i>
+                    </summary>
+                    <div class="sci-incident__body">
+                        <div class="sci-incident__body-heading">
+                            <div><strong>Documentos existentes</strong><span>{{ incidente.documentos_sci|length }} formulario{{ incidente.documentos_sci|length|pluralize }} en este expediente</span></div>
+                            <a class="sci-expedient-action" href="{% url 'emergencias:detalle' incidente.pk %}#formularios-sci"><i class="ti ti-external-link" aria-hidden="true"></i> Ver incidente</a>
+                        </div>
+                        {% if incidente.documentos_sci %}
+                            <div class="sci-documents sci-documents--nested">
+                                {% for documento in incidente.documentos_sci %}
+                                    <article class="sci-document-card" data-document-code="{{ documento.codigo }}">
+                                        <div class="sci-document-card__identity"><span>SCI-{{ documento.codigo }}</span><div><strong>SCI-{{ documento.codigo }}-{{ incidente.codigo }}</strong><p>{{ documento.nombre }}</p></div></div>
+                                        <dl>
+                                            <div><dt>Estado</dt><dd><span class="sci-status sci-status--{{ documento.clave_estado }}">{{ documento.estado }}</span></dd></div>
+                                            <div><dt>Actualizado</dt><dd>{{ documento.actualizado|date:"d/m/Y H:i" }}</dd></div>
+                                            <div><dt>Formato</dt><dd>{{ documento.formato }}</dd></div>
+                                        </dl>
+                                        <div class="sci-document-card__actions">
+                                            {% if documento.editable %}<a class="sci-doc-action sci-doc-action--edit" href="{% url 'emergencias:sci_editar' documento.codigo incidente.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>{% endif %}
+                                            <a class="sci-doc-action sci-doc-action--view" href="{% url 'emergencias:sci_visualizar' documento.codigo incidente.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> Visualizar e imprimir</a>
+                                            {% if documento.sci211 %}<a class="sci-doc-action sci-doc-action--pdf" href="{% url 'emergencias:sci211_pdf' documento.sci211.pk %}"><i class="ti ti-file-type-pdf" aria-hidden="true"></i> PDF</a>{% endif %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="sci-incident__empty"><i class="ti ti-file-off" aria-hidden="true"></i><div><strong>Sin formularios creados</strong><span>Abra el incidente para iniciar su documentación SCI.</span></div></div>
+                        {% endif %}
+                    </div>
+                </details>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state"><p>No existen incidentes disponibles dentro de su ámbito institucional.</p></div>
+    {% endif %}
+</section>
+
+<details class="panel sci-catalog-panel sci-catalog-disclosure sci-catalog-disclosure--standalone">
+    <summary><span><i class="ti ti-layout-grid" aria-hidden="true"></i><span><strong>Consultar catálogo general de formularios</strong><small>Plantillas y estructura de los 12 documentos SCI, sin asociarlos a un incidente.</small></span></span><i class="ti ti-chevron-down sci-catalog-disclosure__chevron" aria-hidden="true"></i></summary>
     <div class="sci-catalog">
         {% for item in catalogo_sci %}<article class="sci-catalog-card{% if item.implementado %} sci-catalog-card--ready{% endif %}">
             <header><span>SCI-{{ item.codigo }}</span><span class="sci-status sci-status--ready">Editable</span></header>
             <h3>{{ item.nombre }}</h3><p>{{ item.estructura }}</p><small>{{ item.formato }}</small>
-            {% if emergencia_visualizacion %}<a class="button button--primary" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia_visualizacion.pk %}">Visualizar formulario</a>{% endif %}<a class="button" href="{% url 'emergencias:sci_catalogo_detalle' item.codigo %}">Ver información</a>
+            <a class="button button--primary" href="{% url 'emergencias:sci_catalogo_visualizar' item.codigo %}">Visualizar plantilla</a><a class="button" href="{% url 'emergencias:sci_catalogo_detalle' item.codigo %}">Ver información</a>
         </article>{% endfor %}
     </div>
-</section>
-<section class="panel" id="documentos-sci211">
-    <div class="panel__heading"><div><p class="eyebrow">Expediente del incidente</p><h2>{% if emergencia_visualizacion %}Formularios de {{ emergencia_visualizacion.codigo }}{% else %}Documentos en su ámbito{% endif %}</h2><p>{% if emergencia_visualizacion %}{{ emergencia_visualizacion.tipo_emergencia }} · Edite o imprima cualquiera de los doce documentos.{% endif %}</p></div></div>
-    {% if emergencia_visualizacion %}<div class="sci-documents">{% for item in catalogo_sci %}<article class="sci-document-card"><div class="sci-document-card__identity"><span>SCI-{{ item.codigo }}</span><div><strong>SCI-{{ item.codigo }}-{{ emergencia_visualizacion.codigo }}</strong><p>{{ item.nombre }}</p></div></div><dl><div><dt>Emergencia</dt><dd>{{ emergencia_visualizacion.codigo }} · {{ emergencia_visualizacion.tipo_emergencia }}</dd></div><div><dt>Estado</dt><dd><span class="sci-status sci-status--draft">Borrador</span></dd></div><div><dt>Formato</dt><dd>{{ item.formato }}</dd></div></dl><div class="sci-document-card__actions"><a class="button button--primary" href="{% url 'emergencias:sci_editar' item.codigo emergencia_visualizacion.pk %}">Editar</a><a class="button" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia_visualizacion.pk %}">Visualizar e imprimir</a></div></article>{% endfor %}</div>{% else %}<div class="empty-state"><p>No existen emergencias disponibles para generar formularios SCI.</p></div>{% endif %}
-</section>
+</details>
 {% endblock %}

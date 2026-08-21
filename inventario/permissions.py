@@ -2,7 +2,10 @@ from instituciones.models import Estacion
 
 
 GRUPOS_GLOBALES = {"Administrador del sistema", "Responsable provincial"}
-GRUPO_INSTITUCIONAL = "Responsable institucional"
+GRUPOS_INSTITUCIONALES = {
+    "Responsable institucional",
+    "Operador de sistemas institucional",
+}
 GRUPOS_ESTACION_GESTION = {"Responsable de estación", "Encargado de inventario"}
 GRUPO_CONSULTA = "Operador de consulta"
 
@@ -26,7 +29,7 @@ def puede_consultar_inventario(usuario):
     return bool(
         usuario.estacion_id
         and (
-            GRUPO_INSTITUCIONAL in grupos
+            grupos & GRUPOS_INSTITUCIONALES
             or grupos & GRUPOS_ESTACION_GESTION
             or GRUPO_CONSULTA in grupos
         )
@@ -39,7 +42,7 @@ def puede_gestionar_inventario(usuario):
     grupos = _grupos(usuario)
     return bool(
         usuario.estacion_id
-        and (GRUPO_INSTITUCIONAL in grupos or grupos & GRUPOS_ESTACION_GESTION)
+        and (grupos & GRUPOS_INSTITUCIONALES or grupos & GRUPOS_ESTACION_GESTION)
     )
 
 
@@ -48,7 +51,7 @@ def estaciones_permitidas(usuario):
     if tiene_alcance_global(usuario):
         return estaciones
     grupos = _grupos(usuario)
-    if usuario.estacion_id and GRUPO_INSTITUCIONAL in grupos:
+    if usuario.estacion_id and grupos & GRUPOS_INSTITUCIONALES:
         return estaciones.filter(
             cuerpo_bomberos_id=usuario.estacion.cuerpo_bomberos_id
         )

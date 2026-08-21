@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}Gestión de usuarios{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}">{% endblock %}
+{% block content %}
+<section class="users-toolbar" aria-labelledby="users-summary">
+    <div>
+        <p class="eyebrow">Administración institucional</p>
+        <h2 id="users-summary">Cuentas de la institución</h2>
+        <p>Crea y consulta usuarios únicamente dentro de tu ámbito autorizado.</p>
+    </div>
+    <a class="action action--primary" href="{% url 'usuarios:crear' %}"><i class="ti ti-user-plus" aria-hidden="true"></i> Nueva cuenta</a>
+</section>
+<section class="users-panel" aria-label="Listado de cuentas">
+    {% if usuarios_gestionables %}
+        <div class="users-table-wrap">
+            <table class="users-table">
+                <thead><tr><th>Usuario</th><th>Institución</th><th>Estación</th><th>Rol</th><th>Estado</th></tr></thead>
+                <tbody>
+                {% for cuenta in usuarios_gestionables %}
+                    <tr>
+                        <td><strong>{{ cuenta.get_full_name|default:cuenta.username }}</strong><span>{{ cuenta.username }}</span></td>
+                        <td>{% if cuenta.estacion %}{{ cuenta.estacion.cuerpo_bomberos.nombre }}{% else %}Sin institución{% endif %}</td>
+                        <td>{{ cuenta.estacion.nombre|default:"Sin asignar" }}</td>
+                        <td>{% for grupo in cuenta.groups.all %}{{ grupo.name }}{% empty %}Sin rol{% endfor %}</td>
+                        <td><span class="user-status user-status--{% if cuenta.is_active %}active{% else %}inactive{% endif %}">{% if cuenta.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state"><h2>No existen cuentas en este ámbito</h2><p>Utiliza “Nueva cuenta” para registrar el primer usuario operativo.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

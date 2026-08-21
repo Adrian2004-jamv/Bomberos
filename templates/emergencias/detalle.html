@@ -3,7 +3,7 @@
 
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=4">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <section class="panel">
@@ -20,13 +20,13 @@
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
     </dl>
 </section>
-<section id="formularios-sci" class="panel">
+<section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
-    {% if sci211 and sci211.es_editable %}<a class="button button--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}">Continuar SCI-211</a>
-    {% elif sci211 %}<div class="button-group"><a class="button button--primary" href="{% url 'emergencias:sci211_detalle' sci211.pk %}">Consultar SCI-211</a><a class="button" href="{% url 'emergencias:sci211_pdf' sci211.pk %}">Descargar PDF</a></div>
-    {% elif puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="button button--primary" type="submit">Abrir formulario oficial SCI-211</button></form>{% endif %}</div>
-    <p><strong>SCI-211 - Registro y Control de Recursos.</strong> {% if sci211 %}Estado: {{ sci211.get_estado_display }}. Actualizado: {{ sci211.fecha_actualizacion|date:"d/m/Y H:i" }}.{% else %}Todavía no se ha creado para esta emergencia.{% endif %}</p>
-    <div class="button-group">{% for item in catalogo_sci %}<a class="button{% if item.codigo == '211' %} button--primary{% endif %}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}">SCI-{{ item.codigo }}</a>{% endfor %}</div>
+    {% if sci211 and sci211.es_editable %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Continuar SCI-211</a>
+    {% elif sci211 %}<div class="sci-panel-actions"><a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_detalle' sci211.pk %}"><i class="ti ti-eye" aria-hidden="true"></i> Consultar SCI-211</a><a class="sci-panel-action sci-panel-action--secondary" href="{% url 'emergencias:sci211_pdf' sci211.pk %}"><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Descargar PDF</a></div>
+    {% elif puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="sci-panel-action sci-panel-action--primary" type="submit"><i class="ti ti-file-plus" aria-hidden="true"></i> Abrir formulario oficial SCI-211</button></form>{% endif %}</div>
+    <div class="incident-sci-summary"><span class="incident-sci-summary__icon"><i class="ti ti-file-check" aria-hidden="true"></i></span><div><strong>SCI-211 - Registro y Control de Recursos</strong><span>{% if sci211 %}Estado: {{ sci211.get_estado_display }} · Actualizado: {{ sci211.fecha_actualizacion|date:"d/m/Y H:i" }}{% else %}Todavía no se ha creado para esta emergencia.{% endif %}</span></div></div>
+    <nav class="sci-form-tabs" aria-label="Formularios SCI del incidente">{% for item in catalogo_sci %}<a class="sci-form-tab{% if item.codigo == '211' %} sci-form-tab--featured{% endif %}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}"><i class="ti {% if item.codigo == '211' %}ti-clipboard-check{% else %}ti-file-text{% endif %}" aria-hidden="true"></i><span>SCI-{{ item.codigo }}</span></a>{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
