@@ -1,8 +1,13 @@
 """Operaciones transaccionales para despliegues y posiciones de unidades.
 
-``select_for_update`` expresa el bloqueo requerido y será efectivo al migrar a
-PostgreSQL. SQLite serializa escrituras, pero no implementa bloqueo de filas;
-por eso se conservan también validaciones de servicio y una restricción única
+``select_for_update`` bloquea la fila mientras dura la operación. Sobre
+PostgreSQL exige una transacción abierta: toda función que lo use debe llevar
+``@transaction.atomic``, o fallará con ``TransactionManagementError`` en cuanto
+se ejecute fuera de las pruebas. ``TestCase`` envuelve cada prueba en una
+transacción y oculta esa omisión, de modo que las comprobaciones que la vigilan
+usan ``TransactionTestCase``.
+
+Se conservan además las validaciones de servicio y una restricción única
 parcial en la base de datos.
 """
 
@@ -182,7 +187,6 @@ def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
     )
 
 
-@transaction.atomic
 def _ajustar_a_campo(valor, nombre_campo):
     """Ajusta un dato del sensor a los decimales que admite su campo.
 
@@ -205,6 +209,7 @@ def _ajustar_a_campo(valor, nombre_campo):
     return numero.quantize(Decimal(1).scaleb(-decimales))
 
 
+@transaction.atomic
 def registrar_posicion_unidad(
     despliegue,
     usuario_responsable,

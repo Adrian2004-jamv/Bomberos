@@ -6,7 +6,8 @@ from django.contrib.auth.models import Group
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.core.exceptions import ValidationError
-from django.test import Client, TestCase
+from django.db import connection
+from django.test import Client, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -253,3 +254,55 @@ class PosicionesGPSTests(TestCase):
         self.client.force_login(self.consulta)
         respuesta = self.client.get(reverse("emergencias:transmitir_gps", args=[self.despliegue.pk]))
         self.assertEqual(respuesta.status_code, 403)
+
+
+class PosicionesGPSFueraDeTransaccionTests(TransactionTestCase):
+    """Reproduce las condiciones de produccion, no las de TestCase.
+
+    `TestCase` envuelve cada prueba en una transaccion, de modo que un
+    `select_for_update()` funciona aunque el servicio no declare la suya. En
+    produccion, con autocommit, la misma llamada levanta
+    `TransactionManagementError: select_for_update cannot be used outside of a
+    transaction`. Esta clase no abre esa transaccion, asi que el servicio debe
+    traer la propia.
+    """
+
+    def setUp(self):
+        canton = Canton.objects.create(nombre="Latacunga TX", codigo="TX-LAT")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos TX", sigla="CB-TX",
+            ruc="0596000020001", direccion="Centro",
+        )
+        estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Estación TX", codigo="TX-01",
+            direccion="Centro", latitud="-0.933333", longitud="-78.616667",
+        )
+        categoria = CategoriaRecurso.objects.create(nombre="Vehículos TX", codigo="VEH-TX")
+        tipo = TipoRecurso.objects.create(
+            categoria=categoria, nombre="Unidad TX", codigo="UNI-TX", es_unidad_desplegable=True,
+        )
+        unidad = Recurso.objects.create(
+            estacion=estacion, tipo=tipo, codigo_interno="U-TX-01", nombre="U-TX-01",
+        )
+        self.usuario = get_user_model().objects.create_user(
+            username="tx-responsable", cedula="0562000001", password="clave", estacion=estacion,
+        )
+        self.usuario.groups.add(Group.objects.get(name="Responsable de estación"))
+        emergencia = Emergencia.objects.create(
+            codigo="EM-TX-01", tipo_emergencia="Incendio", direccion="Centro",
+            estacion_responsable=estacion, registrado_por=self.usuario,
+        )
+        self.despliegue = DespliegueUnidad.objects.create(
+            emergencia=emergencia, unidad=unidad, estacion_procedencia=estacion,
+            despachado_por=self.usuario, estado=DespliegueUnidad.Estado.EN_RUTA,
+        )
+
+    def test_el_servicio_abre_su_propia_transaccion(self):
+        self.assertFalse(connection.in_atomic_block, "la prueba no debe correr dentro de una transaccion")
+        posicion = registrar_posicion_unidad(
+            self.despliegue, self.usuario,
+            latitud="-0.933333", longitud="-78.616667",
+            precision=23.456789012345, velocidad=4.2571828, rumbo=181.99, altitud=2750.9876,
+        )
+        self.assertEqual(posicion.despliegue_id, self.despliegue.pk)
+        self.assertEqual(str(posicion.precision), "23.46")
