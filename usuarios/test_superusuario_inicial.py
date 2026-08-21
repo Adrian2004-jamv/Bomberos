@@ -57,3 +57,36 @@ class CrearSuperusuarioInicialTests(TestCase):
         salida = self.ejecutar()
         self.assertFalse(get_user_model().objects.filter(is_superuser=True).exists())
         self.assertIn("no se crea", salida)
+
+    def test_no_toca_la_clave_del_usuario_existente_sin_pedirlo(self):
+        self.ejecutar(**self.ENTORNO)
+        otra = dict(self.ENTORNO, DJANGO_SUPERUSER_PASSWORD="clave-distinta-nueva")
+        salida = self.ejecutar(**otra)
+        usuario = get_user_model().objects.get(username="admin-inicial")
+        self.assertTrue(usuario.check_password("clave-inicial-larga"))
+        self.assertIn("ya existe", salida.lower())
+
+    def test_reinicia_la_clave_cuando_se_pide(self):
+        """Unica via de recuperar el acceso en un entorno sin consola."""
+        self.ejecutar(**self.ENTORNO)
+        otra = dict(self.ENTORNO,
+                    DJANGO_SUPERUSER_PASSWORD="clave-de-recuperacion",
+                    DJANGO_SUPERUSER_REINICIAR_CLAVE="1")
+        salida = self.ejecutar(**otra)
+        usuario = get_user_model().objects.get(username="admin-inicial")
+        self.assertTrue(usuario.check_password("clave-de-recuperacion"))
+        self.assertTrue(usuario.is_superuser)
+        self.assertEqual(get_user_model().objects.count(), 1)
+        self.assertIn("actualizada", salida)
+
+    def test_reactiva_y_repromueve_al_reiniciar(self):
+        self.ejecutar(**self.ENTORNO)
+        get_user_model().objects.filter(username="admin-inicial").update(
+            is_active=False, is_superuser=False, is_staff=False
+        )
+        otra = dict(self.ENTORNO, DJANGO_SUPERUSER_REINICIAR_CLAVE="1")
+        self.ejecutar(**otra)
+        usuario = get_user_model().objects.get(username="admin-inicial")
+        self.assertTrue(usuario.is_active)
+        self.assertTrue(usuario.is_superuser)
+        self.assertTrue(usuario.is_staff)
