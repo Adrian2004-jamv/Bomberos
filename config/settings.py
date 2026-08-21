@@ -80,6 +80,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "operaciones.context_processors.acceso_capacidades",
+                "usuarios.context_processors.acceso_usuarios",
             ],
         },
     },

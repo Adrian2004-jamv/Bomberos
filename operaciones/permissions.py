@@ -2,12 +2,14 @@ from inventario.permissions import estaciones_permitidas, tiene_alcance_global
 
 
 GRUPOS_CONSULTA_CAPACIDADES = {
+    "Operador de sistemas institucional",
     "Responsable institucional",
     "Responsable de estación",
     "Encargado de inventario",
     "Operador de consulta",
 }
 GRUPOS_EVALUACION_CAPACIDADES = {
+    "Operador de sistemas institucional",
     "Responsable institucional",
     "Responsable de estación",
 }

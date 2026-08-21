@@ -424,3 +424,64 @@ def _indices_enviados(post, nombre, seccion):
             if crudo.isdigit():
                 indices.add(int(crudo))
     return sorted(indices)[:LIMITE_FILAS]
+
+
+def secciones_completadas(esquema, datos):
+    """Cuenta cuántas secciones del formulario tienen datos reales.
+
+    En las tablas con ``filas_fijas`` la primera columna viene precargada con la
+    posición oficial, así que no se toma en cuenta para decidir si hay contenido.
+    """
+    datos = datos or {}
+    llenas = 0
+    for seccion in esquema["secciones"]:
+        valor = datos.get(seccion["nombre"])
+        if seccion["tipo"] != TABLA:
+            llenas += bool(str(valor or "").strip())
+            continue
+        filas = valor if isinstance(valor, list) else []
+        ignoradas = {seccion["columnas"][0]["nombre"]} if seccion.get("filas_fijas") else set()
+        llenas += any(
+            str(celda or "").strip()
+            for fila in filas if isinstance(fila, dict)
+            for nombre, celda in fila.items() if nombre not in ignoradas
+        )
+    return llenas, len(esquema["secciones"])
+
+
+# El SCI-211 se captura con su modelo propio, pero el catálogo debe poder mostrar
+# su estructura oficial en blanco igual que la de los demás formularios.
+ESQUEMA_CATALOGO_211 = {
+    "nombre": "Registro y Control de Recursos",
+    "proposito": (
+        "Fuente maestra de recursos del incidente: solicitud, arribo, institución "
+        "que lo suministra, estado, asignación y desmovilización de cada recurso."
+    ),
+    "orientacion": "horizontal",
+    "paginas": 2,
+    "periodo_operacional": False,
+    "preparado_por": "Registrador del punto de registro (PC, Base, Helibase o Área de Espera)",
+    "secciones": [
+        {"numero": 1, "nombre": "recursos", "etiqueta": "Registro y control de recursos", "tipo": TABLA,
+         "columnas": [_columna("solicitado_por", "A. Solicitud — 1. Por quién", "11%"),
+                      _columna("fecha_solicitud", "2. Fecha y hora", "9%"),
+                      _columna("clase", "3. Clase", "8%"),
+                      _columna("tipo", "4. Tipo", "8%"),
+                      _columna("fecha_arribo", "B. Arribo real — 5. Fecha y hora", "9%"),
+                      _columna("institucion", "C. Suministrado por — 6. Institución", "12%"),
+                      _columna("matricula", "7. Matrícula", "8%"),
+                      _columna("personas", "8. N.º de personas", "6%"),
+                      _columna("estado", "D. Estado del recurso", "10%"),
+                      _columna("desmovilizado_por", "E. Desmovilizado — 10. Por quién", "10%"),
+                      _columna("fecha_desmovilizacion", "11. Fecha y hora", "9%"),
+                      _columna("observaciones", "12. Observaciones")],
+         "filas_minimas": 12},
+    ],
+}
+
+
+def obtener_esquema_catalogo(codigo):
+    """Como ``obtener_esquema`` pero incluye el SCI-211 para la vista de catálogo."""
+    if codigo == "211":
+        return ESQUEMA_CATALOGO_211
+    return ESQUEMAS_SCI.get(codigo)

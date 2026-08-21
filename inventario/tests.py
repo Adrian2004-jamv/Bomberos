@@ -245,7 +245,7 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
         self.assertContains(respuesta, 'aria-label="Filtrar por actualización"', html=False)
         self.assertContains(respuesta, "inventario_datatable.js?v=5")
-        self.assertContains(respuesta, "inventario_datatable.css?v=7")
+        self.assertContains(respuesta, "inventario_datatable.css?v=8")
         self.assertContains(respuesta, '>Foco</th>', html=False)
         self.assertContains(respuesta, "jquery-3.7.1.min.js")
 

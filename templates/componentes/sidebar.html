@@ -22,6 +22,11 @@
         <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
             <i class="ti ti-building-community" aria-hidden="true"></i> Instituciones
         </a>
+        {% if puede_gestionar_usuarios %}
+            <a class="nav-item{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} nav-item--active{% endif %}" href="{% url 'usuarios:lista' %}"{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} aria-current="page"{% endif %}>
+                <i class="ti ti-users" aria-hidden="true"></i> Usuarios
+            </a>
+        {% endif %}
         <a class="nav-item{% if request.resolver_match.namespace == 'inventario' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' %} aria-current="page"{% endif %}>
             <i class="ti ti-packages" aria-hidden="true"></i> Inventario
         </a>

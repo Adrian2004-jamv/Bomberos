@@ -22,6 +22,7 @@ ORDEN_GRUPOS = (
     "Administrador del sistema",
     "Responsable provincial",
     "Responsable institucional",
+    "Operador de sistemas institucional",
     "Responsable de estación",
     "Encargado de inventario",
     "Operador de consulta",
@@ -38,7 +39,9 @@ def _rol_principal(usuario):
 def _descripcion_alcance(usuario, estaciones):
     if tiene_alcance_global(usuario):
         return "Información consolidada de todos los Cuerpos de Bomberos de Cotopaxi."
-    if usuario.estacion_id and usuario.groups.filter(name="Responsable institucional").exists():
+    if usuario.estacion_id and usuario.groups.filter(
+        name__in=("Responsable institucional", "Operador de sistemas institucional")
+    ).exists():
         return f"Información de {usuario.estacion.cuerpo_bomberos.nombre} y sus estaciones."
     if usuario.estacion_id:
         return f"Información correspondiente a la estación {usuario.estacion.nombre}."

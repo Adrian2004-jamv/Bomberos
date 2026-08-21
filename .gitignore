@@ -38,6 +38,8 @@ id_ed25519*
 # Registros, pruebas y cobertura
 *.log
 logs/
+tmp/
+backups/*.json
 .coverage
 .coverage.*
 htmlcov/
@@ -56,8 +58,12 @@ coverage.xml
 
 # Sistema operativo
 .DS_Store
+._*
 Thumbs.db
 Desktop.ini
+
+# Archivos temporales de Microsoft Office
+~$*
 
 # Empaquetado y herramientas de Python
 build/

@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -20,7 +21,9 @@ from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
 from .permissions import (puede_consultar_emergencias, puede_consultar_sci,
                           puede_editar_sci, puede_gestionar_emergencias)
 from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
-                          obtener_esquema, secciones_con_valores)
+                          obtener_esquema, obtener_esquema_catalogo,
+                          secciones_completadas,
+                          secciones_con_valores)
 from .services import registrar_posicion_unidad
 from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
                           finalizar_sci211, generar_pdf_sci, generar_pdf_sci211)
@@ -155,6 +158,53 @@ def _emergencia_para_visualizar(usuario):
     return emergencias.filter(codigo="EM-SCI-001").first() or emergencias.order_by("pk").first()
 
 
+def _preparar_expedientes_sci(usuario):
+    emergencias = list(
+        _emergencias_permitidas(usuario)
+        .select_related("formulario_sci_211")
+        .prefetch_related("formularios_sci")
+    )
+    _preparar_avance_documental(emergencias)
+    catalogo = {item["codigo"]: item for item in CATALOGO_FORMULARIOS_SCI}
+    for emergencia in emergencias:
+        genericos = {formulario.codigo_sci: formulario for formulario in emergencia.formularios_sci.all()}
+        sci211 = getattr(emergencia, "formulario_sci_211", None)
+        documentos = []
+        for item in CATALOGO_FORMULARIOS_SCI:
+            codigo = item["codigo"]
+            if codigo == "211":
+                if sci211 is None:
+                    continue
+                finalizado = sci211.estado == FormularioSCI211.Estado.FINALIZADO
+                documentos.append({
+                    **catalogo[codigo],
+                    "estado": "Finalizado" if finalizado else "Borrador",
+                    "clave_estado": "complete" if finalizado else "draft",
+                    "actualizado": sci211.fecha_actualizacion,
+                    "editable": puede_editar_sci(usuario, emergencia) and not finalizado,
+                    "sci211": sci211,
+                })
+                continue
+            formulario = genericos.get(codigo)
+            if formulario is None:
+                continue
+            secciones_llenas, secciones_totales = secciones_completadas(
+                obtener_esquema(codigo), formulario.datos
+            )
+            completo = bool(secciones_totales) and secciones_llenas == secciones_totales
+            documentos.append({
+                **catalogo[codigo],
+                "estado": "Completo" if completo else "En elaboración",
+                "clave_estado": "complete" if completo else "draft",
+                "actualizado": formulario.fecha_actualizacion,
+                "editable": puede_editar_sci(usuario, emergencia),
+                "formulario": formulario,
+            })
+        emergencia.documentos_sci = documentos
+        emergencia.puede_editar_documentos = puede_editar_sci(usuario, emergencia)
+    return emergencias
+
+
 @login_required
 def sci211_lista(request):
     if not puede_consultar_emergencias(request.user):
@@ -162,7 +212,7 @@ def sci211_lista(request):
     return render(request, "emergencias/sci211/lista.html", {
         "formularios": _formularios_sci_permitidos(request.user),
         "catalogo_sci": CATALOGO_FORMULARIOS_SCI,
-        "emergencia_visualizacion": _emergencia_para_visualizar(request.user),
+        "expedientes": _preparar_expedientes_sci(request.user),
     })
 
 
@@ -179,6 +229,41 @@ def formulario_sci_catalogo_detalle(request, codigo):
     return render(request, "emergencias/sci211/catalogo_detalle.html", {
         "formulario_catalogo": formulario_catalogo,
         "emergencia_visualizacion": _emergencia_para_visualizar(request.user),
+    })
+
+
+@login_required
+def formulario_sci_catalogo_visualizar(request, codigo):
+    """Muestra la estructura imprimible aun cuando no exista un incidente."""
+    if not puede_consultar_emergencias(request.user):
+        raise PermissionDenied
+    esquema = obtener_esquema_catalogo(codigo)
+    if esquema is None:
+        raise Http404
+    cuerpo = SimpleNamespace(nombre="Cuerpos de Bomberos de Cotopaxi")
+    estacion = SimpleNamespace(nombre="Estación por asignar", cuerpo_bomberos=cuerpo)
+    emergencia = SimpleNamespace(
+        pk=None,
+        codigo="VISTA-PREVIA",
+        tipo_emergencia="Incidente por registrar",
+        descripcion="Espacio destinado a la descripción y evaluación inicial del incidente.",
+        fecha_reporte=timezone.now(),
+        direccion="Ubicación por registrar",
+        latitud=None,
+        longitud=None,
+        estacion_responsable=estacion,
+        get_estado_display=lambda: "Sin asociar",
+        get_prioridad_display=lambda: "Por definir",
+    )
+    return render(request, "emergencias/sci_preview.html", {
+        "emergencia": emergencia,
+        "esquema": esquema,
+        "codigo": codigo,
+        "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
+        "formulario_generico": None,
+        "campos_periodo": [dict(campo, valor="") for campo in campos_periodo(esquema)],
+        "secciones": secciones_con_valores(esquema, {}),
+        "solo_vista": True,
     })
 
 

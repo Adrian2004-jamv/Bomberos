@@ -153,6 +153,9 @@ class SCI211Tests(TestCase):
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
         self.assertContains(respuesta, "Consultar SCI-211")
         self.assertContains(respuesta, "Descargar PDF")
+        self.assertContains(respuesta, 'class="sci-panel-action sci-panel-action--primary"', html=False)
+        self.assertContains(respuesta, 'class="sci-form-tabs"', html=False)
+        self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--featured"', html=False)
 
     def test_menu_incluye_formularios_sci_y_marca_opcion_activa(self):
         self.client.force_login(self.usuario)
@@ -197,7 +200,7 @@ class SCI211Tests(TestCase):
         respuesta = self.client.get(reverse("emergencias:lista"))
         self.assertContains(respuesta, "Formularios SCI")
         respuesta = self.client.get(reverse("emergencias:sci211_lista"))
-        self.assertContains(respuesta, "Centro documental operativo")
+        self.assertContains(respuesta, "Expedientes operativos")
         self.assertContains(respuesta, formulario.codigo)
         self.assertContains(respuesta, "Editar")
         self.assertContains(respuesta, "Visualizar e imprimir")
@@ -205,6 +208,11 @@ class SCI211Tests(TestCase):
     def test_catalogo_muestra_los_doce_formularios_y_sus_fichas(self):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:sci211_lista"))
+        self.assertContains(respuesta, "Formularios organizados por incidente")
+        self.assertContains(respuesta, "Consultar catálogo general de formularios")
+        self.assertNotContains(respuesta, "Seleccionar formulario SCI")
+        self.assertNotContains(respuesta, "selector_formularios_sci.js")
+        self.assertContains(respuesta, 'class="panel sci-catalog-panel sci-catalog-disclosure sci-catalog-disclosure--standalone"', html=False)
         for codigo in ("201", "202", "203", "204", "205", "206", "207", "211", "214", "215", "221", "222"):
             self.assertContains(respuesta, f"SCI-{codigo}")
         self.assertContains(respuesta, "Editable", count=12)
@@ -216,6 +224,40 @@ class SCI211Tests(TestCase):
 
         inexistente = self.client.get(reverse("emergencias:sci_catalogo_detalle", args=["999"]))
         self.assertEqual(inexistente.status_code, 404)
+
+    def test_incidentes_se_despliegan_y_muestran_solo_formularios_existentes(self):
+        self.crear_formulario()
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia,
+            codigo_sci="205",
+            datos={"periodo": "En curso"},
+            creado_por=self.usuario,
+            modificado_por=self.usuario,
+        )
+        self.client.force_login(self.usuario)
+
+        respuesta = self.client.get(reverse("emergencias:sci211_lista"))
+
+        self.assertContains(respuesta, "data-sci-incident", html=False)
+        self.assertContains(respuesta, f'data-incident-code="{self.emergencia.codigo}"', html=False)
+        expediente = next(item for item in respuesta.context["expedientes"] if item.pk == self.emergencia.pk)
+        self.assertEqual([documento["codigo"] for documento in expediente.documentos_sci], ["205", "211"])
+        self.assertContains(respuesta, 'data-document-code="205"', html=False)
+        self.assertContains(respuesta, 'data-document-code="211"', html=False)
+        self.assertContains(respuesta, 'class="sci-expedient-action"', html=False)
+        self.assertContains(respuesta, 'class="sci-doc-action sci-doc-action--edit"', html=False)
+        self.assertContains(respuesta, 'class="sci-doc-action sci-doc-action--view"', html=False)
+        self.assertContains(respuesta, "ti-printer", html=False)
+
+    def test_catalogo_permite_visualizar_los_doce_formularios_sin_incidente(self):
+        self.client.force_login(self.usuario)
+        for codigo in ("201", "202", "203", "204", "205", "206", "207", "211", "214", "215", "221", "222"):
+            with self.subTest(codigo=codigo):
+                respuesta = self.client.get(reverse("emergencias:sci_catalogo_visualizar", args=[codigo]))
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertContains(respuesta, f"Formulario SCI-{codigo}")
+                self.assertContains(respuesta, "VISTA-PREVIA")
+                self.assertContains(respuesta, "Vista de catálogo sin incidente asociado")
 
     def test_todos_los_formularios_tienen_visualizacion_vinculada_a_emergencia(self):
         self.client.force_login(self.usuario)

@@ -1,4 +1,4 @@
-{% load static %}<!doctype html><html lang="es"><head><meta charset="utf-8"><title>SCI-{{ codigo }} · {{ emergencia.codigo }}</title>
+{% load static %}<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCI-{{ codigo }} · {{ emergencia.codigo }}</title>
 <style>
 @page{size:{% if esquema.orientacion == 'horizontal' %}landscape{% else %}portrait{% endif %};margin:10mm}
 *{box-sizing:border-box}
@@ -40,8 +40,10 @@ th{background:#eee;font-size:9px}
 {% if not modo_pdf %}
 <nav class="toolbar">
   <button onclick="window.print()">Imprimir</button>
+  {% if not solo_vista %}
   <a href="{% url 'emergencias:sci_pdf' codigo emergencia.pk %}">Descargar PDF</a>
   {% if puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar formulario</a>{% endif %}
+  {% endif %}
   <a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver a Formularios SCI</a>
 </nav>
 {% endif %}
@@ -110,6 +112,8 @@ th{background:#eee;font-size:9px}
     {% else %}
     <p class="estado estado--finalizado">FINALIZADO el {{ formulario_generico.fecha_finalizacion|date:"d/m/Y H:i" }} por {{ formulario_generico.finalizado_por }} · Documento de solo lectura</p>
     {% endif %}
+  {% elif solo_vista %}
+  <p class="estado estado--borrador">Vista de catálogo sin incidente asociado · Estructura oficial del formulario. Al registrar una emergencia podrás diligenciarlo y guardarlo.</p>
   {% else %}
   <p class="estado estado--borrador">SIN REGISTROS · Este formulario aún no ha sido diligenciado para {{ emergencia.codigo }}</p>
   {% endif %}
