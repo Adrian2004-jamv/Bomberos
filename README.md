@@ -4,7 +4,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 
 ## Módulos actuales
 
-- Usuarios autorizados vinculados a estaciones, grupos y permisos básicos.
+- Usuarios autorizados vinculados a estaciones, grupos y permisos básicos, con edición, desactivación, restablecimiento de clave y cambio obligatorio de la clave asignada.
 - Cantones, Cuerpos de Bomberos y estaciones.
 - Categorías, tipos y recursos de inventario.
 - Historial de estado operativo y disponibilidad de recursos.
@@ -13,7 +13,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - Despacho de unidades del inventario al incidente, con seguimiento de asignada, en ruta, en sitio, retornando, finalizada o cancelada.
 - Historial y transmisión GPS de unidades desplegadas mediante PostGIS.
 - Mapa operativo con emergencias activas, unidades desplegadas y recorridos recientes.
-- Formulario piloto SCI-211 para registro y control de recursos, con borrador, finalización y PDF.
+- Los doce formularios SCI, con borrador, finalización y vista imprimible.
 
 ## Requisitos
 
@@ -145,15 +145,25 @@ La PWA no almacena páginas privadas, inventarios, usuarios, GPS, GeoJSON, recor
 
 Limitación actual: todavía no existe almacenamiento offline de posiciones GPS ni sincronización en segundo plano. Esa funcionalidad corresponde a una etapa posterior y requerirá cifrado, control de sesión y resolución explícita de conflictos.
 
-## Formulario piloto SCI-211
+## Formularios SCI
 
-El único formulario SCI implementado es el **SCI-211 - Registro y Control de Recursos**. Desde el detalle de una emergencia, un responsable institucional o de estación autorizado puede crear un borrador. Los despliegues existentes se copian como filas iniciales; después se pueden completar solicitud, arribo, procedencia, matrícula, dotación, disponibilidad, asignación, desmovilización y observaciones. El encabezado conserva el nombre del incidente, la fecha de preparación y el lugar de registro; el cierre incluye hasta tres registradores, como el XLSX oficial.
+El **SCI-211 - Registro y Control de Recursos** fue el formulario piloto y conserva un modelo propio, porque es el único que se autocompleta desde los despliegues del incidente. Los once restantes comparten un esquema declarativo en `emergencias/esquemas_sci.py` y un editor común. Desde el detalle de una emergencia, un responsable institucional o de estación autorizado puede crear un borrador. Los despliegues existentes se copian como filas iniciales; después se pueden completar solicitud, arribo, procedencia, matrícula, dotación, disponibilidad, asignación, desmovilización y observaciones. El encabezado conserva el nombre del incidente, la fecha de preparación y el lugar de registro; el cierre incluye hasta tres registradores, como el XLSX oficial.
 
 Un borrador puede guardarse y editarse. La acción **Finalizar** exige confirmación y valida que exista al menos un recurso y que sus campos obligatorios sean válidos. Al finalizar se congelan el código, fecha, dirección, institución, estación y coordenadas con los que se emitió el documento; desde entonces es de solo lectura. Los perfiles provinciales y de consulta acceden únicamente dentro de su ámbito, mientras inventario no obtiene edición SCI por ese solo rol.
 
 La vista imprimible reproduce el formulario en HTML con la regla `@page` en A4 horizontal y se envía a la impresora desde el navegador; quien necesite un archivo usa la opción **Guardar como PDF** del propio diálogo de impresión. Se eligió A4 porque el XLSX oficial define orientación horizontal y ajuste a dos páginas de ancho, pero no fija el tamaño de papel. El contenido lo escapa Django y la hoja no carga recursos externos. El sistema no genera ni almacena archivos PDF en el servidor.
 
 Limitaciones: el número de personas se inicia en 1 porque el sistema aún no administra dotaciones; debe confirmarlo el registrador. El XLSX muestra las columnas **Disponible**, **No disponible** y **Asignado a**, mientras su instructivo también menciona **Fuera de servicio**; para conservar ambos sentidos, la hoja imprimible marca ese caso como no disponible y escribe “Fuera de servicio” en la asignación. No se incluyen firmas electrónicas, modo offline ni otros formularios SCI.
+
+## Acceso y cuentas
+
+El operador de sistemas institucional y el superusuario administran las cuentas de su ámbito: crearlas, corregir sus datos y su rol, desactivarlas y restablecer su clave. No se borran, porque `Usuario` está protegido desde emergencias, despliegues e historial de inventario y esos registros deben conservar a su responsable. Nadie puede desactivar su propia cuenta ni intervenir la de un superusuario.
+
+Cuando alguien asigna una clave en nombre de otra persona —al crear la cuenta, al restablecer el acceso o al levantar el despliegue con `crear_superusuario_inicial`— la cuenta queda marcada con `debe_cambiar_clave`. Mientras esa marca siga activa, `usuarios.middleware.ExigirCambioDeClave` devuelve cualquier página al formulario de cambio; solo quedan libres el propio formulario, el inicio y el cierre de sesión, y los tres recursos de la aplicación web progresiva. El usuario recupera el acceso normal en cuanto elige una clave nueva, y su sesión no se interrumpe.
+
+En consecuencia, **el primer ingreso del superusuario creado en Render exige cambiar la clave**: la que viene de `DJANGO_SUPERUSER_PASSWORD` la conoce la plataforma y deja de servir apenas se reemplaza. Lo mismo ocurre después de recuperar el acceso con `DJANGO_SUPERUSER_REINICIAR_CLAVE=1`.
+
+Cualquier usuario puede cambiar su propia clave cuando quiera, desde **Cambiar contraseña** en el menú lateral.
 
 ## Protección de datos
 

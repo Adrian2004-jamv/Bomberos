@@ -1,17 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}{{ titulo }}{% endblock %}
-{% block page_title %}{{ titulo }}{% endblock %}
+{% block title %}Restablecer clave{% endblock %}
+{% block page_title %}Restablecer clave{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}?v=2">{% endblock %}
 {% block content %}
-<section class="user-form-card" aria-labelledby="form-title">
-    <header><p class="eyebrow">Acceso institucional</p><h2 id="form-title">{{ encabezado }}</h2><p>{{ descripcion }}</p></header>
+<section class="user-form-card user-form-card--narrow" aria-labelledby="form-title">
+    <header>
+        <p class="eyebrow">Recuperación de acceso</p>
+        <h2 id="form-title">Nueva clave para {{ cuenta.get_full_name|default:cuenta.username }}</h2>
+        <p>{{ cuenta.username }}{% if cuenta.estacion %} · {{ cuenta.estacion.nombre }}{% endif %}</p>
+    </header>
+    <div class="user-notice" role="status"><i class="ti ti-lock-exclamation" aria-hidden="true"></i> Entréguesela en persona. La cuenta quedará obligada a reemplazarla en su próximo ingreso.</div>
     <form method="post" class="user-form" novalidate>
         {% csrf_token %}
         {% if formulario.non_field_errors %}<div class="form-errors">{{ formulario.non_field_errors }}</div>{% endif %}
-        <div class="user-form-grid">
+        <div class="user-form-grid user-form-grid--single">
             {% for field in formulario %}
-                <div class="user-field{% if field.name == 'password1' or field.name == 'password2' %} user-field--password{% endif %}">
+                <div class="user-field">
                     <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span aria-hidden="true"> *</span>{% endif %}</label>
                     {{ field }}
                     {% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}
@@ -21,7 +26,7 @@
         </div>
         <div class="user-form-actions">
             <a class="action action--secondary" href="{% url 'usuarios:lista' %}">Cancelar</a>
-            <button class="action action--primary" type="submit"><i class="ti {{ icono }}" aria-hidden="true"></i> {{ accion }}</button>
+            <button class="action action--primary" type="submit"><i class="ti ti-key" aria-hidden="true"></i> Restablecer clave</button>
         </div>
     </form>
 </section>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Cambiar contraseña{% endblock %}
+{% block page_title %}Cambiar contraseña{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}?v=2">{% endblock %}
+{% block content %}
+<section class="user-form-card user-form-card--narrow" aria-labelledby="form-title">
+    <header>
+        <p class="eyebrow">Seguridad de la cuenta</p>
+        <h2 id="form-title">{% if obligatorio %}Debe cambiar su contraseña{% else %}Actualice su contraseña{% endif %}</h2>
+        <p>{% if obligatorio %}La contraseña vigente la asignó quien creó o restableció su cuenta, de modo que otra persona la conoce. Elija una nueva para continuar.{% else %}Cambie su contraseña cuando quiera. La sesión actual se mantiene abierta.{% endif %}</p>
+    </header>
+    {% if obligatorio %}<div class="user-notice" role="status"><i class="ti ti-lock-exclamation" aria-hidden="true"></i> Hasta que la reemplace, el sistema le devolverá a esta página.</div>{% endif %}
+    <form method="post" class="user-form" novalidate>
+        {% csrf_token %}
+        {% if formulario.non_field_errors %}<div class="form-errors">{{ formulario.non_field_errors }}</div>{% endif %}
+        <div class="user-form-grid user-form-grid--single">
+            {% for field in formulario %}
+                <div class="user-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span aria-hidden="true"> *</span>{% endif %}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}
+                    {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+        <div class="user-form-actions">
+            {% if not obligatorio %}<a class="action action--secondary" href="{% url 'emergencias:lista' %}">Cancelar</a>{% endif %}
+            <button class="action action--primary" type="submit"><i class="ti ti-key" aria-hidden="true"></i> Guardar contraseña</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

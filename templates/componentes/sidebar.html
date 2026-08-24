@@ -53,6 +53,7 @@
                 <span>Sin estación asignada</span>
             {% endif %}
         </div>
+        <a class="sidebar-user__link" href="{% url 'usuarios:cambiar_clave' %}"><i class="ti ti-key" aria-hidden="true"></i>Cambiar contraseña</a>
         <form method="post" action="{% url 'usuarios:logout' %}">
             {% csrf_token %}
             <button type="submit"><i class="ti ti-logout" aria-hidden="true"></i>Cerrar sesión</button>

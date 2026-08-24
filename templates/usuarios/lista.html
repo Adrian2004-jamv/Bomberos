@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Usuarios{% endblock %}
 {% block page_title %}Gestión de usuarios{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'usuarios/css/usuarios.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="users-toolbar" aria-labelledby="users-summary">
     <div>
@@ -16,7 +16,7 @@
     {% if usuarios_gestionables %}
         <div class="users-table-wrap">
             <table class="users-table">
-                <thead><tr><th>Usuario</th><th>Institución</th><th>Estación</th><th>Rol</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Usuario</th><th>Institución</th><th>Estación</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody>
                 {% for cuenta in usuarios_gestionables %}
                     <tr>
@@ -24,7 +24,21 @@
                         <td>{% if cuenta.estacion %}{{ cuenta.estacion.cuerpo_bomberos.nombre }}{% else %}Sin institución{% endif %}</td>
                         <td>{{ cuenta.estacion.nombre|default:"Sin asignar" }}</td>
                         <td>{% for grupo in cuenta.groups.all %}{{ grupo.name }}{% empty %}Sin rol{% endfor %}</td>
-                        <td><span class="user-status user-status--{% if cuenta.is_active %}active{% else %}inactive{% endif %}">{% if cuenta.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
+                        <td>
+                            <span class="user-status user-status--{% if cuenta.is_active %}active{% else %}inactive{% endif %}">{% if cuenta.is_active %}Activo{% else %}Inactivo{% endif %}</span>
+                            {% if cuenta.debe_cambiar_clave %}<span class="user-status user-status--pending" title="Todavía usa la clave que le asignaron">Clave pendiente</span>{% endif %}
+                        </td>
+                        <td>
+                            <div class="user-row-actions">
+                                <a class="user-action" href="{% url 'usuarios:editar' cuenta.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>
+                                <a class="user-action" href="{% url 'usuarios:restablecer_clave' cuenta.pk %}"><i class="ti ti-key" aria-hidden="true"></i> Clave</a>
+                                {% if cuenta.pk != request.user.pk %}
+                                <form method="post" action="{% url 'usuarios:cambiar_actividad' cuenta.pk %}">{% csrf_token %}
+                                    <button class="user-action{% if cuenta.is_active %} user-action--danger{% endif %}" type="submit"><i class="ti {% if cuenta.is_active %}ti-user-off{% else %}ti-user-check{% endif %}" aria-hidden="true"></i> {% if cuenta.is_active %}Desactivar{% else %}Reactivar{% endif %}</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>

@@ -50,6 +50,9 @@ class Command(BaseCommand):
             existente.is_superuser = True
             existente.is_staff = True
             existente.is_active = True
+            # La clave viene de una variable de entorno que ve la plataforma,
+            # de modo que el acceso queda obligado a reemplazarla.
+            existente.debe_cambiar_clave = True
             existente.save()
             self.stdout.write(f"Clave del superusuario «{nombre}» actualizada.")
             return
@@ -65,5 +68,6 @@ class Command(BaseCommand):
             email=os.environ.get("DJANGO_SUPERUSER_EMAIL", ""),
             password=clave,
             cedula=os.environ.get("DJANGO_SUPERUSER_CEDULA", ""),
+            debe_cambiar_clave=True,
         )
         self.stdout.write(f"Superusuario «{nombre}» creado.")

@@ -90,6 +90,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Después de la autenticación y de los mensajes: necesita request.user y
+    # deja escribir avisos antes de redirigir.
+    'usuarios.middleware.ExigirCambioDeClave',
 ]
 
 ROOT_URLCONF = 'config.urls'
