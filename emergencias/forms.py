@@ -3,6 +3,7 @@ from datetime import timedelta
 from django import forms
 from django.utils import timezone
 
+from core.forms import preparar_campos
 from inventario.permissions import estaciones_permitidas
 
 from .models import Emergencia
@@ -21,11 +22,6 @@ WIDGETS_EMERGENCIA = {
     "latitud": forms.NumberInput(attrs={"step": "0.000001"}),
     "longitud": forms.NumberInput(attrs={"step": "0.000001"}),
 }
-
-
-def _aplicar_clase(campos):
-    for field in campos.values():
-        field.widget.attrs.setdefault("class", "form-control")
 
 
 class EmergenciaForm(forms.ModelForm):
@@ -50,7 +46,7 @@ class EmergenciaForm(forms.ModelForm):
             "cuerpo_bomberos__nombre", "nombre"
         )
         self.fields["fecha_reporte"].input_formats = ("%Y-%m-%dT%H:%M",)
-        _aplicar_clase(self.fields)
+        preparar_campos(self.fields)
 
     def clean_fecha_reporte(self):
         """Una fecha futura dejaría la emergencia sin poder cerrarse.
@@ -86,7 +82,7 @@ class EmergenciaEdicionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        _aplicar_clase(self.fields)
+        preparar_campos(self.fields)
 
 
 class FiltroIncidentesForm(forms.Form):
@@ -167,4 +163,4 @@ class DespachoUnidadForm(forms.Form):
     def __init__(self, *args, emergencia, usuario, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["unidad"].queryset = unidades_desplegables(emergencia, usuario)
-        _aplicar_clase(self.fields)
+        preparar_campos(self.fields)

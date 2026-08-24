@@ -1,7 +1,10 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db import models
 
-from .models import Recurso, TipoRecurso
+from core.forms import preparar_campos
+
+from .models import CategoriaRecurso, Recurso, TipoRecurso
 from .permissions import estaciones_permitidas
 
 
@@ -55,8 +58,7 @@ class RecursoForm(forms.ModelForm):
         self.fields["tipo"].queryset = TipoRecurso.objects.filter(activo=True).select_related(
             "categoria"
         )
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+        preparar_campos(self.fields)
 
     def clean_estacion(self):
         estacion = self.cleaned_data["estacion"]
@@ -94,3 +96,49 @@ class CambioEstadoRecursoForm(forms.Form):
             )
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control"
+
+
+
+
+
+class CategoriaRecursoForm(forms.ModelForm):
+    class Meta:
+        model = CategoriaRecurso
+        fields = ("nombre", "codigo", "descripcion", "activo")
+        widgets = {"descripcion": forms.Textarea(attrs={"rows": 3})}
+        help_texts = {
+            "activo": "Una categoría inactiva deja de ofrecerse al registrar tipos nuevos.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        preparar_campos(self.fields)
+
+    def clean_codigo(self):
+        return self.cleaned_data["codigo"].strip().upper()
+
+
+class TipoRecursoForm(forms.ModelForm):
+    class Meta:
+        model = TipoRecurso
+        fields = ("categoria", "nombre", "codigo", "descripcion",
+                  "es_unidad_desplegable", "activo")
+        widgets = {"descripcion": forms.Textarea(attrs={"rows": 3})}
+        help_texts = {
+            "activo": "Un tipo inactivo se conserva en los recursos ya registrados.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Una categoría desactivada no debe recibir tipos nuevos, pero sí seguir
+        # apareciendo si es la del tipo que se está editando.
+        categorias = CategoriaRecurso.objects.filter(activo=True)
+        if self.instance.pk and self.instance.categoria_id:
+            categorias = CategoriaRecurso.objects.filter(
+                models.Q(activo=True) | models.Q(pk=self.instance.categoria_id)
+            )
+        self.fields["categoria"].queryset = categorias.order_by("nombre")
+        preparar_campos(self.fields)
+
+    def clean_codigo(self):
+        return self.cleaned_data["codigo"].strip().upper()

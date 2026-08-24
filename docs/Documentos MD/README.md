@@ -39,5 +39,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 33. [Dimensión operativa del dashboard](33_dashboard_operativo.md)
 34. [Filtros y paginación del registro de incidentes](34_registro_incidentes_filtrado.md)
 35. [Exportación de datos](35_exportacion_de_datos.md)
+36. [Catálogos provinciales y cierre de la interfaz](36_catalogos_provinciales.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

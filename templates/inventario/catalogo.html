@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Catálogo de inventario{% endblock %}
+{% block page_title %}Catálogo de inventario{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
+{% block content %}
+<section class="inventory-toolbar">
+    <div>
+        <h2>Categorías y tipos de recurso</h2>
+        <p>Estructura provincial sobre la que se registra el inventario de todas las instituciones.</p>
+    </div>
+    <div class="catalog-actions">
+        <a class="inventory-action" href="{% url 'inventario:catalogo_categoria_crear' %}"><i class="ti ti-folder-plus" aria-hidden="true"></i> Nueva categoría</a>
+        <a class="inventory-action inventory-action--primary" href="{% url 'inventario:catalogo_tipo_crear' %}"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo tipo</a>
+    </div>
+</section>
+
+<div class="catalog-notice">
+    <i class="ti ti-info-circle" aria-hidden="true"></i>
+    <p>Nada se elimina: categorías y tipos se desactivan. Los recursos, despliegues y evaluaciones ya registrados dependen de ellos y deben conservar su referencia.</p>
+</div>
+
+{% for categoria in categorias %}
+<section class="catalog-group">
+    <header>
+        <div>
+            <span class="catalog-code">{{ categoria.codigo }}</span>
+            <h3>{{ categoria.nombre }}</h3>
+            {% if categoria.descripcion %}<p>{{ categoria.descripcion }}</p>{% endif %}
+        </div>
+        <div class="catalog-group__meta">
+            <span class="catalog-state catalog-state--{% if categoria.activo %}on{% else %}off{% endif %}">{% if categoria.activo %}Activa{% else %}Inactiva{% endif %}</span>
+            <a class="inventory-action" href="{% url 'inventario:catalogo_categoria_editar' categoria.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>
+        </div>
+    </header>
+    {% if categoria.tipos_recurso.all %}
+    <div class="table-responsive"><table class="catalog-table">
+        <thead><tr><th>Tipo</th><th>Código</th><th>Despliegue</th><th>Recursos</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>{% for tipo in categoria.tipos_recurso.all %}<tr>
+            <td><strong>{{ tipo.nombre }}</strong>{% if tipo.descripcion %}<small>{{ tipo.descripcion|truncatechars:90 }}</small>{% endif %}</td>
+            <td>{{ tipo.codigo }}</td>
+            <td>{% if tipo.es_unidad_desplegable %}<span class="catalog-flag"><i class="ti ti-firetruck" aria-hidden="true"></i> Unidad desplegable</span>{% else %}<span class="catalog-flag catalog-flag--off">No desplegable</span>{% endif %}</td>
+            <td>{{ tipo.cantidad_recursos }}</td>
+            <td><span class="catalog-state catalog-state--{% if tipo.activo %}on{% else %}off{% endif %}">{% if tipo.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+            <td><a class="inventory-action" href="{% url 'inventario:catalogo_tipo_editar' tipo.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="catalog-empty-group">Esta categoría todavía no tiene tipos de recurso.</p>{% endif %}
+</section>
+{% empty %}
+<div class="empty-state"><p>No existen categorías registradas. Empiece por crear una y después añada sus tipos.</p></div>
+{% endfor %}
+{% endblock %}

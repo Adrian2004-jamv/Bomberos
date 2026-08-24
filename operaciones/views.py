@@ -2,11 +2,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
-from .forms import EvaluacionCapacidadForm, FiltroHistorialCapacidadForm
+from inventario.permissions import puede_gestionar_catalogos
+
+from .forms import (EvaluacionCapacidadForm, FiltroHistorialCapacidadForm,
+                    RequisitoCapacidadFormSet, TipoCapacidadOperativaForm)
 from .models import EvaluacionCapacidadEstacion, TipoCapacidadOperativa
 from .permissions import (
     estaciones_capacidades_permitidas,
@@ -169,3 +173,56 @@ def detalle_evaluacion(request, pk):
         "operaciones/evaluacion_detalle.html",
         {"evaluacion": evaluacion, "detalle_recursos": detalle_recursos},
     )
+
+
+def _exigir_catalogos(usuario):
+    if not puede_gestionar_catalogos(usuario):
+        raise PermissionDenied
+
+
+def _editar_capacidad(request, capacidad, contexto):
+    """Guarda la capacidad y sus requisitos en una sola operación.
+
+    Los requisitos son la definición de la capacidad, no un anexo: una
+    capacidad guardada a medias mediría mal a todas las estaciones hasta que
+    alguien completara la otra mitad.
+    """
+    formulario = TipoCapacidadOperativaForm(request.POST or None, instance=capacidad)
+    requisitos = RequisitoCapacidadFormSet(request.POST or None, instance=capacidad)
+    if request.method == "POST" and formulario.is_valid() and requisitos.is_valid():
+        with transaction.atomic():
+            guardada = formulario.save()
+            requisitos.instance = guardada
+            requisitos.save()
+        messages.success(request, f"La capacidad {guardada.nombre} fue guardada.")
+        return redirect("operaciones:detalle_capacidad", pk=guardada.pk)
+    return render(request, "operaciones/formulario_capacidad.html", {
+        **contexto,
+        "formulario": formulario,
+        "requisitos": requisitos,
+    })
+
+
+@login_required
+def crear_capacidad(request):
+    _exigir_catalogos(request.user)
+    return _editar_capacidad(request, TipoCapacidadOperativa(), {
+        "titulo": "Nueva capacidad operativa",
+        "descripcion": "Defina qué recursos materiales necesita una estación para "
+                       "sostener esta respuesta. El motor de evaluación compara el "
+                       "inventario de cada estación contra estos requisitos.",
+        "accion": "Crear capacidad",
+    })
+
+
+@login_required
+def editar_capacidad(request, pk):
+    _exigir_catalogos(request.user)
+    capacidad = get_object_or_404(TipoCapacidadOperativa, pk=pk)
+    return _editar_capacidad(request, capacidad, {
+        "capacidad": capacidad,
+        "titulo": f"Editar {capacidad.codigo}",
+        "descripcion": "Las evaluaciones ya registradas conservan el detalle con el que "
+                       "se calcularon y no se recalculan al cambiar los requisitos.",
+        "accion": "Guardar cambios",
+    })

@@ -3,7 +3,7 @@
 
 {% block title %}Capacidades operativas{% endblock %}
 {% block page_title %}Capacidades operativas{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}?v=2">{% endblock %}
 
 {% block content %}
 <section class="capacity-toolbar" aria-labelledby="catalogo-title">
@@ -14,6 +14,7 @@
     </div>
     <div class="capacity-actions">
         <a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:historial_evaluaciones' %}">Ver historial</a>
+        {% if puede_gestionar_catalogos %}<a class="capacity-button capacity-button--secondary" href="{% url 'operaciones:crear_capacidad' %}">Nueva capacidad</a>{% endif %}
         {% if puede_evaluar %}<a class="capacity-button capacity-button--primary" href="{% url 'operaciones:evaluar_capacidad' %}">Nueva evaluación</a>{% endif %}
     </div>
 </section>
@@ -29,11 +30,11 @@
             <p>{{ capacidad.descripcion|default:"Sin descripción registrada."|truncatechars:180 }}</p>
             <footer>
                 <strong>{{ capacidad.cantidad_requisitos }} requisito{{ capacidad.cantidad_requisitos|pluralize }}</strong>
-                <a href="{% url 'operaciones:detalle_capacidad' capacidad.pk %}">Ver detalle <span aria-hidden="true">→</span></a>
+                <span class="capacity-card__links">{% if puede_gestionar_catalogos %}<a href="{% url 'operaciones:editar_capacidad' capacidad.pk %}">Editar</a>{% endif %}<a href="{% url 'operaciones:detalle_capacidad' capacidad.pk %}">Ver detalle <span aria-hidden="true">→</span></a></span>
             </footer>
         </article>
     {% empty %}
-        <div class="capacity-empty"><h2>No existen capacidades registradas</h2><p>El catálogo puede configurarse desde Django Admin.</p></div>
+        <div class="capacity-empty"><h2>No existen capacidades registradas</h2><p>{% if puede_gestionar_catalogos %}Cree la primera capacidad con «Nueva capacidad» y defina los recursos que exige.{% else %}El catálogo lo define el nivel provincial.{% endif %}</p></div>
     {% endfor %}
 </div>
 

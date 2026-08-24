@@ -108,6 +108,7 @@
     color: #bdbdbd;
     font-size: 0.78rem;
 }
+.sidebar__footer .ti { color: var(--color-red-600); font-size: 1.05rem; }
 
 .sidebar-user {
     display: grid;
@@ -194,13 +195,6 @@
 }
 .sidebar-user button:hover { border-color: var(--color-red-600); background: var(--color-red-700); }
 .sidebar-user button .ti { font-size: 1.12rem; }
-
-.status-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--color-orange-500);
-}
 
 .navbar {
     display: flex;

@@ -72,3 +72,15 @@ def puede_gestionar_recurso(usuario, recurso):
     return puede_gestionar_inventario(usuario) and estaciones_permitidas(usuario).filter(
         pk=recurso.estacion_id
     ).exists()
+
+
+def puede_gestionar_catalogos(usuario):
+    """Los catálogos son provinciales, no de cada institución.
+
+    Categorías, tipos de recurso y capacidades operativas los comparten todos
+    los Cuerpos de Bomberos, y el motor de evaluación compara el inventario de
+    cada estación contra ellos. Una estación que inventara tipos propios
+    alteraría la medición de las demás, así que solo los edita quien tiene
+    alcance sobre toda la provincia.
+    """
+    return tiene_alcance_global(usuario)

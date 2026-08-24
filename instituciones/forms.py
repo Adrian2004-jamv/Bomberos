@@ -1,5 +1,7 @@
 from django import forms
 
+from core.forms import preparar_campos
+
 from .models import CuerpoBomberos, Estacion
 
 
@@ -8,8 +10,7 @@ class FormularioInstitucionalMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+        preparar_campos(self.fields)
 
 
 class CuerpoBomberosForm(FormularioInstitucionalMixin, forms.ModelForm):

@@ -1,8 +1,12 @@
 from django import forms
+from django.db.models import Q
 
 from instituciones.models import CuerpoBomberos, Estacion
+from core.forms import preparar_campos
+from inventario.models import TipoRecurso
 
-from .models import EvaluacionCapacidadEstacion, TipoCapacidadOperativa
+from .models import (EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad,
+                     TipoCapacidadOperativa)
 from .permissions import estaciones_capacidades_permitidas, tiene_alcance_global
 
 
@@ -28,8 +32,7 @@ class EvaluacionCapacidadForm(forms.Form):
         ).order_by("nombre")
         if capacidad_inicial and not self.is_bound:
             self.initial["tipo_capacidad"] = capacidad_inicial
-        for field in self.fields.values():
-            field.widget.attrs["class"] = "form-control"
+        preparar_campos(self.fields)
 
 
 class FiltroHistorialCapacidadForm(forms.Form):
@@ -80,8 +83,7 @@ class FiltroHistorialCapacidadForm(forms.Form):
             ).distinct().order_by("nombre")
         else:
             del self.fields["institucion"]
-        for field in self.fields.values():
-            field.widget.attrs["class"] = "form-control"
+        preparar_campos(self.fields)
 
     def clean(self):
         datos = super().clean()
@@ -90,3 +92,65 @@ class FiltroHistorialCapacidadForm(forms.Form):
         if desde and hasta and hasta < desde:
             self.add_error("fecha_hasta", "La fecha final no puede ser anterior a la inicial.")
         return datos
+
+
+class TipoCapacidadOperativaForm(forms.ModelForm):
+    class Meta:
+        model = TipoCapacidadOperativa
+        fields = ("nombre", "codigo", "descripcion", "activo")
+        widgets = {"descripcion": forms.Textarea(attrs={"rows": 4})}
+        help_texts = {
+            "activo": "Una capacidad inactiva conserva sus evaluaciones históricas.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        preparar_campos(self.fields)
+
+    def clean_codigo(self):
+        return self.cleaned_data["codigo"].strip().upper()
+
+
+class RequisitoRecursoCapacidadForm(forms.ModelForm):
+    class Meta:
+        model = RequisitoRecursoCapacidad
+        fields = ("tipo_recurso", "cantidad_minima", "obligatorio", "observaciones")
+        widgets = {"observaciones": forms.TextInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Un tipo desactivado no debe sumarse a requisitos nuevos, pero el que ya
+        # forma parte de la capacidad tiene que seguir siendo visible y editable.
+        tipos = TipoRecurso.objects.filter(activo=True)
+        if self.instance.pk and self.instance.tipo_recurso_id:
+            tipos = TipoRecurso.objects.filter(
+                Q(activo=True) | Q(pk=self.instance.tipo_recurso_id)
+            )
+        self.fields["tipo_recurso"].queryset = tipos.select_related(
+            "categoria"
+        ).order_by("categoria__nombre", "nombre")
+        preparar_campos(self.fields)
+
+    def has_changed(self):
+        """Una fila nueva cuenta como usada solo si trae recurso o cantidad.
+
+        ``obligatorio`` nace marcado por el valor por omisión del modelo, de
+        modo que una casilla que el usuario nunca tocó se ve como un cambio y
+        arrastraría la fila en blanco a la validación, exigiendo los campos que
+        justamente quedaron vacíos.
+        """
+        if self.instance.pk:
+            return super().has_changed()
+        return any(
+            self.data.get(self.add_prefix(campo))
+            for campo in ("tipo_recurso", "cantidad_minima")
+        )
+
+
+RequisitoCapacidadFormSet = forms.inlineformset_factory(
+    TipoCapacidadOperativa,
+    RequisitoRecursoCapacidad,
+    form=RequisitoRecursoCapacidadForm,
+    extra=3,
+    can_delete=True,
+)

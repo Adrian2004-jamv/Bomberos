@@ -2,11 +2,14 @@
 {% load static %}
 {% block title %}Inventario{% endblock %}
 {% block page_title %}Inventario de recursos{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'vendor/datatables-2.3.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-responsive-3.0.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-buttons-3.2.4.min.css' %}"><link rel="stylesheet" href="{% static 'inventario/css/inventario_datatable.css' %}?v=9">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'vendor/datatables-2.3.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-responsive-3.0.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-buttons-3.2.4.min.css' %}"><link rel="stylesheet" href="{% static 'inventario/css/inventario_datatable.css' %}?v=9"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
 {% block content %}
 <section class="inventory-toolbar">
     <div><h2>Recursos institucionales</h2><p>Consulta y gestiona los recursos dentro de tu alcance institucional.</p></div>
-    {% if puede_gestionar %}<a class="inventory-action inventory-action--primary" href="{% url 'inventario:crear' %}">Registrar recurso</a>{% endif %}
+    <div class="catalog-actions">
+        {% if puede_gestionar_catalogos %}<a class="inventory-action" href="{% url 'inventario:catalogo' %}"><i class="ti ti-list-details" aria-hidden="true"></i> Catálogo</a>{% endif %}
+        {% if puede_gestionar %}<a class="inventory-action inventory-action--primary" href="{% url 'inventario:crear' %}">Registrar recurso</a>{% endif %}
+    </div>
 </section>
 
 <div id="inventory-results">{% include "inventario/_resultados.html" %}</div>

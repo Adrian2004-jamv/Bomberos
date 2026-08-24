@@ -2,14 +2,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .forms import CambioEstadoRecursoForm, RecursoForm
-from .models import Recurso
+from .forms import (CambioEstadoRecursoForm, CategoriaRecursoForm, RecursoForm,
+                    TipoRecursoForm)
+from .models import CategoriaRecurso, Recurso, TipoRecurso
 from .permissions import (
     puede_consultar_inventario,
+    puede_gestionar_catalogos,
     puede_gestionar_inventario,
     puede_gestionar_recurso,
     recursos_permitidos,
@@ -206,3 +208,100 @@ def historial(request, pk):
         "inventario/historial.html",
         {"recurso": recurso, "registros": pagina, "pagina": pagina},
     )
+
+
+def _exigir_catalogos(usuario):
+    if not puede_gestionar_catalogos(usuario):
+        raise PermissionDenied
+
+
+@login_required
+@require_GET
+def catalogo(request):
+    """Categorías y tipos de recurso, la base sobre la que se registra todo.
+
+    Se muestran juntas porque un tipo no existe fuera de su categoría, y se
+    indica cuántos recursos dependen de cada uno: es lo que explica por qué se
+    desactivan en lugar de borrarse.
+    """
+    _exigir_catalogos(request.user)
+    categorias = CategoriaRecurso.objects.prefetch_related(
+        Prefetch(
+            "tipos_recurso",
+            queryset=TipoRecurso.objects.annotate(
+                cantidad_recursos=Count("recursos")
+            ).order_by("nombre"),
+        )
+    ).annotate(cantidad_tipos=Count("tipos_recurso")).order_by("nombre")
+    return render(request, "inventario/catalogo.html", {"categorias": categorias})
+
+
+@login_required
+def crear_categoria(request):
+    _exigir_catalogos(request.user)
+    formulario = CategoriaRecursoForm(request.POST or None)
+    if request.method == "POST" and formulario.is_valid():
+        categoria = formulario.save()
+        messages.success(request, f"La categoría {categoria.nombre} fue creada.")
+        return redirect("inventario:catalogo")
+    return render(request, "inventario/formulario_catalogo.html", {
+        "formulario": formulario,
+        "titulo": "Nueva categoría",
+        "encabezado": "Categoría de recursos",
+        "descripcion": "Agrupa los tipos de recurso; por ejemplo vehículos, equipos o herramientas.",
+        "accion": "Crear categoría",
+    })
+
+
+@login_required
+def editar_categoria(request, pk):
+    _exigir_catalogos(request.user)
+    categoria = get_object_or_404(CategoriaRecurso, pk=pk)
+    formulario = CategoriaRecursoForm(request.POST or None, instance=categoria)
+    if request.method == "POST" and formulario.is_valid():
+        formulario.save()
+        messages.success(request, f"La categoría {categoria.nombre} fue actualizada.")
+        return redirect("inventario:catalogo")
+    return render(request, "inventario/formulario_catalogo.html", {
+        "formulario": formulario,
+        "titulo": f"Editar {categoria.codigo}",
+        "encabezado": categoria.nombre,
+        "descripcion": "Los tipos y recursos que ya dependen de esta categoría conservan su vínculo.",
+        "accion": "Guardar cambios",
+    })
+
+
+@login_required
+def crear_tipo(request):
+    _exigir_catalogos(request.user)
+    formulario = TipoRecursoForm(request.POST or None)
+    if request.method == "POST" and formulario.is_valid():
+        tipo = formulario.save()
+        messages.success(request, f"El tipo {tipo.nombre} fue creado.")
+        return redirect("inventario:catalogo")
+    return render(request, "inventario/formulario_catalogo.html", {
+        "formulario": formulario,
+        "titulo": "Nuevo tipo de recurso",
+        "encabezado": "Tipo de recurso",
+        "descripcion": "Marque «es unidad desplegable» solo si los recursos de este tipo "
+                       "pueden despacharse a una emergencia.",
+        "accion": "Crear tipo",
+    })
+
+
+@login_required
+def editar_tipo(request, pk):
+    _exigir_catalogos(request.user)
+    tipo = get_object_or_404(TipoRecurso, pk=pk)
+    formulario = TipoRecursoForm(request.POST or None, instance=tipo)
+    if request.method == "POST" and formulario.is_valid():
+        formulario.save()
+        messages.success(request, f"El tipo {tipo.nombre} fue actualizado.")
+        return redirect("inventario:catalogo")
+    return render(request, "inventario/formulario_catalogo.html", {
+        "formulario": formulario,
+        "titulo": f"Editar {tipo.codigo}",
+        "encabezado": tipo.nombre,
+        "descripcion": "Retirar «es unidad desplegable» no afecta a los despliegues ya registrados.",
+        "accion": "Guardar cambios",
+    })

@@ -107,6 +107,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "inventario.context_processors.acceso_catalogos",
                 "operaciones.context_processors.acceso_capacidades",
                 "usuarios.context_processors.acceso_usuarios",
             ],

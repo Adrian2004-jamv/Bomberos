@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
+{% block content %}
+<form class="inventory-form inventory-form--narrow" method="post" novalidate>
+    {% csrf_token %}
+    <header><h2>{{ encabezado }}</h2><p>{{ descripcion }}</p></header>
+    {% if formulario.non_field_errors %}<div class="inventory-form-errors" role="alert">{{ formulario.non_field_errors }}</div>{% endif %}
+    <div class="inventory-form-grid">
+        {% for field in formulario %}
+        <div class="inventory-field{% if field.name == 'descripcion' %} inventory-field--wide{% endif %}{% if field.field.widget.input_type == 'checkbox' %} inventory-field--check{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="inventory-form-actions">
+        <a class="inventory-action inventory-action--secondary" href="{% url 'inventario:catalogo' %}">Cancelar</a>
+        <button class="inventory-action inventory-action--primary" type="submit">{{ accion }}</button>
+    </div>
+</form>
+{% endblock %}

@@ -3,6 +3,8 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Group
 from django.db.models import Q
 
+from core.forms import preparar_campos
+
 from .models import Usuario
 from .permissions import (
     GRUPO_SISTEMAS_INSTITUCIONAL,
@@ -32,8 +34,7 @@ def grupos_asignables(usuario_gestor):
 def _preparar_campos(formulario, usuario_gestor):
     formulario.fields["estacion"].queryset = estaciones_asignables(usuario_gestor)
     formulario.fields["grupo"].queryset = grupos_asignables(usuario_gestor)
-    for field in formulario.fields.values():
-        field.widget.attrs.setdefault("class", "user-form-control")
+    preparar_campos(formulario.fields, clase="user-form-control")
 
 
 class UsuarioInstitucionalForm(UserCreationForm):

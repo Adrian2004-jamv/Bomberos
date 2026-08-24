@@ -213,3 +213,6 @@ textarea.form-control { resize: vertical; }
     .evaluation-percent { width: 100%; text-align: left; }
     .evaluation-requirement dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Dos enlaces en el pie de cada tarjeta cuando el catálogo es editable. */
+.capacity-card__links { display: inline-flex; flex-wrap: wrap; gap: .75rem; }

@@ -6,7 +6,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 
 - Usuarios autorizados vinculados a estaciones, grupos y permisos básicos, con edición, desactivación, restablecimiento de clave y cambio obligatorio de la clave asignada.
 - Cantones, Cuerpos de Bomberos y estaciones.
-- Categorías, tipos y recursos de inventario.
+- Categorías, tipos y recursos de inventario, con catálogo editable desde la aplicación por el alcance provincial.
 - Historial de estado operativo y disponibilidad de recursos.
 - Catálogo y evaluación histórica de capacidades basada en recursos materiales.
 - Registro de emergencias con ciclo operativo propio: reportada, en atención, controlada, cerrada o cancelada.

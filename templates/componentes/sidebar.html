@@ -27,9 +27,14 @@
                 <i class="ti ti-users" aria-hidden="true"></i> Usuarios
             </a>
         {% endif %}
-        <a class="nav-item{% if request.resolver_match.namespace == 'inventario' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' %} aria-current="page"{% endif %}>
+        <a class="nav-item{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
             <i class="ti ti-packages" aria-hidden="true"></i> Inventario
         </a>
+        {% if puede_gestionar_catalogos %}
+            <a class="nav-item{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:catalogo' %}"{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
+                <i class="ti ti-list-details" aria-hidden="true"></i> Catálogos
+            </a>
+        {% endif %}
         {% if puede_consultar_capacidades %}
             <a class="nav-item{% if request.resolver_match.namespace == 'operaciones' %} nav-item--active{% endif %}" href="{% url 'operaciones:lista_capacidades' %}"{% if request.resolver_match.namespace == 'operaciones' %} aria-current="page"{% endif %}>
                 <i class="ti ti-shield-check" aria-hidden="true"></i> Capacidades operativas
@@ -61,7 +66,7 @@
     </section>
 
     <div class="sidebar__footer">
-        <span class="status-dot" aria-hidden="true"></span>
-        Módulos en construcción
+        <i class="ti ti-shield-half-filled" aria-hidden="true"></i>
+        Sistema de Comando de Incidentes
     </div>
 </aside>

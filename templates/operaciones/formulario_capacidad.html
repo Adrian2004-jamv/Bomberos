@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'operaciones/css/capacidades.css' %}?v=2"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
+{% block content %}
+<form class="capacity-form" method="post" novalidate>
+    {% csrf_token %}
+    <section class="capacity-form__panel">
+        <header><span>Catálogo provincial</span><h2>Identificación de la capacidad</h2><p>{{ descripcion }}</p></header>
+        {% if formulario.non_field_errors %}<div class="inventory-form-errors" role="alert">{{ formulario.non_field_errors }}</div>{% endif %}
+        <div class="inventory-form-grid">
+            {% for field in formulario %}
+            <div class="inventory-field{% if field.name == 'descripcion' %} inventory-field--wide{% endif %}{% if field.field.widget.input_type == 'checkbox' %} inventory-field--check{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {{ field }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                {% for error in field.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="capacity-form__panel">
+        <header><span>Definición</span><h2>Requisitos de recursos</h2><p>Cada fila indica cuántas unidades de un tipo debe tener una estación. Deje una fila en blanco para no usarla y marque «eliminar» para retirar un requisito existente.</p></header>
+        {{ requisitos.management_form }}
+        {% if requisitos.non_form_errors %}<div class="inventory-form-errors" role="alert">{{ requisitos.non_form_errors }}</div>{% endif %}
+        <div class="table-responsive"><table class="catalog-table requirement-table">
+            <thead><tr><th>Tipo de recurso</th><th>Cantidad mínima</th><th>Obligatorio</th><th>Observaciones</th><th>Eliminar</th></tr></thead>
+            <tbody>
+            {% for fila in requisitos %}
+                <tr>
+                    {{ fila.id }}
+                    <td>{{ fila.tipo_recurso }}{% for error in fila.tipo_recurso.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}</td>
+                    <td>{{ fila.cantidad_minima }}{% for error in fila.cantidad_minima.errors %}<p class="inventory-field-error" role="alert">{{ error }}</p>{% endfor %}</td>
+                    <td class="requirement-check">{{ fila.obligatorio }}</td>
+                    <td>{{ fila.observaciones }}</td>
+                    <td class="requirement-check">{% if fila.instance.pk %}{{ fila.DELETE }}{% else %}<span aria-hidden="true">—</span>{% endif %}</td>
+                </tr>
+                {% if fila.non_field_errors %}<tr><td colspan="5"><div class="inventory-form-errors" role="alert">{{ fila.non_field_errors }}</div></td></tr>{% endif %}
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+
+    <div class="inventory-form-actions">
+        <a class="inventory-action inventory-action--secondary" href="{% if capacidad %}{% url 'operaciones:detalle_capacidad' capacidad.pk %}{% else %}{% url 'operaciones:lista_capacidades' %}{% endif %}">Cancelar</a>
+        <button class="inventory-action inventory-action--primary" type="submit">{{ accion }}</button>
+    </div>
+</form>
+{% endblock %}
