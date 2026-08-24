@@ -89,6 +89,48 @@ class EmergenciaEdicionForm(forms.ModelForm):
         _aplicar_clase(self.fields)
 
 
+class FiltroIncidentesForm(forms.Form):
+    """Filtros del registro de incidentes, resueltos en el servidor.
+
+    Antes vivían en JavaScript sobre las filas ya dibujadas, lo que obligaba a
+    traer el padrón completo y era incompatible con paginar.
+    """
+
+    FASES = (
+        ("", "Todas"),
+        ("curso", "En curso"),
+        ("terminada", "Terminadas"),
+    )
+    ETAPAS = (
+        ("", "Todas"),
+        ("sin_iniciar", "Sin iniciar"),
+        ("en_elaboracion", "En elaboración"),
+        ("completa", "Completa"),
+    )
+
+    q = forms.CharField(
+        label="Buscar incidentes",
+        required=False,
+        max_length=120,
+        widget=forms.TextInput(attrs={
+            "placeholder": "Buscar código, tipo, estación o dirección…",
+            "type": "search",
+        }),
+    )
+    etapa = forms.ChoiceField(
+        label="Etapa SCI",
+        required=False,
+        choices=ETAPAS,
+        # El guion de la página envía el formulario al cambiar esta selección,
+        # para no obligar a pulsar «Filtrar».
+        widget=forms.Select(attrs={"data-incident-document-stage": ""}),
+    )
+    fase = forms.ChoiceField(required=False, choices=FASES, widget=forms.HiddenInput)
+
+    def clean_q(self):
+        return self.cleaned_data["q"].strip()
+
+
 class UnidadDesplegableChoiceField(forms.ModelChoiceField):
     """Identifica cada unidad por su estación.
 

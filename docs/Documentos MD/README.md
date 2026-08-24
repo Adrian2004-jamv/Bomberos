@@ -37,5 +37,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 31. [Despacho de unidades y ciclo operativo del incidente](31_despacho_y_ciclo_operativo.md)
 32. [Gestión de cuentas y clave asignada](32_gestion_de_cuentas.md)
 33. [Dimensión operativa del dashboard](33_dashboard_operativo.md)
+34. [Filtros y paginación del registro de incidentes](34_registro_incidentes_filtrado.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.

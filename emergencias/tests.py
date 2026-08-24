@@ -372,7 +372,7 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, 'data-incident-phase="curso"', html=False)
         self.assertContains(respuesta, 'data-incident-document-stage', html=False)
         self.assertContains(respuesta, "0/12 formularios")
-        self.assertContains(respuesta, "registro_incidentes.js?v=1")
+        self.assertContains(respuesta, "registro_incidentes.js?v=2")
         self.assertNotContains(respuesta, "Filtros operativos")
         contenido = respuesta.content.decode()
         self.assertLess(contenido.index('data-incident-map'), contenido.index('class="incident-actions"'))

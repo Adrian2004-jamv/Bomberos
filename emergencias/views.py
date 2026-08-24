@@ -4,7 +4,9 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count, Exists, OuterRef
+from django.core.paginator import Paginator
+from django.db.models import (Case, Count, Exists, IntegerField, OuterRef, Q,
+                              Value, When)
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,7 +17,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from inventario.permissions import estaciones_permitidas
 
-from .forms import DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm
+from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
+                    FiltroIncidentesForm)
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
@@ -79,21 +82,67 @@ def _emergencias_permitidas(usuario):
                 estado=FormularioSCI211.Estado.FINALIZADO,
             )
         ),
+    ).annotate(
+        # El total de formularios se calcula en la base porque la etapa
+        # documental es ahora un filtro, y filtrar en Python obligaria a traer
+        # el padron completo para descartar casi todo.
+        formularios_registrados=Count("formularios_sci", distinct=True) + Case(
+            When(tiene_sci211=True, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+    # Al agrupar por la anotación, Django deja de aplicar el orden declarado en
+    # el modelo, y paginar sin orden explícito devuelve resultados inestables.
+    ).order_by("-fecha_reporte", "-pk")
+
+
+ESTADOS_TERMINADOS = (Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA)
+TOTAL_FORMULARIOS_SCI = len(CATALOGO_FORMULARIOS_SCI)
+INCIDENTES_POR_PAGINA = 12
+
+
+def _filtrar_por_texto(emergencias, termino):
+    """Busca en codigo, tipo, estacion, direccion y etiqueta del estado.
+
+    El estado se guarda como clave, de modo que se traduce el termino a las
+    claves cuyas etiquetas lo contienen antes de consultar.
+    """
+    estados = [
+        valor for valor, etiqueta in Emergencia.Estado.choices
+        if termino.lower() in etiqueta.lower()
+    ]
+    condicion = (
+        Q(codigo__icontains=termino)
+        | Q(tipo_emergencia__icontains=termino)
+        | Q(estacion_responsable__nombre__icontains=termino)
+        | Q(direccion__icontains=termino)
+    )
+    if estados:
+        condicion |= Q(estado__in=estados)
+    return emergencias.filter(condicion)
+
+
+def _filtrar_por_etapa(emergencias, etapa):
+    if etapa == "sin_iniciar":
+        return emergencias.filter(formularios_registrados=0)
+    if etapa == "completa":
+        return emergencias.filter(formularios_registrados=TOTAL_FORMULARIOS_SCI)
+    return emergencias.filter(
+        formularios_registrados__gt=0,
+        formularios_registrados__lt=TOTAL_FORMULARIOS_SCI,
     )
 
 
 def _preparar_avance_documental(emergencias):
     for emergencia in emergencias:
-        emergencia.formularios_completados = (
-            emergencia.cantidad_formularios_genericos + int(emergencia.tiene_sci211)
-        )
+        emergencia.formularios_completados = emergencia.formularios_registrados
         emergencia.porcentaje_formularios = round(
-            emergencia.formularios_completados / len(CATALOGO_FORMULARIOS_SCI) * 100
+            emergencia.formularios_completados / TOTAL_FORMULARIOS_SCI * 100
         )
         if emergencia.formularios_completados == 0:
             emergencia.etapa_formularios = "Sin iniciar"
             emergencia.clave_etapa_formularios = "sin_iniciar"
-        elif emergencia.formularios_completados == len(CATALOGO_FORMULARIOS_SCI):
+        elif emergencia.formularios_completados == TOTAL_FORMULARIOS_SCI:
             emergencia.etapa_formularios = "Completa"
             emergencia.clave_etapa_formularios = "completa"
         elif emergencia.sci211_finalizado:
@@ -106,14 +155,52 @@ def _preparar_avance_documental(emergencias):
 
 
 @login_required
+@require_GET
 def lista(request):
+    """Registro de incidentes con filtros y paginacion resueltos en la base.
+
+    Los conteos de cada fase se calculan sobre la consulta ya filtrada por
+    texto y etapa, pero sin la fase: son las cifras que rotulan los botones y
+    deben corresponder a lo que se veria al pulsarlos.
+    """
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
-    emergencias = list(_emergencias_permitidas(request.user))
+
+    formulario = FiltroIncidentesForm(request.GET or None)
+    filtros = formulario.cleaned_data if formulario.is_valid() else {}
+    emergencias = _emergencias_permitidas(request.user)
+    if filtros.get("q"):
+        emergencias = _filtrar_por_texto(emergencias, filtros["q"])
+    if filtros.get("etapa"):
+        emergencias = _filtrar_por_etapa(emergencias, filtros["etapa"])
+
+    total_en_curso = emergencias.exclude(estado__in=ESTADOS_TERMINADOS).count()
+    total_terminadas = emergencias.filter(estado__in=ESTADOS_TERMINADOS).count()
+
+    fase = filtros.get("fase") or "all"
+    if fase == "curso":
+        emergencias = emergencias.exclude(estado__in=ESTADOS_TERMINADOS)
+    elif fase == "terminada":
+        emergencias = emergencias.filter(estado__in=ESTADOS_TERMINADOS)
+
+    pagina = Paginator(emergencias, INCIDENTES_POR_PAGINA).get_page(
+        request.GET.get("pagina")
+    )
+    parametros = request.GET.copy()
+    parametros.pop("pagina", None)
+    sin_fase = parametros.copy()
+    sin_fase.pop("fase", None)
     return render(request, "emergencias/lista.html", {
-        "emergencias": _preparar_avance_documental(emergencias),
-        "total_en_curso": sum(not emergencia.esta_terminada for emergencia in emergencias),
-        "total_terminadas": sum(emergencia.esta_terminada for emergencia in emergencias),
+        "form": formulario,
+        "emergencias": _preparar_avance_documental(pagina.object_list),
+        "pagina": pagina,
+        "querystring": parametros.urlencode(),
+        "querystring_sin_fase": sin_fase.urlencode(),
+        "fase_activa": fase,
+        "total_en_curso": total_en_curso,
+        "total_terminadas": total_terminadas,
+        "total_filtrado": total_en_curso + total_terminadas,
+        "hay_filtros": bool(filtros.get("q") or filtros.get("etapa") or filtros.get("fase")),
         "puede_crear": puede_gestionar_emergencias(request.user),
     })
 
