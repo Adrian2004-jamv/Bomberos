@@ -1,23 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Crear emergencia{% endblock %}
-{% block page_title %}Crear emergencia{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=4"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2">{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=6"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2">{% endblock %}
 
 {% block content %}
+{% if es_creacion %}
 <nav class="incident-actions" aria-label="Acciones de incidentes">
     <a class="incident-action" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Registro</a>
     <a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}" aria-current="page"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo</a>
 </nav>
+{% endif %}
 <section class="panel emergency-form-panel">
     <div class="panel__heading">
-        <div><p class="eyebrow">Paso 1 de 2 · Registro operativo</p><h2>Datos iniciales del incidente</h2></div>
+        <div><p class="eyebrow">{{ eyebrow }}</p><h2>{{ encabezado }}</h2></div>
     </div>
+    {% if es_creacion %}
     <div class="workflow-notice">
         <strong>Este registro no es el formulario SCI-211.</strong>
         <span>Después de guardar la emergencia podrás abrir el documento oficial “SCI-211 · Registro y Control de Recursos” desde su detalle.</span>
     </div>
+    {% else %}
+    <div class="workflow-notice">
+        <strong>Solo se corrige la situación del incidente.</strong>
+        <span>El código, la estación responsable y la fecha del reporte no cambian. El estado operativo se mueve desde el detalle de la emergencia.</span>
+    </div>
+    {% endif %}
     <form method="post" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -32,8 +41,8 @@
             {% endfor %}
         </div>
         <div class="form-actions">
-            <a class="button" href="{% url 'emergencias:lista' %}#registro-incidentes">Cancelar</a>
-            <button class="button button--primary" type="submit">Registrar emergencia</button>
+            <a class="button" href="{{ url_cancelar }}">Cancelar</a>
+            <button class="button button--primary" type="submit">{{ accion }}</button>
         </div>
     </form>
 </section>

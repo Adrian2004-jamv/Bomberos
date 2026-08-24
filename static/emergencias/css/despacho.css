@@ -1,0 +1,56 @@
+/* Panel de estado del incidente y acciones sobre los despliegues. */
+
+.panel__heading-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+
+.incident-state-panel { border-top: 4px solid var(--color-navy-900); }
+.incident-state-help { margin: 0 0 0.9rem; color: var(--color-slate-600); font-size: 0.84rem; }
+.incident-state-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.incident-state-actions form { margin: 0; }
+
+.deployment-state {
+    display: inline-flex;
+    padding: 0.22rem 0.5rem;
+    border-radius: 999px;
+    background: #eef0f3;
+    font-size: 0.72rem;
+    font-weight: 850;
+    white-space: nowrap;
+}
+.deployment-state--asignada { color: #8a5700; background: #fff3d6; }
+.deployment-state--en_ruta { color: #1d4ed8; background: #e3ebff; }
+.deployment-state--en_sitio { color: #a20d16; background: #fee8e9; }
+.deployment-state--retornando { color: #6b21a8; background: #f3e8ff; }
+.deployment-state--finalizada { color: #087c61; background: #ddf7ef; }
+.deployment-state--cancelada { color: #59616c; background: #e9ebee; }
+
+.deployment-times { display: grid; gap: 0.18rem; color: var(--color-slate-600); font-size: 0.72rem; }
+.deployment-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.deployment-actions form { margin: 0; }
+
+.deployment-action {
+    display: inline-flex;
+    min-height: 2.2rem;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--color-slate-300);
+    border-radius: 0.45rem;
+    color: var(--color-navy-900);
+    background: var(--color-white);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.deployment-action:hover { color: var(--color-red-700); border-color: #e78d93; background: #fff7f7; }
+.deployment-action--gps { color: var(--color-red-700); border-color: #efb7bc; background: #fff7f7; }
+.deployment-closed { color: var(--color-slate-500); font-size: 0.74rem; }
+
+@media (max-width: 700px) {
+    .panel__heading-actions { width: 100%; }
+    .panel__heading-actions > * { flex: 1; justify-content: center; }
+    .incident-state-actions { display: grid; }
+    .incident-state-actions .sci-panel-action { width: 100%; }
+}

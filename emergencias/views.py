@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Exists, OuterRef
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -14,17 +15,21 @@ from django.views.decorators.http import require_GET, require_POST
 
 from inventario.permissions import estaciones_permitidas
 
-from .forms import EmergenciaForm
+from .forms import DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
-from .permissions import (puede_consultar_emergencias, puede_consultar_sci,
-                          puede_editar_sci, puede_gestionar_emergencias)
+from .permissions import (estacion_autorizada, puede_consultar_emergencias,
+                          puede_consultar_sci, puede_editar_sci,
+                          puede_gestionar_emergencias)
 from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           obtener_esquema, obtener_esquema_catalogo,
                           secciones_completadas,
                           secciones_con_valores)
-from .services import registrar_posicion_unidad
+from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
+                       cambiar_estado_despliegue, cambiar_estado_emergencia,
+                       desplegar_unidad, registrar_posicion_unidad,
+                       transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
                           finalizar_sci211)
 
@@ -125,7 +130,117 @@ def crear(request):
         emergencia.save()
         messages.success(request, "Emergencia registrada correctamente.")
         return redirect("emergencias:detalle", pk=emergencia.pk)
-    return render(request, "emergencias/formulario.html", {"form": formulario})
+    return render(request, "emergencias/formulario.html", {
+        "form": formulario,
+        "titulo": "Crear emergencia",
+        "eyebrow": "Paso 1 de 2 · Registro operativo",
+        "encabezado": "Datos iniciales del incidente",
+        "accion": "Registrar emergencia",
+        "url_cancelar": reverse("emergencias:lista") + "#registro-incidentes",
+        "es_creacion": True,
+    })
+
+
+@login_required
+def editar(request, pk):
+    """Corrige la información situacional de un incidente todavía en curso."""
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=pk)
+    if not estacion_autorizada(request.user, emergencia.estacion_responsable_id):
+        raise PermissionDenied
+    if emergencia.esta_terminada:
+        messages.info(request, "Una emergencia terminada ya no se puede editar.")
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    formulario = EmergenciaEdicionForm(request.POST or None, instance=emergencia)
+    if request.method == "POST" and formulario.is_valid():
+        formulario.save()
+        messages.success(request, "Emergencia actualizada correctamente.")
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    return render(request, "emergencias/formulario.html", {
+        "form": formulario,
+        "emergencia": emergencia,
+        "titulo": f"Editar {emergencia.codigo}",
+        "eyebrow": f"{emergencia.codigo} · {emergencia.get_estado_display()}",
+        "encabezado": "Situación del incidente",
+        "accion": "Guardar cambios",
+        "url_cancelar": reverse("emergencias:detalle", args=[emergencia.pk]),
+        "es_creacion": False,
+    })
+
+
+@login_required
+@require_POST
+def cambiar_estado(request, pk):
+    """Avanza el ciclo operativo del incidente."""
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=pk)
+    try:
+        emergencia = cambiar_estado_emergencia(
+            emergencia, request.POST.get("estado", ""), request.user
+        )
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        messages.success(
+            request, f"La emergencia pasó a {emergencia.get_estado_display().lower()}."
+        )
+    return redirect("emergencias:detalle", pk=emergencia.pk)
+
+
+@login_required
+def despachar(request, pk):
+    """Envía una unidad disponible del ámbito del usuario al incidente."""
+    emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=pk)
+    if not estacion_autorizada(request.user, emergencia.estacion_responsable_id):
+        raise PermissionDenied
+    if not emergencia.admite_despliegues:
+        messages.info(request, "Una emergencia terminada no admite despliegues.")
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    formulario = DespachoUnidadForm(
+        request.POST or None, emergencia=emergencia, usuario=request.user
+    )
+    if request.method == "POST" and formulario.is_valid():
+        try:
+            despliegue = desplegar_unidad(
+                emergencia,
+                formulario.cleaned_data["unidad"],
+                request.user,
+                formulario.cleaned_data["observaciones"],
+            )
+        except ValidationError as error:
+            formulario.add_error(None, error)
+        else:
+            messages.success(
+                request,
+                f"La unidad {despliegue.unidad.codigo_interno} fue despachada al incidente.",
+            )
+            return redirect("emergencias:detalle", pk=emergencia.pk)
+    return render(request, "emergencias/despachar.html", {
+        "emergencia": emergencia,
+        "form": formulario,
+        "hay_unidades": formulario.fields["unidad"].queryset.exists(),
+    })
+
+
+@login_required
+@require_POST
+def actualizar_despliegue(request, pk):
+    """Mueve un despliegue por sus estados y libera la unidad al terminar."""
+    despliegue = get_object_or_404(_despliegues_permitidos(request.user), pk=pk)
+    try:
+        cambiar_estado_despliegue(
+            despliegue,
+            request.POST.get("estado", ""),
+            request.user,
+            request.POST.get("observaciones", ""),
+        )
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        despliegue.refresh_from_db()
+        messages.success(
+            request,
+            f"{despliegue.unidad.codigo_interno}: {despliegue.get_estado_display().lower()}.",
+        )
+    return redirect("emergencias:detalle", pk=despliegue.emergencia_id)
 
 
 @login_required
@@ -133,14 +248,28 @@ def detalle(request, pk):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=pk)
-    despliegues = emergencia.despliegues.select_related(
+    puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
+    despliegues = list(emergencia.despliegues.select_related(
         "unidad", "estacion_procedencia", "despachado_por"
-    )
+    ))
+    for despliegue in despliegues:
+        despliegue.transiciones = (
+            transiciones_disponibles(
+                TRANSICIONES_VALIDAS, despliegue.estado, DespliegueUnidad.Estado
+            )
+            if estacion_autorizada(request.user, despliegue.estacion_procedencia_id)
+            else []
+        )
     return render(request, "emergencias/detalle.html", {
         "emergencia": emergencia,
         "despliegues": despliegues,
         "puede_gestionar_en_admin": request.user.is_staff,
         "puede_transmitir_gps": puede_gestionar_emergencias(request.user),
+        "puede_gestionar": puede_gestionar,
+        "transiciones_emergencia": transiciones_disponibles(
+            TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
+        ) if puede_gestionar else [],
+        "unidades_en_incidente": sum(1 for despliegue in despliegues if despliegue.activo),
         "sci211": getattr(emergencia, "formulario_sci_211", None),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
         "catalogo_sci": CATALOGO_FORMULARIOS_SCI,

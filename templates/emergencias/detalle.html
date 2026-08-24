@@ -3,13 +3,16 @@
 
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=5">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=6"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
 
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
         <div><p class="eyebrow">{{ emergencia.get_estado_display }}</p><h2>{{ emergencia.tipo_emergencia }}</h2></div>
-        <a class="button" href="{% url 'emergencias:lista' %}">Volver al listado</a>
+        <div class="panel__heading-actions">
+            {% if puede_gestionar and not emergencia.esta_terminada %}<a class="button button--ghost" href="{% url 'emergencias:editar' emergencia.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>{% endif %}
+            <a class="button" href="{% url 'emergencias:lista' %}">Volver al listado</a>
+        </div>
     </div>
     <dl class="detail-grid">
         <div><dt>Prioridad</dt><dd>{{ emergencia.get_prioridad_display }}</dd></div>
@@ -18,7 +21,28 @@
         <div><dt>Registrado por</dt><dd>{{ emergencia.registrado_por.get_full_name|default:emergencia.registrado_por.username }}</dd></div>
         <div><dt>Dirección</dt><dd>{{ emergencia.direccion }}</dd></div>
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
+        {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
     </dl>
+</section>
+<section class="panel incident-state-panel">
+    <div class="panel__heading"><div><p class="eyebrow">Ciclo operativo</p><h2>Estado del incidente</h2></div>
+        <span class="incident-phase incident-phase--{% if emergencia.esta_terminada %}finished{% else %}active{% endif %}"><i class="ti {% if emergencia.esta_terminada %}ti-circle-check{% else %}ti-activity-heartbeat{% endif %}" aria-hidden="true"></i> {{ emergencia.get_estado_display }}</span>
+    </div>
+    {% if transiciones_emergencia %}
+    <p class="incident-state-help">{% if unidades_en_incidente %}Hay {{ unidades_en_incidente }} unidad{{ unidades_en_incidente|pluralize:"es" }} en el incidente. Para cerrarlo o cancelarlo, primero finalice o cancele cada despliegue.{% else %}No quedan unidades activas en el incidente.{% endif %}</p>
+    <div class="incident-state-actions">
+        {% for transicion in transiciones_emergencia %}
+        <form method="post" action="{% url 'emergencias:cambiar_estado' emergencia.pk %}">{% csrf_token %}
+            <input type="hidden" name="estado" value="{{ transicion.valor }}">
+            <button class="sci-panel-action{% if transicion.valor == 'cerrada' %} sci-panel-action--primary{% endif %}" type="submit">{{ transicion.etiqueta }}</button>
+        </form>
+        {% endfor %}
+    </div>
+    {% elif emergencia.esta_terminada %}
+    <p class="incident-state-help">La emergencia está {{ emergencia.get_estado_display|lower }} y ya no admite cambios de estado ni nuevos despliegues.</p>
+    {% else %}
+    <p class="incident-state-help">Su perfil puede consultar este incidente, pero no cambiar su estado.</p>
+    {% endif %}
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
@@ -29,10 +53,32 @@
     <nav class="sci-form-tabs" aria-label="Formularios SCI del incidente">{% for item in catalogo_sci %}<a class="sci-form-tab{% if item.codigo == '211' %} sci-form-tab--featured{% endif %}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}"><i class="ti {% if item.codigo == '211' %}ti-clipboard-check{% else %}ti-file-text{% endif %}" aria-hidden="true"></i><span>SCI-{{ item.codigo }}</span></a>{% endfor %}</nav>
 </section>
 <section class="panel">
-    <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
+    <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div>
+        {% if puede_gestionar and emergencia.admite_despliegues %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:despachar' emergencia.pk %}"><i class="ti ti-firetruck" aria-hidden="true"></i> Despachar unidad</a>{% endif %}
+    </div>
     {% if despliegues %}<div class="table-responsive"><table>
-        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Asignación</th><th>Acción</th></tr></thead>
-        <tbody>{% for despliegue in despliegues %}<tr><td>{{ despliegue.unidad }}</td><td>{{ despliegue.estacion_procedencia }}</td><td>{{ despliegue.get_estado_display }}</td><td>{{ despliegue.fecha_asignacion|date:"d/m/Y H:i" }}</td><td>{% if despliegue.activo and puede_transmitir_gps %}<a class="button button--primary" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}">Transmitir ubicación GPS</a>{% else %}<span>No disponible</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Tiempos</th><th>Acciones</th></tr></thead>
+        <tbody>{% for despliegue in despliegues %}<tr>
+            <td>{{ despliegue.unidad }}</td>
+            <td>{{ despliegue.estacion_procedencia }}</td>
+            <td><span class="deployment-state deployment-state--{{ despliegue.estado }}">{{ despliegue.get_estado_display }}</span></td>
+            <td class="deployment-times">
+                <span>Asignada: {{ despliegue.fecha_asignacion|date:"d/m/Y H:i" }}</span>
+                {% if despliegue.fecha_salida %}<span>Salida: {{ despliegue.fecha_salida|date:"H:i" }}</span>{% endif %}
+                {% if despliegue.fecha_llegada %}<span>En sitio: {{ despliegue.fecha_llegada|date:"H:i" }}</span>{% endif %}
+                {% if despliegue.fecha_retorno %}<span>Cierre: {{ despliegue.fecha_retorno|date:"H:i" }}</span>{% endif %}
+            </td>
+            <td><div class="deployment-actions">
+                {% for transicion in despliegue.transiciones %}
+                <form method="post" action="{% url 'emergencias:despliegue_estado' despliegue.pk %}">{% csrf_token %}
+                    <input type="hidden" name="estado" value="{{ transicion.valor }}">
+                    <button class="deployment-action" type="submit">{{ transicion.etiqueta }}</button>
+                </form>
+                {% endfor %}
+                {% if despliegue.activo and puede_transmitir_gps %}<a class="deployment-action deployment-action--gps" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}"><i class="ti ti-map-pin" aria-hidden="true"></i> GPS</a>{% endif %}
+                {% if not despliegue.transiciones and not despliegue.activo %}<span class="deployment-closed">Despliegue terminado</span>{% endif %}
+            </div></td>
+        </tr>{% endfor %}</tbody>
     </table></div>{% else %}<div class="empty-state"><p>No hay unidades desplegadas para esta emergencia.</p></div>{% endif %}
 </section>
 {% endblock %}

@@ -20,6 +20,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from inventario.models import Recurso
+from inventario.permissions import estaciones_permitidas
 from inventario.services import actualizar_estado_recurso
 
 from .models import DespliegueUnidad, Emergencia, PosicionUnidad
@@ -44,6 +45,26 @@ TRANSICIONES_VALIDAS = {
     DespliegueUnidad.Estado.RETORNANDO: {DespliegueUnidad.Estado.FINALIZADA},
 }
 
+ESTADOS_TERMINALES_EMERGENCIA = {Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA}
+
+TRANSICIONES_EMERGENCIA = {
+    Emergencia.Estado.REPORTADA: {
+        Emergencia.Estado.EN_ATENCION,
+        Emergencia.Estado.CANCELADA,
+    },
+    Emergencia.Estado.EN_ATENCION: {
+        Emergencia.Estado.CONTROLADA,
+        Emergencia.Estado.CERRADA,
+        Emergencia.Estado.CANCELADA,
+    },
+    Emergencia.Estado.CONTROLADA: {
+        Emergencia.Estado.EN_ATENCION,
+        Emergencia.Estado.CERRADA,
+    },
+    Emergencia.Estado.CERRADA: set(),
+    Emergencia.Estado.CANCELADA: set(),
+}
+
 
 def _validar_usuario(usuario):
     Usuario = get_user_model()
@@ -54,6 +75,28 @@ def _validar_usuario(usuario):
         or not puede_gestionar_emergencias(usuario)
     ):
         raise ValidationError("El usuario no está autorizado para gestionar despliegues.")
+
+
+def unidades_desplegables(emergencia, usuario_responsable):
+    """Unidades que ``desplegar_unidad`` aceptaría para esta emergencia.
+
+    Reproduce en una consulta las condiciones que el servicio comprueba fila a
+    fila, de modo que el formulario ofrezca solo lo que se puede despachar. La
+    validación real sigue estando en ``desplegar_unidad``: entre que se dibuja
+    la lista y se envía el formulario, otra estación puede tomar la unidad.
+    """
+    return (
+        Recurso.objects.filter(
+            estacion__in=estaciones_permitidas(usuario_responsable),
+            tipo__es_unidad_desplegable=True,
+            activo=True,
+            estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+        )
+        .exclude(despliegues_emergencias__estado__in=DespliegueUnidad.ESTADOS_ACTIVOS)
+        .select_related("tipo", "estacion")
+        .order_by("estacion__nombre", "codigo_interno")
+    )
 
 
 @transaction.atomic
@@ -185,6 +228,68 @@ def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
         usuario_responsable,
         observaciones,
     )
+
+
+@transaction.atomic
+def cambiar_estado_emergencia(emergencia, nuevo_estado, usuario_responsable):
+    """Avanza la emergencia por su ciclo operativo y sella el cierre.
+
+    Cerrar o cancelar exige que ningún despliegue siga activo: la unidad
+    quedaría marcada como asignada a un incidente terminado y el inventario
+    dejaría de reflejar la realidad.
+    """
+    _validar_usuario(usuario_responsable)
+    if nuevo_estado not in Emergencia.Estado.values:
+        raise ValidationError("El estado de la emergencia no es válido.")
+    if not isinstance(emergencia, Emergencia) or not emergencia.pk:
+        raise ValidationError("La emergencia no existe.")
+    try:
+        actual = Emergencia.objects.select_for_update().get(pk=emergencia.pk)
+    except Emergencia.DoesNotExist as error:
+        raise ValidationError("La emergencia no existe.") from error
+
+    if not estacion_autorizada(usuario_responsable, actual.estacion_responsable_id):
+        raise ValidationError("La emergencia está fuera del ámbito autorizado.")
+    if nuevo_estado not in TRANSICIONES_EMERGENCIA.get(actual.estado, set()):
+        raise ValidationError(
+            f"No se puede pasar de {actual.get_estado_display()} al estado solicitado."
+        )
+
+    campos = ["estado"]
+    if nuevo_estado in ESTADOS_TERMINALES_EMERGENCIA:
+        pendientes = list(
+            DespliegueUnidad.objects.filter(
+                emergencia=actual, estado__in=DespliegueUnidad.ESTADOS_ACTIVOS
+            ).select_related("unidad")
+        )
+        if pendientes:
+            unidades = ", ".join(despliegue.unidad.codigo_interno for despliegue in pendientes)
+            raise ValidationError(
+                f"Todavía hay unidades en el incidente ({unidades}). "
+                "Finalice o cancele cada despliegue antes de terminar la emergencia."
+            )
+        momento = timezone.now()
+        if momento < actual.fecha_reporte:
+            raise ValidationError(
+                "La fecha de reporte es posterior al momento actual; "
+                "corríjala antes de terminar la emergencia."
+            )
+        actual.fecha_cierre = momento
+        campos.append("fecha_cierre")
+
+    actual.estado = nuevo_estado
+    actual.save(update_fields=campos)
+    return actual
+
+
+def transiciones_disponibles(transiciones, estado_actual, opciones):
+    """Traduce un mapa de transiciones a pares valor/etiqueta para la interfaz."""
+    permitidos = transiciones.get(estado_actual) or set()
+    return [
+        {"valor": valor, "etiqueta": etiqueta}
+        for valor, etiqueta in opciones.choices
+        if valor in permitidos
+    ]
 
 
 def _ajustar_a_campo(valor, nombre_campo):

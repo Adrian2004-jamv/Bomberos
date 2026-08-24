@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Despachar unidad{% endblock %}
+{% block page_title %}Despachar unidad{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=6"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<section class="panel emergency-form-panel">
+    <div class="panel__heading">
+        <div><p class="eyebrow">{{ emergencia.codigo }} · {{ emergencia.get_estado_display }}</p><h2>Enviar una unidad al incidente</h2></div>
+        <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}">Volver al incidente</a>
+    </div>
+    <div class="workflow-notice">
+        <strong>{{ emergencia.tipo_emergencia }} · {{ emergencia.direccion }}</strong>
+        <span>Al despachar, la unidad queda asignada en el inventario y su cambio se registra en el historial del recurso. Solo aparecen unidades operativas y disponibles de su ámbito.</span>
+    </div>
+    {% if hay_unidades %}
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="emergency-form-grid">
+            {% for field in form %}
+            <div class="emergency-field emergency-field--wide">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {{ field }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="form-actions">
+            <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}">Cancelar</a>
+            <button class="button button--primary" type="submit"><i class="ti ti-firetruck" aria-hidden="true"></i> Despachar unidad</button>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty-state">
+        <p><strong>No hay unidades disponibles para despachar.</strong></p>
+        <p>Una unidad se puede despachar cuando es de un tipo desplegable, está activa, operativa, disponible y no participa ya en otro incidente.</p>
+        <a class="button button--ghost" href="{% url 'inventario:lista' %}">Revisar el inventario</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

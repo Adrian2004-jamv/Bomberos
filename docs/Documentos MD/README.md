@@ -34,5 +34,6 @@ Esta carpeta documenta, en orden cronológico, cada solicitud realizada durante 
 28. [Mapa operativo de unidades desplegadas](28_mapa_operativo_unidades.md)
 29. [Actualización GPS en tiempo real mediante WebSockets](29_actualizacion_websocket_mapa.md)
 30. [Primera etapa de la aplicación web progresiva](30_pwa_instalable_segura.md)
+31. [Despacho de unidades y ciclo operativo del incidente](31_despacho_y_ciclo_operativo.md)
 
 Cada documento indica el alcance, los archivos afectados, las decisiones técnicas y las comprobaciones ejecutadas.
