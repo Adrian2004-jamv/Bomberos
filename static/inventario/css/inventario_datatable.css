@@ -10,3 +10,18 @@ div.dt-container .dt-layout-table{display:block;width:100%;overflow-x:auto;overf
 .availability-light{display:inline-flex;align-items:center;gap:.35rem;color:#7b7f86;font-size:.68rem;font-weight:850;white-space:nowrap}.availability-light .ti{color:#9ca3af;font-size:1.15rem}.availability-light--fresh{color:#087c61}.availability-light--fresh .ti{color:#10a37f;filter:drop-shadow(0 0 .28rem rgb(16 163 127/45%))}
 .inventory-row-actions form{margin:0}.inventory-row-actions button{display:inline-flex;min-height:2rem;align-items:center;gap:.25rem;padding:.35rem .48rem;border:1px solid var(--color-slate-300);border-radius:.4rem;font-family:inherit;font-size:.68rem;font-weight:800;white-space:nowrap;cursor:pointer}.inventory-row-actions button .ti{font-size:.88rem}.inventory-row-actions__state{color:#fff!important;border-color:var(--color-red-700)!important;background:var(--color-red-700)}.inventory-row-actions__state:hover{border-color:#970e16!important;background:#970e16}
 .inventory-datatable .inventory-focus-column{min-width:7.5rem;text-align:center}.inventory-datatable td:nth-child(9){text-align:center}.inventory-datatable td:nth-child(9) .availability-light{justify-content:center}
+
+/* Botones de exportacion de DataTables integrados con la identidad del sistema. */
+div.dt-buttons { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+button.dt-button, div.dt-button, a.dt-button {
+    display: inline-flex; align-items: center; gap: .35rem;
+    min-height: 2.35rem; padding: .45rem .75rem;
+    border: 1px solid var(--color-slate-300); border-radius: .5rem;
+    background: #fff; color: var(--color-navy-900);
+    font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer;
+}
+button.dt-button:hover, div.dt-button:hover, a.dt-button:hover {
+    color: var(--color-red-700); border-color: #e79aa1; background: #fff7f7;
+}
+button.dt-button .ti { font-size: 1rem; }
+button.dt-button:focus-visible { outline: 3px solid rgb(201 0 18 / 20%); outline-offset: 1px; }

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Inventario{% endblock %}
 {% block page_title %}Inventario de recursos{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'vendor/datatables-2.3.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-responsive-3.0.8.min.css' %}"><link rel="stylesheet" href="{% static 'inventario/css/inventario_datatable.css' %}?v=8">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'vendor/datatables-2.3.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-responsive-3.0.8.min.css' %}"><link rel="stylesheet" href="{% static 'vendor/datatables-buttons-3.2.4.min.css' %}"><link rel="stylesheet" href="{% static 'inventario/css/inventario_datatable.css' %}?v=9">{% endblock %}
 {% block content %}
 <section class="inventory-toolbar">
     <div><h2>Recursos institucionales</h2><p>Consulta y gestiona los recursos dentro de tu alcance institucional.</p></div>
@@ -11,4 +11,4 @@
 
 <div id="inventory-results">{% include "inventario/_resultados.html" %}</div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'vendor/jquery-3.7.1.min.js' %}" defer></script><script src="{% static 'vendor/datatables-2.3.8.min.js' %}" defer></script><script src="{% static 'vendor/datatables-responsive-3.0.8.min.js' %}" defer></script><script src="{% static 'inventario/js/inventario_datatable.js' %}?v=5" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/jquery-3.7.1.min.js' %}" defer></script><script src="{% static 'vendor/datatables-2.3.8.min.js' %}" defer></script><script src="{% static 'vendor/datatables-responsive-3.0.8.min.js' %}" defer></script><script src="{% static 'vendor/jszip-3.10.1.min.js' %}" defer></script><script src="{% static 'vendor/datatables-buttons-3.2.4.min.js' %}" defer></script><script src="{% static 'vendor/datatables-buttons-html5-3.2.4.min.js' %}" defer></script><script src="{% static 'vendor/datatables-buttons-print-3.2.4.min.js' %}" defer></script><script src="{% static 'inventario/js/inventario_datatable.js' %}?v=6" defer></script>{% endblock %}

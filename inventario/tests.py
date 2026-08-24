@@ -244,10 +244,32 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, "Buscar recurso…")
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
         self.assertContains(respuesta, 'aria-label="Filtrar por actualización"', html=False)
-        self.assertContains(respuesta, "inventario_datatable.js?v=5")
-        self.assertContains(respuesta, "inventario_datatable.css?v=8")
+        self.assertContains(respuesta, "inventario_datatable.js?v=6")
+        self.assertContains(respuesta, "inventario_datatable.css?v=9")
         self.assertContains(respuesta, '>Foco</th>', html=False)
         self.assertContains(respuesta, "jquery-3.7.1.min.js")
+
+    def test_el_listado_carga_los_botones_de_exportacion(self):
+        """La tabla llega completa al navegador, así que DataTables puede
+        exportarla entera; JSZip es lo que habilita el archivo de Excel."""
+        Recurso.objects.create(
+            estacion=self.estacion_uno, tipo=self.tipo,
+            codigo_interno="EXP-01", nombre="Equipo exportable",
+        )
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertContains(respuesta, "datatables-buttons-3.2.4.min.js")
+        self.assertContains(respuesta, "datatables-buttons-html5-3.2.4.min.js")
+        self.assertContains(respuesta, "datatables-buttons-print-3.2.4.min.js")
+        self.assertContains(respuesta, "datatables-buttons-3.2.4.min.css")
+        self.assertContains(respuesta, "jszip-3.10.1.min.js")
+        self.assertContains(respuesta, 'data-export="EXP-01 · Equipo exportable', html=False)
+        contenido = respuesta.content.decode()
+        self.assertLess(
+            contenido.index("jszip-3.10.1.min.js"),
+            contenido.index("datatables-buttons-html5-3.2.4.min.js"),
+            "JSZip debe cargarse antes que el modulo que lo usa",
+        )
 
     def test_listado_agrupa_por_institucion_categoria_y_tipo(self):
         self.client.force_login(self.usuarios["provincial"])

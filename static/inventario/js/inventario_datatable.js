@@ -1,10 +1,70 @@
 (() => {
     "use strict";
+
+    // La columna 0 despliega el detalle en pantallas angostas y la ultima trae
+    // los botones de accion: ninguna de las dos es informacion del recurso.
+    const COLUMNAS_EXPORTABLES = [1, 2, 3, 4, 5, 6, 7, 8];
+    const TITULO = "Inventario de recursos";
+
+    /* Cada celda lleva su valor limpio en data-search o data-export; sin eso, el
+       texto de la celda concatena codigo, nombre y marca sin separacion. */
+    const valorDeCelda = (data, fila, columna, nodo) => {
+        const crudo = nodo?.dataset?.export ?? nodo?.dataset?.search ?? nodo?.textContent ?? data;
+        return String(crudo ?? "").replace(/\s+/g, " ").trim();
+    };
+
+    /* modifier.page vale "all" por omision, pero se declara: la tabla se pagina
+       en el navegador y el archivo debe traer las filas de todas las paginas,
+       no solo las visibles. */
+    const opcionesDeExportacion = {
+        columns: COLUMNAS_EXPORTABLES,
+        modifier: {search: "applied", order: "applied", page: "all"},
+        format: {body: valorDeCelda},
+    };
+
+    const botonesDeExportacion = () => [
+        {
+            extend: "excelHtml5",
+            text: '<i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Excel',
+            titleAttr: "Descargar el inventario filtrado en formato Excel",
+            title: TITULO,
+            filename: () => `inventario-${new Date().toISOString().slice(0, 10)}`,
+            exportOptions: opcionesDeExportacion,
+        },
+        {
+            extend: "csvHtml5",
+            text: '<i class="ti ti-file-typography" aria-hidden="true"></i> CSV',
+            titleAttr: "Descargar el inventario filtrado en CSV",
+            filename: () => `inventario-${new Date().toISOString().slice(0, 10)}`,
+            // Sin la marca de orden de bytes, Excel abre el CSV con la
+            // codificacion del sistema y rompe los acentos.
+            charset: "utf-8",
+            bom: true,
+            fieldSeparator: ";",
+            exportOptions: opcionesDeExportacion,
+        },
+        {
+            extend: "copyHtml5",
+            text: '<i class="ti ti-clipboard" aria-hidden="true"></i> Copiar',
+            titleAttr: "Copiar el inventario filtrado al portapapeles",
+            title: TITULO,
+            exportOptions: opcionesDeExportacion,
+        },
+        {
+            extend: "print",
+            text: '<i class="ti ti-printer" aria-hidden="true"></i> Imprimir',
+            titleAttr: "Imprimir el inventario filtrado",
+            title: TITULO,
+            exportOptions: opcionesDeExportacion,
+        },
+    ];
+
     const initialise = (scope = document) => {
         const table = scope.querySelector?.("[data-inventory-table]");
         if (!table || typeof DataTable === "undefined" || DataTable.isDataTable(table)) return;
         const dataTable = new DataTable(table, {
             responsive: {details: {type: "column", target: 0}},
+            buttons: botonesDeExportacion(),
             titleRow: 0,
             columnDefs: [
                 {className: "dtr-control", orderable: false, searchable: false, targets: 0},
@@ -17,7 +77,7 @@
             order: [[2, "asc"], [4, "asc"], [5, "asc"], [1, "asc"]],
             pageLength: 25,
             lengthMenu: [10, 25, 50, 100],
-            layout: {topStart: null, topEnd: "pageLength", bottomStart: "info", bottomEnd: "paging"},
+            layout: {topStart: "buttons", topEnd: "pageLength", bottomStart: "info", bottomEnd: "paging"},
             language: {
                 search: "Buscar en inventario:", searchPlaceholder: "Código, recurso, institución…",
                 lengthMenu: "Mostrar _MENU_ recursos", info: "Mostrando _START_ a _END_ de _TOTAL_ recursos",

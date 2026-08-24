@@ -1,3 +1,4 @@
+import csv
 import json
 from types import SimpleNamespace
 
@@ -7,7 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import (Case, Count, Exists, IntegerField, OuterRef, Q,
                               Value, When)
-from django.http import Http404, JsonResponse
+from django.http import Http404, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -154,6 +155,30 @@ def _preparar_avance_documental(emergencias):
     return emergencias
 
 
+def _consulta_filtrada(request):
+    """Aplica busqueda y etapa documental, sin la fase.
+
+    La comparten el listado y la exportacion, para que el archivo contenga
+    exactamente lo que la pantalla dice estar mostrando.
+    """
+    formulario = FiltroIncidentesForm(request.GET or None)
+    filtros = formulario.cleaned_data if formulario.is_valid() else {}
+    emergencias = _emergencias_permitidas(request.user)
+    if filtros.get("q"):
+        emergencias = _filtrar_por_texto(emergencias, filtros["q"])
+    if filtros.get("etapa"):
+        emergencias = _filtrar_por_etapa(emergencias, filtros["etapa"])
+    return formulario, filtros, emergencias
+
+
+def _aplicar_fase(emergencias, fase):
+    if fase == "curso":
+        return emergencias.exclude(estado__in=ESTADOS_TERMINADOS)
+    if fase == "terminada":
+        return emergencias.filter(estado__in=ESTADOS_TERMINADOS)
+    return emergencias
+
+
 @login_required
 @require_GET
 def lista(request):
@@ -166,22 +191,13 @@ def lista(request):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
 
-    formulario = FiltroIncidentesForm(request.GET or None)
-    filtros = formulario.cleaned_data if formulario.is_valid() else {}
-    emergencias = _emergencias_permitidas(request.user)
-    if filtros.get("q"):
-        emergencias = _filtrar_por_texto(emergencias, filtros["q"])
-    if filtros.get("etapa"):
-        emergencias = _filtrar_por_etapa(emergencias, filtros["etapa"])
+    formulario, filtros, emergencias = _consulta_filtrada(request)
 
     total_en_curso = emergencias.exclude(estado__in=ESTADOS_TERMINADOS).count()
     total_terminadas = emergencias.filter(estado__in=ESTADOS_TERMINADOS).count()
 
     fase = filtros.get("fase") or "all"
-    if fase == "curso":
-        emergencias = emergencias.exclude(estado__in=ESTADOS_TERMINADOS)
-    elif fase == "terminada":
-        emergencias = emergencias.filter(estado__in=ESTADOS_TERMINADOS)
+    emergencias = _aplicar_fase(emergencias, fase)
 
     pagina = Paginator(emergencias, INCIDENTES_POR_PAGINA).get_page(
         request.GET.get("pagina")
@@ -203,6 +219,90 @@ def lista(request):
         "hay_filtros": bool(filtros.get("q") or filtros.get("etapa") or filtros.get("fase")),
         "puede_crear": puede_gestionar_emergencias(request.user),
     })
+
+
+COLUMNAS_EXPORTACION = (
+    "Código", "Tipo de emergencia", "Prioridad", "Estado", "Fase operativa",
+    "Fecha de reporte", "Fecha de cierre", "Institución", "Estación responsable",
+    "Dirección", "Latitud", "Longitud", "Unidades desplegadas",
+    "Unidades activas", "Formularios SCI", "SCI-211", "Registrado por",
+)
+
+
+def _fila_exportacion(emergencia):
+    if emergencia.sci211_finalizado:
+        sci211 = "Finalizado"
+    elif emergencia.tiene_sci211:
+        sci211 = "Borrador"
+    else:
+        sci211 = "Pendiente"
+    return (
+        emergencia.codigo,
+        emergencia.tipo_emergencia,
+        emergencia.get_prioridad_display(),
+        emergencia.get_estado_display(),
+        emergencia.fase_operativa,
+        timezone.localtime(emergencia.fecha_reporte).strftime("%d/%m/%Y %H:%M"),
+        timezone.localtime(emergencia.fecha_cierre).strftime("%d/%m/%Y %H:%M")
+        if emergencia.fecha_cierre else "",
+        emergencia.estacion_responsable.cuerpo_bomberos.nombre,
+        emergencia.estacion_responsable.nombre,
+        emergencia.direccion,
+        emergencia.latitud if emergencia.latitud is not None else "",
+        emergencia.longitud if emergencia.longitud is not None else "",
+        emergencia.total_despliegues,
+        emergencia.despliegues_activos,
+        f"{emergencia.formularios_registrados}/{TOTAL_FORMULARIOS_SCI}",
+        sci211,
+        emergencia.registrado_por.get_full_name() or emergencia.registrado_por.username,
+    )
+
+
+class _Eco:
+    """Sustituye al archivo que espera ``csv.writer`` y devuelve cada linea."""
+
+    def write(self, valor):
+        return valor
+
+
+@login_required
+@require_GET
+def exportar(request):
+    """Descarga en CSV el registro completo que corresponde a los filtros.
+
+    No se exporta desde el navegador porque el listado esta paginado: la tabla
+    solo tiene doce filas y el archivo debe traer todas. Se transmite por
+    tramos para no armar el padron entero en memoria.
+    """
+    if not puede_consultar_emergencias(request.user):
+        raise PermissionDenied
+
+    _, filtros, emergencias = _consulta_filtrada(request)
+    emergencias = _aplicar_fase(emergencias, filtros.get("fase") or "all").annotate(
+        total_despliegues=Count("despliegues", distinct=True),
+        despliegues_activos=Count(
+            "despliegues",
+            filter=Q(despliegues__estado__in=DespliegueUnidad.ESTADOS_ACTIVOS),
+            distinct=True,
+        ),
+    )
+
+    escritor = csv.writer(_Eco(), delimiter=";")
+
+    def tramos():
+        # Excel abre el archivo con la codificacion del sistema si no encuentra
+        # la marca de orden de bytes, y los acentos llegan rotos.
+        yield "\ufeff"
+        yield escritor.writerow(COLUMNAS_EXPORTACION)
+        for emergencia in emergencias.iterator():
+            yield escritor.writerow(_fila_exportacion(emergencia))
+
+    momento = timezone.localtime().strftime("%Y%m%d-%H%M")
+    respuesta = StreamingHttpResponse(tramos(), content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = (
+        f'attachment; filename="incidentes-{momento}.csv"'
+    )
+    return respuesta
 
 
 @login_required
