@@ -13,6 +13,7 @@ Proyecto académico desarrollado con Django para una tesis sobre la gestión de 
 - Despacho de unidades del inventario al incidente, con seguimiento de asignada, en ruta, en sitio, retornando, finalizada o cancelada.
 - Historial y transmisión GPS de unidades desplegadas mediante PostGIS.
 - Mapa operativo con emergencias activas, unidades desplegadas y recorridos recientes.
+- Dashboard con la situación operativa: incidentes en curso, unidades desplegadas y documentación pendiente.
 - Los doce formularios SCI, con borrador, finalización y vista imprimible.
 
 ## Requisitos

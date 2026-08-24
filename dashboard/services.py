@@ -1,7 +1,12 @@
 from itertools import chain
 
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
+from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI211
+from emergencias.permissions import (
+    puede_consultar_emergencias,
+    puede_gestionar_emergencias,
+)
 from instituciones.permissions import puede_gestionar_instituciones
 from inventario.models import HistorialEstadoRecurso, Recurso
 from inventario.permissions import (
@@ -64,6 +69,95 @@ def _evaluaciones_mas_recientes(estaciones):
     ).order_by("-fecha_evaluacion", "-pk")
 
 
+ESTADOS_TERMINADOS = (Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA)
+
+
+def _emergencias_del_ambito(estaciones):
+    return Emergencia.objects.filter(estacion_responsable__in=estaciones)
+
+
+def _despliegues_del_ambito(estaciones):
+    return DespliegueUnidad.objects.filter(estacion_procedencia__in=estaciones)
+
+
+def _incidentes_en_curso(estaciones, limite=6):
+    """Incidentes abiertos, con las unidades que tienen encima y su documentación.
+
+    Las unidades y la existencia del SCI-211 se anotan en la misma consulta;
+    resolverlas por fila obligaría a una consulta por incidente al pintar la
+    tabla.
+    """
+    return (
+        _emergencias_del_ambito(estaciones)
+        .exclude(estado__in=ESTADOS_TERMINADOS)
+        .select_related("estacion_responsable", "estacion_responsable__cuerpo_bomberos")
+        .annotate(
+            unidades_activas=Count(
+                "despliegues",
+                filter=Q(despliegues__estado__in=DespliegueUnidad.ESTADOS_ACTIVOS),
+                distinct=True,
+            ),
+            tiene_sci211=Exists(
+                FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk"))
+            ),
+        )
+        .order_by("-fecha_reporte", "-pk")[:limite]
+    )
+
+
+def _resumen_operativo(estaciones):
+    emergencias = _emergencias_del_ambito(estaciones)
+    en_curso = emergencias.exclude(estado__in=ESTADOS_TERMINADOS)
+    return {
+        "incidentes_en_curso": en_curso.count(),
+        "incidentes_atendidos": emergencias.filter(
+            estado__in=ESTADOS_TERMINADOS
+        ).count(),
+        "unidades_desplegadas": _despliegues_del_ambito(estaciones)
+        .filter(estado__in=DespliegueUnidad.ESTADOS_ACTIVOS)
+        .count(),
+        # Un incidente abierto sin SCI-211 es documentación pendiente: ese
+        # formulario es el registro maestro de recursos del incidente.
+        "sin_documentar": en_curso.filter(
+            ~Exists(FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk")))
+        ).count(),
+    }
+
+
+def _actividad_operativa(estaciones, limite):
+    emergencias = (
+        _emergencias_del_ambito(estaciones)
+        .select_related("estacion_responsable")
+        .order_by("-fecha_reporte", "-pk")[:limite]
+    )
+    despliegues = (
+        _despliegues_del_ambito(estaciones)
+        .select_related("unidad", "emergencia")
+        .order_by("-fecha_asignacion", "-pk")[:limite]
+    )
+    return chain(
+        (
+            {
+                "fecha": emergencia.fecha_reporte,
+                "tipo": "Incidente",
+                "titulo": f"{emergencia.codigo} · {emergencia.tipo_emergencia}",
+                "detalle": f"{emergencia.estacion_responsable.nombre}: "
+                           f"{emergencia.get_estado_display()}",
+            }
+            for emergencia in emergencias
+        ),
+        (
+            {
+                "fecha": despliegue.fecha_asignacion,
+                "tipo": "Despliegue",
+                "titulo": f"{despliegue.unidad.codigo_interno} → {despliegue.emergencia.codigo}",
+                "detalle": despliegue.get_estado_display(),
+            }
+            for despliegue in despliegues
+        ),
+    )
+
+
 def construir_dashboard(usuario, limite_actividad=8):
     estaciones = estaciones_permitidas(usuario)
     recursos = recursos_permitidos(usuario)
@@ -123,6 +217,7 @@ def construir_dashboard(usuario, limite_actividad=8):
     )[:limite_actividad]
     actividad = sorted(
         chain(
+            _actividad_operativa(estaciones, limite_actividad),
             (
                 {
                     "fecha": cambio.fecha_registro,
@@ -150,6 +245,8 @@ def construir_dashboard(usuario, limite_actividad=8):
         "rol_principal": _rol_principal(usuario),
         "alcance_descripcion": _descripcion_alcance(usuario, estaciones),
         "resumen": resumen_recursos,
+        "operativo": _resumen_operativo(estaciones),
+        "incidentes_en_curso": _incidentes_en_curso(estaciones),
         "categorias": categorias,
         "estados_operativos": estados_operativos,
         "evaluaciones_recientes": evaluaciones_recientes[:6],
@@ -158,6 +255,8 @@ def construir_dashboard(usuario, limite_actividad=8):
         "puede_gestionar_inventario": puede_gestionar_inventario(usuario),
         "puede_consultar_capacidades": puede_consultar_capacidades(usuario),
         "puede_evaluar_capacidades": puede_evaluar_capacidades(usuario),
+        "puede_consultar_emergencias": puede_consultar_emergencias(usuario),
+        "puede_gestionar_emergencias": puede_gestionar_emergencias(usuario),
         "puede_consultar_instituciones": bool(
             tiene_alcance_global(usuario) or usuario.estacion_id
         ),
