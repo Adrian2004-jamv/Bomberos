@@ -28,7 +28,6 @@ class EmergenciaForm(forms.ModelForm):
     class Meta:
         model = Emergencia
         fields = (
-            "codigo",
             "tipo_emergencia",
             "descripcion",
             "prioridad",
@@ -103,6 +102,16 @@ class FiltroIncidentesForm(forms.Form):
         ("en_elaboracion", "En elaboración"),
         ("completa", "Completa"),
     )
+    TIPOS_EMERGENCIA = (
+        ("", "Todos"),
+        ("Incendio forestal", "Incendio forestal"),
+        ("Incendio estructural", "Incendio estructural"),
+        ("Rescate", "Rescate"),
+        ("Accidente vehicular", "Accidente vehicular"),
+        ("Inundación", "Inundación"),
+        ("Materiales peligrosos", "Materiales peligrosos"),
+        ("Emergencia médica", "Emergencia médica"),
+    )
 
     q = forms.CharField(
         label="Buscar incidentes",
@@ -120,6 +129,12 @@ class FiltroIncidentesForm(forms.Form):
         # El guion de la página envía el formulario al cambiar esta selección,
         # para no obligar a pulsar «Filtrar».
         widget=forms.Select(attrs={"data-incident-document-stage": ""}),
+    )
+    tipo = forms.ChoiceField(
+        label="Tipo de emergencia",
+        required=False,
+        choices=TIPOS_EMERGENCIA,
+        widget=forms.Select(attrs={"data-incident-emergency-type": ""}),
     )
     fase = forms.ChoiceField(required=False, choices=FASES, widget=forms.HiddenInput)
 

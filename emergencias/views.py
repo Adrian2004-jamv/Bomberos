@@ -1,11 +1,14 @@
 import csv
 import json
+import re
+import unicodedata
 from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import connection, transaction
 from django.db.models import (Case, Count, Exists, IntegerField, OuterRef, Q,
                               Value, When)
 from django.http import Http404, JsonResponse, StreamingHttpResponse
@@ -39,6 +42,36 @@ from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
 
 
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
+
+
+def _iniciales_tipo_emergencia(tipo):
+    """Forma dos letras estables: «Incendio forestal» -> IF, «Rescate» -> RE."""
+    limpio = unicodedata.normalize("NFKD", tipo)
+    palabras = re.findall(r"[A-Za-z0-9]+", limpio.encode("ascii", "ignore").decode())
+    if not palabras:
+        return "EM"
+    if len(palabras) == 1:
+        return palabras[0][:2].upper().ljust(2, "X")
+    return (palabras[0][0] + palabras[1][0]).upper()
+
+
+def _generar_codigo_emergencia(tipo, fecha_reporte):
+    """Genera IF-DDMMAAAA-NNN y serializa el consecutivo en PostgreSQL."""
+    fecha_local = timezone.localtime(fecha_reporte)
+    prefijo = f"{_iniciales_tipo_emergencia(tipo)}-{fecha_local:%d%m%Y}-"
+    # Dos registros simultaneos del mismo tipo y fecha no deben recibir el
+    # mismo consecutivo. El bloqueo dura hasta finalizar transaction.atomic.
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [prefijo])
+    codigos = Emergencia.objects.filter(
+        codigo__startswith=prefijo
+    ).values_list("codigo", flat=True)
+    consecutivos = [
+        int(codigo.removeprefix(prefijo))
+        for codigo in codigos
+        if codigo.removeprefix(prefijo).isdigit()
+    ]
+    return f"{prefijo}{max(consecutivos, default=0) + 1:03d}"
 
 
 def _entrada_catalogo(codigo, esquema):
@@ -156,7 +189,7 @@ def _preparar_avance_documental(emergencias):
 
 
 def _consulta_filtrada(request):
-    """Aplica busqueda y etapa documental, sin la fase.
+    """Aplica busqueda, tipo y etapa documental, sin la fase.
 
     La comparten el listado y la exportacion, para que el archivo contenga
     exactamente lo que la pantalla dice estar mostrando.
@@ -166,6 +199,12 @@ def _consulta_filtrada(request):
     emergencias = _emergencias_permitidas(request.user)
     if filtros.get("q"):
         emergencias = _filtrar_por_texto(emergencias, filtros["q"])
+    if filtros.get("tipo"):
+        # Se usa coincidencia parcial porque el registro admite descripciones
+        # mas especificas, por ejemplo «Rescate en altura».
+        emergencias = emergencias.filter(
+            tipo_emergencia__icontains=filtros["tipo"]
+        )
     if filtros.get("etapa"):
         emergencias = _filtrar_por_etapa(emergencias, filtros["etapa"])
     return formulario, filtros, emergencias
@@ -216,7 +255,10 @@ def lista(request):
         "total_en_curso": total_en_curso,
         "total_terminadas": total_terminadas,
         "total_filtrado": total_en_curso + total_terminadas,
-        "hay_filtros": bool(filtros.get("q") or filtros.get("etapa") or filtros.get("fase")),
+        "hay_filtros": bool(
+            filtros.get("q") or filtros.get("tipo")
+            or filtros.get("etapa") or filtros.get("fase")
+        ),
         "puede_crear": puede_gestionar_emergencias(request.user),
     })
 
@@ -311,10 +353,14 @@ def crear(request):
         raise PermissionDenied
     formulario = EmergenciaForm(request.POST or None, usuario=request.user)
     if request.method == "POST" and formulario.is_valid():
-        emergencia = formulario.save(commit=False)
-        emergencia.registrado_por = request.user
-        emergencia.estado = Emergencia.Estado.REPORTADA
-        emergencia.save()
+        with transaction.atomic():
+            emergencia = formulario.save(commit=False)
+            emergencia.codigo = _generar_codigo_emergencia(
+                emergencia.tipo_emergencia, emergencia.fecha_reporte
+            )
+            emergencia.registrado_por = request.user
+            emergencia.estado = Emergencia.Estado.REPORTADA
+            emergencia.save()
         messages.success(request, "Emergencia registrada correctamente.")
         return redirect("emergencias:detalle", pk=emergencia.pk)
     return render(request, "emergencias/formulario.html", {
@@ -435,6 +481,26 @@ def detalle(request, pk):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=pk)
+    sci211 = getattr(emergencia, "formulario_sci_211", None)
+    genericos = {
+        formulario.codigo_sci: formulario
+        for formulario in emergencia.formularios_sci.all()
+    }
+    catalogo_sci_estado = []
+    for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
+        formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
+        if formulario is None:
+            clave_estado, etiqueta_estado = "pending", "No iniciado"
+        elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
+            clave_estado, etiqueta_estado = "complete", "Finalizado"
+        else:
+            clave_estado, etiqueta_estado = "incomplete", "Incompleto"
+        catalogo_sci_estado.append({
+            **item,
+            "numero": numero,
+            "clave_estado": clave_estado,
+            "etiqueta_estado": etiqueta_estado,
+        })
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
         "unidad", "estacion_procedencia", "despachado_por"
@@ -457,9 +523,9 @@ def detalle(request, pk):
             TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
         ) if puede_gestionar else [],
         "unidades_en_incidente": sum(1 for despliegue in despliegues if despliegue.activo),
-        "sci211": getattr(emergencia, "formulario_sci_211", None),
+        "sci211": sci211,
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
-        "catalogo_sci": CATALOGO_FORMULARIOS_SCI,
+        "catalogo_sci": catalogo_sci_estado,
     })
 
 

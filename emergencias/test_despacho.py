@@ -441,7 +441,6 @@ class EdicionEmergenciaTests(BaseDespachoTests):
         self.client.force_login(self.responsable)
         futuro = (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
         respuesta = self.client.post(reverse("emergencias:crear"), {
-            "codigo": "EM-DP-FUT",
             "tipo_emergencia": "Rescate",
             "descripcion": "Prueba",
             "prioridad": Emergencia.Prioridad.MEDIA,
@@ -453,4 +452,4 @@ class EdicionEmergenciaTests(BaseDespachoTests):
         })
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "La fecha del reporte no puede estar en el futuro.")
-        self.assertFalse(Emergencia.objects.filter(codigo="EM-DP-FUT").exists())
+        self.assertFalse(Emergencia.objects.filter(descripcion="Prueba").exists())

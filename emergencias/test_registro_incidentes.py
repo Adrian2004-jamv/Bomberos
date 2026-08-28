@@ -134,6 +134,37 @@ class BusquedaTests(BaseRegistroTests):
         self.assertEqual(self.codigos(self.listar(q="  forestal  ")), ["RG-BUS-001"])
 
 
+class FiltroPorTipoEmergenciaTests(BaseRegistroTests):
+    def setUp(self):
+        self.crear("RG-TIPO-FORESTAL", tipo="Incendio forestal")
+        self.crear("RG-TIPO-RESCATE", tipo="Rescate en altura")
+        self.crear(
+            "RG-TIPO-INUNDACION", tipo="Inundación",
+            estado=Emergencia.Estado.CERRADA,
+        )
+
+    def test_filtra_por_tipo_exacto(self):
+        self.assertEqual(
+            self.codigos(self.listar(tipo="Incendio forestal")),
+            ["RG-TIPO-FORESTAL"],
+        )
+
+    def test_incluye_descripciones_especificas_del_tipo(self):
+        self.assertEqual(
+            self.codigos(self.listar(tipo="Rescate")), ["RG-TIPO-RESCATE"]
+        )
+
+    def test_se_combina_con_la_fase(self):
+        self.assertEqual(
+            self.codigos(self.listar(tipo="Inundación", fase="terminada")),
+            ["RG-TIPO-INUNDACION"],
+        )
+
+    def test_el_selector_conserva_el_tipo_elegido(self):
+        respuesta = self.listar(tipo="Rescate")
+        self.assertContains(respuesta, '<option value="Rescate" selected>')
+
+
 class FiltroPorEtapaSciTests(BaseRegistroTests):
     def setUp(self):
         self.sin_iniciar = self.crear("RG-SCI-VACIO")
@@ -215,9 +246,13 @@ class AlcanceYFormularioTests(BaseRegistroTests):
 
     def test_la_barra_de_filtros_conserva_lo_elegido(self):
         self.crear("RG-ESTADO")
-        respuesta = self.listar(q="RG-", etapa="sin_iniciar", fase="curso")
+        respuesta = self.listar(
+            q="RG-", tipo="Incendio estructural", fase="curso"
+        )
         self.assertContains(respuesta, 'value="RG-"')
-        self.assertContains(respuesta, '<option value="sin_iniciar" selected>')
+        self.assertContains(
+            respuesta, '<option value="Incendio estructural" selected>'
+        )
         self.assertContains(respuesta, 'value="curso"')
         self.assertContains(respuesta, "Limpiar")
 

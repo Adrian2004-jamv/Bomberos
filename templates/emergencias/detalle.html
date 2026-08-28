@@ -3,7 +3,7 @@
 
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=6"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=9"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
 
 {% block content %}
 <section class="panel">
@@ -50,7 +50,12 @@
     {% elif sci211 %}<div class="sci-panel-actions"><a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_detalle' sci211.pk %}"><i class="ti ti-eye" aria-hidden="true"></i> Consultar SCI-211</a><a class="sci-panel-action sci-panel-action--secondary" href="{% url 'emergencias:sci211_imprimir' sci211.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> Vista imprimible</a></div>
     {% elif puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="sci-panel-action sci-panel-action--primary" type="submit"><i class="ti ti-file-plus" aria-hidden="true"></i> Abrir formulario oficial SCI-211</button></form>{% endif %}</div>
     <div class="incident-sci-summary"><span class="incident-sci-summary__icon"><i class="ti ti-file-check" aria-hidden="true"></i></span><div><strong>SCI-211 - Registro y Control de Recursos</strong><span>{% if sci211 %}Estado: {{ sci211.get_estado_display }} · Actualizado: {{ sci211.fecha_actualizacion|date:"d/m/Y H:i" }}{% else %}Todavía no se ha creado para esta emergencia.{% endif %}</span></div></div>
-    <nav class="sci-form-tabs" aria-label="Formularios SCI del incidente">{% for item in catalogo_sci %}<a class="sci-form-tab{% if item.codigo == '211' %} sci-form-tab--featured{% endif %}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}"><i class="ti {% if item.codigo == '211' %}ti-clipboard-check{% else %}ti-file-text{% endif %}" aria-hidden="true"></i><span>SCI-{{ item.codigo }}</span></a>{% endfor %}</nav>
+    <div class="sci-status-legend" aria-label="Estados de los formularios">
+        <span><i class="sci-status-dot sci-status-dot--complete" aria-hidden="true"></i>Finalizado correctamente</span>
+        <span><i class="sci-status-dot sci-status-dot--incomplete" aria-hidden="true"></i>Incompleto o con errores</span>
+        <span><i class="sci-status-dot sci-status-dot--pending" aria-hidden="true"></i>No iniciado</span>
+    </div>
+    <nav class="sci-form-tabs" aria-label="Orden de formularios SCI del incidente">{% for item in catalogo_sci %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><small>{{ item.etiqueta_estado }}</small></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div>

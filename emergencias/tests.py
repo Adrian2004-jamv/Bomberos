@@ -334,7 +334,6 @@ class EmergenciasYDesplieguesTests(TestCase):
     def test_responsable_puede_crear_emergencia_desde_la_aplicacion(self):
         self.client.force_login(self.usuario_estacion)
         respuesta = self.client.post("/emergencias/crear/", {
-            "codigo": "EM-WEB-001",
             "tipo_emergencia": "Rescate",
             "descripcion": "Atención desde la interfaz",
             "prioridad": Emergencia.Prioridad.ALTA,
@@ -344,7 +343,9 @@ class EmergenciasYDesplieguesTests(TestCase):
             "longitud": "-78.616667",
             "estacion_responsable": self.estacion_uno.pk,
         })
-        emergencia = Emergencia.objects.get(codigo="EM-WEB-001")
+        emergencia = Emergencia.objects.get(tipo_emergencia="Rescate")
+        fecha = timezone.localtime(emergencia.fecha_reporte).strftime("%d%m%Y")
+        self.assertEqual(emergencia.codigo, f"RE-{fecha}-001")
         self.assertRedirects(respuesta, f"/emergencias/{emergencia.pk}/")
         self.assertEqual(emergencia.registrado_por, self.usuario_estacion)
         self.assertEqual(emergencia.estado, Emergencia.Estado.REPORTADA)
@@ -370,9 +371,9 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "Unidad operativa")
         self.assertContains(respuesta, "Registro dinámico de incidentes")
         self.assertContains(respuesta, 'data-incident-phase="curso"', html=False)
-        self.assertContains(respuesta, 'data-incident-document-stage', html=False)
+        self.assertContains(respuesta, 'data-incident-emergency-type', html=False)
         self.assertContains(respuesta, "0/12 formularios")
-        self.assertContains(respuesta, "registro_incidentes.js?v=2")
+        self.assertContains(respuesta, "registro_incidentes.js?v=4")
         self.assertNotContains(respuesta, "Filtros operativos")
         contenido = respuesta.content.decode()
         self.assertLess(contenido.index('data-incident-map'), contenido.index('class="incident-actions"'))
@@ -383,6 +384,7 @@ class EmergenciasYDesplieguesTests(TestCase):
         respuesta = self.client.get("/emergencias/crear/")
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "Datos iniciales del incidente")
+        self.assertNotContains(respuesta, 'name="codigo"')
         self.assertContains(respuesta, 'href="/emergencias/#registro-incidentes"', html=False)
         self.assertContains(respuesta, 'aria-current="page"', html=False)
         self.assertContains(respuesta, "Registrar emergencia")

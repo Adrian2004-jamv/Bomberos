@@ -212,13 +212,22 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Borrador")
         self.assertContains(respuesta, "Actualizado:")
         self.assertContains(respuesta, "Continuar SCI-211")
+        self.assertContains(respuesta, "Incompleto o con errores")
+        self.assertContains(
+            respuesta, 'class="sci-form-tab sci-form-tab--incomplete"', html=False
+        )
+        self.assertContains(
+            respuesta, 'class="sci-form-tab sci-form-tab--pending"', html=False
+        )
+        self.assertContains(respuesta, "Paso 1: SCI-201")
         finalizar_sci211(formulario, self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
         self.assertContains(respuesta, "Consultar SCI-211")
         self.assertContains(respuesta, "Vista imprimible")
         self.assertContains(respuesta, 'class="sci-panel-action sci-panel-action--primary"', html=False)
         self.assertContains(respuesta, 'class="sci-form-tabs"', html=False)
-        self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--featured"', html=False)
+        self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--complete"', html=False)
+        self.assertContains(respuesta, "Finalizado correctamente")
 
     def test_menu_incluye_formularios_sci_y_marca_opcion_activa(self):
         self.client.force_login(self.usuario)

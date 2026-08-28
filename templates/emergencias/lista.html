@@ -3,7 +3,7 @@
 
 {% block title %}Incidentes reportados{% endblock %}
 {% block page_title %}Incidentes reportados{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=6"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=8"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}?v=3">{% endblock %}
 
 {% block content %}
 <section class="incident-map-panel" aria-label="Mapa operativo de incidentes">
@@ -38,7 +38,7 @@
         </div>
         {{ form.fase }}
         <label class="incident-register-search"><i class="ti ti-search" aria-hidden="true"></i><span class="sr-only">{{ form.q.label }}</span>{{ form.q }}</label>
-        <label class="incident-document-filter"><span>{{ form.etapa.label }}</span>{{ form.etapa }}</label>
+        <label class="incident-document-filter incident-type-filter"><span>{{ form.tipo.label }}</span>{{ form.tipo }}</label>
         <button class="incident-filter-submit" type="submit"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
         <a class="incident-filter-export" href="{% url 'emergencias:exportar' %}{% if querystring %}?{{ querystring }}{% endif %}"><i class="ti ti-file-download" aria-hidden="true"></i> Exportar CSV</a>
         {% if hay_filtros %}<a class="incident-filter-clear" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-x" aria-hidden="true"></i> Limpiar</a>{% endif %}
@@ -55,8 +55,8 @@
             </tr>{% endfor %}</tbody>
         </table></div>
         {% include "emergencias/fragmentos/paginacion.html" %}
-    {% elif hay_filtros %}<div class="incident-filter-empty" data-incident-filter-empty><i class="ti ti-search-off" aria-hidden="true"></i><strong>Sin coincidencias</strong><span>Prueba con otra fase, etapa documental o término de búsqueda.</span></div>
+    {% elif hay_filtros %}<div class="incident-filter-empty" data-incident-filter-empty><i class="ti ti-search-off" aria-hidden="true"></i><strong>Sin coincidencias</strong><span>Prueba con otro tipo de emergencia, fase o término de búsqueda.</span></div>
     {% else %}<div class="empty-state"><p>No existen emergencias registradas en su ámbito autorizado.</p></div>{% endif %}
 </section>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'emergencias/js/mapa_incidentes.js' %}?v=3" defer></script><script src="{% static 'emergencias/js/registro_incidentes.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'emergencias/js/mapa_incidentes.js' %}?v=3" defer></script><script src="{% static 'emergencias/js/registro_incidentes.js' %}?v=4" defer></script>{% endblock %}
