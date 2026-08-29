@@ -12,6 +12,7 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .forms_sci import RegistroRecursoSCI211Form
+from .esquemas_sci import ESQUEMAS_SCI, HORA, secciones_con_valores
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services_sci import finalizar_sci211
 
@@ -631,3 +632,100 @@ class SCI211Tests(TestCase):
         self.assertIn("&lt;script&gt;", html)
         self.assertIn("Matrícula", html)
         self.assertIn("@page", html)
+
+
+class ControlesDeFechaSCITests(TestCase):
+    """Las columnas de fecha se llenan con un calendario, no escribiendo."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="FEC-T")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Fechas", sigla="FEC-T",
+            ruc="0596000000900", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Estación Fechas", codigo="EF-SCI",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.usuario = get_user_model().objects.create_user(
+            username="fechas-sci", cedula="0800000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.usuario.groups.add(Group.objects.get(name="Responsable institucional"))
+        cls.emergencia = Emergencia.objects.create(
+            codigo="IE-01012026-900", tipo_emergencia="Incendio estructural",
+            direccion="Centro", estacion_responsable=cls.estacion,
+            registrado_por=cls.usuario,
+        )
+
+    def editar(self, codigo):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse(
+            "emergencias:sci_editar", args=[codigo, self.emergencia.pk]
+        ))
+
+    def test_el_sci_201_ofrece_calendario_en_el_resumen_de_acciones(self):
+        respuesta = self.editar("201")
+        self.assertContains(respuesta, 'type="datetime-local" name="acciones-0-fecha_hora"')
+
+    def test_el_sci_214_declara_su_columna_de_hora(self):
+        """El 214 se abre al final del flujo, así que se revisa su esquema.
+
+        Llegar a él por la interfaz exige finalizar los nueve formularios
+        anteriores, que es lo que comprueban las pruebas del flujo secuencial.
+        """
+        seccion = next(
+            s for s in ESQUEMAS_SCI["214"]["secciones"] if s["nombre"] == "actividades"
+        )
+        columna = next(c for c in seccion["columnas"] if c["nombre"] == "hora")
+        self.assertEqual(columna["tipo"], HORA)
+
+    def test_una_columna_de_hora_se_dibuja_con_reloj(self):
+        seccion = next(
+            s for s in ESQUEMAS_SCI["214"]["secciones"] if s["nombre"] == "actividades"
+        )
+        filas = secciones_con_valores(ESQUEMAS_SCI["214"], {})
+        actividades = next(s for s in filas if s["nombre"] == "actividades")
+        primera = actividades["filas"][0]["celdas"][0]
+        self.assertEqual(primera["tipo"], HORA)
+        self.assertEqual(seccion["columnas"][0]["etiqueta"], "Hora")
+
+    def test_las_columnas_de_texto_siguen_siendo_texto(self):
+        respuesta = self.editar("201")
+        self.assertContains(respuesta, 'name="acciones-0-accion"')
+        self.assertNotContains(respuesta, 'type="datetime-local" name="acciones-0-accion"')
+
+    def test_un_valor_anterior_sin_formato_no_desaparece(self):
+        """Lo escrito antes de que la columna tuviera tipo debe seguir visible."""
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="201",
+            datos={"acciones": [{"fecha_hora": "aasdas", "accion": "Arribo"}]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        respuesta = self.editar("201")
+        self.assertContains(respuesta, "aasdas")
+        self.assertNotContains(respuesta, 'type="datetime-local" name="acciones-0-fecha_hora"')
+
+    def test_un_valor_con_formato_valido_usa_el_calendario(self):
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="201",
+            datos={"acciones": [{"fecha_hora": "2026-03-10T09:15", "accion": "Arribo"}]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        respuesta = self.editar("201")
+        self.assertContains(respuesta, 'type="datetime-local" name="acciones-0-fecha_hora"')
+        self.assertContains(respuesta, 'value="2026-03-10T09:15"')
+
+    def test_la_impresion_permite_cortar_palabras_largas(self):
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="201",
+            datos={"estrategias": "a" * 400},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_visualizar", args=["201", self.emergencia.pk]
+        ))
+        self.assertContains(respuesta, "overflow-wrap:anywhere")
+        self.assertContains(respuesta, "table-layout:fixed")

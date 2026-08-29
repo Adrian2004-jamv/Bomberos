@@ -11,18 +11,30 @@ Los datos capturados se guardan en ``FormularioSCI.datos`` con esta forma:
 * listas de chequeo   -> ``{"nombre_lista": {"filas": [...], "firma": "..."}}``
 """
 
+import re
+
 TEXTO = "texto"
 TEXTAREA = "textarea"
 FECHA_HORA = "fecha_hora"
+HORA = "hora"
 TABLA = "tabla"
 
+# Formatos que produce cada control del navegador. Sirven para reconocer un
+# valor guardado antes de que la columna tuviera tipo: si no encaja se muestra
+# como texto, de modo que nadie pierde lo que ya habia escrito.
+_PATRONES = {
+    FECHA_HORA: re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$"),
+    HORA: re.compile(r"^\d{2}:\d{2}(:\d{2})?$"),
+}
 
-def _columna(nombre, etiqueta, ancho="", recurso_inventario=False):
+
+def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO):
     return {
         "nombre": nombre,
         "etiqueta": etiqueta,
         "ancho": ancho,
         "recurso_inventario": recurso_inventario,
+        "tipo": tipo,
     }
 
 
@@ -51,7 +63,7 @@ ESQUEMAS_SCI = {
             {"numero": 14, "nombre": "croquis", "etiqueta": "Mapa situacional o croquis", "tipo": TEXTAREA,
              "ayuda": "Describa el croquis. Las coordenadas de la emergencia se imprimen automáticamente.", "filas": 6},
             {"numero": 16, "nombre": "acciones", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
-             "columnas": [_columna("fecha_hora", "15. Fecha y hora", "18%"),
+             "columnas": [_columna("fecha_hora", "15. Fecha y hora", "18%", tipo=FECHA_HORA),
                           _columna("accion", "Resumen de la acción")],
              "filas_minimas": 6},
             {"numero": 17, "nombre": "organigrama", "etiqueta": "Organigrama actual", "tipo": TEXTAREA,
@@ -228,7 +240,7 @@ ESQUEMAS_SCI = {
                           _columna("clasificacion", "7. Clasificación", "13%"),
                           _columna("lugar_traslado", "8. Lugar de traslado", "18%"),
                           _columna("trasladado_por", "9. Trasladado por", "17%"),
-                          _columna("fecha_hora", "10. Fecha y hora", "15%")],
+                          _columna("fecha_hora", "10. Fecha y hora", "15%", tipo=FECHA_HORA)],
              "filas_minimas": 12},
         ],
     },
@@ -249,7 +261,7 @@ ESQUEMAS_SCI = {
                           _columna("institucion", "Institución a la que pertenece")],
              "filas_minimas": 6},
             {"numero": 7, "nombre": "actividades", "etiqueta": "Registro de actividades", "tipo": TABLA,
-             "columnas": [_columna("hora", "Hora", "12%"), _columna("evento", "Eventos principales")],
+             "columnas": [_columna("hora", "Hora", "12%", tipo=HORA), _columna("evento", "Eventos principales")],
              "filas_minimas": 14},
         ],
     },
@@ -373,6 +385,20 @@ def secciones_con_valores(esquema, datos):
     return resultado
 
 
+def _celda(columna, valor):
+    """Arma una celda y decide el control con que se dibuja.
+
+    Una columna de fecha vuelve a texto cuando el valor guardado no tiene el
+    formato que espera el control: es información que alguien escribió antes de
+    que la columna tuviera tipo y no debe desaparecer de la pantalla.
+    """
+    tipo = columna.get("tipo", TEXTO)
+    patron = _PATRONES.get(tipo)
+    if patron and valor and not patron.match(str(valor)):
+        tipo = TEXTO
+    return {"columna": columna, "valor": valor, "tipo": tipo}
+
+
 def _filas_para_render(seccion, guardadas):
     columnas = seccion["columnas"]
     guardadas = guardadas if isinstance(guardadas, list) else []
@@ -381,7 +407,7 @@ def _filas_para_render(seccion, guardadas):
         filas = []
         for indice, etiqueta in enumerate(fijas):
             origen = guardadas[indice] if indice < len(guardadas) and isinstance(guardadas[indice], dict) else {}
-            celdas = [{"columna": columna, "valor": origen.get(columna["nombre"], "")} for columna in columnas]
+            celdas = [_celda(columna, origen.get(columna["nombre"], "")) for columna in columnas]
             celdas[0]["fija"] = etiqueta
             celdas[0]["valor"] = etiqueta
             filas.append({"celdas": celdas})
@@ -391,7 +417,7 @@ def _filas_para_render(seccion, guardadas):
     filas = []
     for indice in range(total):
         origen = guardadas[indice] if indice < len(guardadas) and isinstance(guardadas[indice], dict) else {}
-        filas.append({"celdas": [{"columna": columna, "valor": origen.get(columna["nombre"], "")}
+        filas.append({"celdas": [_celda(columna, origen.get(columna["nombre"], ""))
                                  for columna in columnas]})
     return filas
 
@@ -470,16 +496,16 @@ ESQUEMA_CATALOGO_211 = {
     "secciones": [
         {"numero": 1, "nombre": "recursos", "etiqueta": "Registro y control de recursos", "tipo": TABLA,
          "columnas": [_columna("solicitado_por", "A. Solicitud — 1. Por quién", "11%"),
-                      _columna("fecha_solicitud", "2. Fecha y hora", "9%"),
+                      _columna("fecha_solicitud", "2. Fecha y hora", "9%", tipo=FECHA_HORA),
                       _columna("clase", "3. Clase", "8%"),
                       _columna("tipo", "4. Tipo", "8%"),
-                      _columna("fecha_arribo", "B. Arribo real — 5. Fecha y hora", "9%"),
+                      _columna("fecha_arribo", "B. Arribo real — 5. Fecha y hora", "9%", tipo=FECHA_HORA),
                       _columna("institucion", "C. Suministrado por — 6. Institución", "12%"),
                       _columna("matricula", "7. Matrícula", "8%"),
                       _columna("personas", "8. N.º de personas", "6%"),
                       _columna("estado", "D. Estado del recurso", "10%"),
                       _columna("desmovilizado_por", "E. Desmovilizado — 10. Por quién", "10%"),
-                      _columna("fecha_desmovilizacion", "11. Fecha y hora", "9%"),
+                      _columna("fecha_desmovilizacion", "11. Fecha y hora", "9%", tipo=FECHA_HORA),
                       _columna("observaciones", "12. Observaciones")],
          "filas_minimas": 12},
     ],

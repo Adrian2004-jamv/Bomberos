@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=9"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=2">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -66,6 +66,10 @@
                       {% for recurso in recursos_disponibles %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}
                     </select>
                     {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
+                  {% elif celda.tipo == 'fecha_hora' %}
+                    <input type="datetime-local" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
+                  {% elif celda.tipo == 'hora' %}
+                    <input type="time" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
                   {% else %}
                     <input name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" maxlength="5000">
                   {% endif %}

@@ -37,3 +37,12 @@
 .sci-finalizar{margin-top:16px;padding:12px 16px;border-left:4px solid #d89b00;background:#fff7dd;border-radius:4px}
 .sci-finalizar p{margin:0 0 8px;font-size:12px}
 @media (max-width:900px){.sci-periodo{grid-template-columns:1fr}.sci-tabla{overflow-x:auto}}
+
+/* Ajuste de texto en el editor. Una cadena larga sin espacios no tiene donde
+   cortar y estiraba la tabla hasta desbordar la pagina. */
+.sci-tabla table{table-layout:fixed}
+.sci-tabla td,.sci-tabla th{overflow-wrap:anywhere;word-break:break-word}
+.sci-tabla td input,.sci-word-sections textarea,.sci-word-sections input{max-width:100%}
+.sci-word-sections textarea{overflow-wrap:anywhere;word-break:break-word;resize:vertical}
+/* Los controles de fecha y hora traen su propio ancho minimo. */
+.sci-tabla td input[type="datetime-local"],.sci-tabla td input[type="time"]{min-width:0;font-size:11px}
