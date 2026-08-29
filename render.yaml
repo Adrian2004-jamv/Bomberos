@@ -50,6 +50,8 @@ services:
         # instituciones retiradas, y solo entonces las elimina: no se pierde
         # informacion. Es idempotente, de modo que repetirlo no hace nada.
         python manage.py limpiar_instituciones_no_precargadas --ejecutar
+      else
+        echo "DJANGO_RETIRAR_INSTITUCIONES no vale 1: se conservan las instituciones anteriores."
       fi
       if [ "${DJANGO_CARGAR_ESCENARIOS:-}" = "1" ]; then
         # El escenario exige que la estacion de Latacunga tenga las unidades
