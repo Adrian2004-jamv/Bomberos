@@ -1,7 +1,9 @@
 "use strict";
 
 const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
-const STATIC_CACHE = `${CACHE_PREFIX}static-v3`;
+// Subir este numero descarta todo lo guardado por la version anterior: el
+// detector de «activate» borra las caches cuyo nombre no coincide con esta.
+const STATIC_CACHE = `${CACHE_PREFIX}static-v4`;
 const OFFLINE_URL = "/sin-conexion/";
 const SAFE_ASSETS = [
     OFFLINE_URL,
@@ -74,12 +76,25 @@ self.addEventListener("fetch", (event) => {
     const safeStaticRequest = url.pathname.startsWith("/static/")
         && ["style", "script", "image", "font"].includes(request.destination);
     if (safeStaticRequest) {
-        event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-            if (response.ok && response.type === "basic") {
-                const copy = response.clone();
-                caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-            }
-            return response;
-        })));
+        // Se responde con la copia guardada para no perder el arranque sin
+        // conexion, pero se pide igualmente la version del servidor y se
+        // reemplaza la copia. Antes se devolvia la del cache y ya: un archivo
+        // corregido no volvia a pedirse nunca, y la pantalla seguia mostrando
+        // la version anterior aunque el servidor tuviera la nueva.
+        event.respondWith(caches.match(request).then((cached) => {
+            const desdeLaRed = fetch(request).then((response) => {
+                if (response.ok && response.type === "basic") {
+                    const copia = response.clone();
+                    caches.open(STATIC_CACHE).then((cache) => cache.put(request, copia));
+                }
+                return response;
+            });
+            if (!cached) return desdeLaRed;
+            // La actualizacion sigue en segundo plano; se retiene el evento para
+            // que el navegador no detenga el proceso antes de guardarla, y se
+            // absorbe el fallo de red para no dejar un rechazo sin capturar.
+            event.waitUntil(desdeLaRed.catch(() => {}));
+            return cached;
+        }));
     }
 });
