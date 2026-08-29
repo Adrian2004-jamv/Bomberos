@@ -37,6 +37,7 @@ class Command(BaseCommand):
             canton_anterior.save(update_fields=("codigo", "nombre", "fecha_actualizacion"))
 
         # Normaliza los registros iniciales antiguos sin alterar sus relaciones.
+        from emergencias.codigos import codigo_fijo
         from emergencias.models import Emergencia
         from instituciones.models import CuerpoBomberos, Estacion
         from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
@@ -61,10 +62,22 @@ class Command(BaseCommand):
             Recurso.objects.filter(codigo_interno=f"ERA-{numero:02d}-DEMO").update(
                 codigo_interno=f"ERA-{numero:02d}", nombre=f"Equipo ERA {numero:02d}"
             )
-        Emergencia.objects.filter(codigo="EM-DEMO-001").update(
-            codigo="EM-001", tipo_emergencia="Incendio estructural",
-            descripcion="Incendio estructural registrado", direccion="Latacunga",
-        )
+        # El registro de demostración se promueve a incidente real. Se busca por
+        # su dirección porque el código ya no es un literal fijo, y se recodifica
+        # con el formato oficial a partir de su propia fecha de reporte.
+        demostracion = Emergencia.objects.filter(
+            direccion="Ubicación referencial de demostración"
+        ).first()
+        if demostracion:
+            demostracion.tipo_emergencia = "Incendio estructural"
+            demostracion.descripcion = "Incendio estructural registrado"
+            demostracion.direccion = "Latacunga"
+            demostracion.codigo = codigo_fijo(
+                demostracion.tipo_emergencia, demostracion.fecha_reporte
+            )
+            demostracion.save(update_fields=[
+                "tipo_emergencia", "descripcion", "direccion", "codigo",
+            ])
         TipoCapacidadOperativa.objects.filter(codigo="INC-EST-DEMO").update(
             codigo="INC-EST", nombre="Respuesta a incendio estructural",
             descripcion="Capacidad de respuesta ante incendios estructurales.",

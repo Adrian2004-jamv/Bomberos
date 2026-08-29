@@ -8,6 +8,7 @@ from django.test import TestCase
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import Recurso
 
+from emergencias.codigos import PATRON_CODIGO
 from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI, FormularioSCI211
 from emergencias.views import CATALOGO_FORMULARIOS_SCI, _emergencias_permitidas, _preparar_avance_documental
 
@@ -39,14 +40,22 @@ class CargaEscenariosSCITests(TestCase):
         )
         cls.usuario.groups.add(Group.objects.get(name="Responsable provincial"))
 
+    DIRECCION_COMPLETA = "Sector El Salto, zona urbana de Latacunga"
+    DIRECCION_INCOMPLETA = "Sector Loma Grande, parroquia Aláquez, Latacunga"
+
     def ejecutar_carga(self):
         call_command("cargar_inventario_bomberil", stdout=StringIO())
         call_command("cargar_escenarios_sci", stdout=StringIO())
 
     def test_crea_un_incidente_completo_y_otro_parcial(self):
         self.ejecutar_carga()
-        completa = Emergencia.objects.get(codigo="INC-2026-001")
-        incompleta = Emergencia.objects.get(codigo="INC-2026-002")
+        completa = Emergencia.objects.get(direccion=self.DIRECCION_COMPLETA)
+        incompleta = Emergencia.objects.get(direccion=self.DIRECCION_INCOMPLETA)
+
+        self.assertRegex(completa.codigo, PATRON_CODIGO)
+        self.assertRegex(incompleta.codigo, PATRON_CODIGO)
+        self.assertTrue(completa.codigo.startswith("IE-"))
+        self.assertTrue(incompleta.codigo.startswith("IF-"))
 
         self.assertEqual(completa.estado, Emergencia.Estado.CERRADA)
         self.assertEqual(FormularioSCI.objects.filter(emergencia=completa).count(), 11)
@@ -68,19 +77,26 @@ class CargaEscenariosSCITests(TestCase):
     def test_el_avance_visible_es_100_y_33_por_ciento(self):
         self.ejecutar_carga()
         emergencias = _preparar_avance_documental(list(_emergencias_permitidas(self.usuario)))
-        por_codigo = {emergencia.codigo: emergencia for emergencia in emergencias}
+        por_direccion = {emergencia.direccion: emergencia for emergencia in emergencias}
 
         self.assertEqual(len(CATALOGO_FORMULARIOS_SCI), 12)
-        self.assertEqual(por_codigo["INC-2026-001"].formularios_completados, 12)
-        self.assertEqual(por_codigo["INC-2026-001"].porcentaje_formularios, 100)
-        self.assertEqual(por_codigo["INC-2026-002"].formularios_completados, 4)
-        self.assertEqual(por_codigo["INC-2026-002"].porcentaje_formularios, 33)
+        self.assertEqual(por_direccion[self.DIRECCION_COMPLETA].formularios_completados, 12)
+        self.assertEqual(por_direccion[self.DIRECCION_COMPLETA].porcentaje_formularios, 100)
+        self.assertEqual(por_direccion[self.DIRECCION_INCOMPLETA].formularios_completados, 4)
+        self.assertEqual(por_direccion[self.DIRECCION_INCOMPLETA].porcentaje_formularios, 33)
 
     def test_carga_es_idempotente(self):
         self.ejecutar_carga()
         call_command("cargar_escenarios_sci", stdout=StringIO())
 
-        self.assertEqual(Emergencia.objects.filter(codigo__in=("INC-2026-001", "INC-2026-002")).count(), 2)
-        self.assertEqual(FormularioSCI.objects.filter(emergencia__codigo="INC-2026-001").count(), 11)
-        self.assertEqual(FormularioSCI.objects.filter(emergencia__codigo="INC-2026-002").count(), 3)
-        self.assertEqual(DespliegueUnidad.objects.filter(emergencia__codigo="INC-2026-002").count(), 1)
+        direcciones = (self.DIRECCION_COMPLETA, self.DIRECCION_INCOMPLETA)
+        self.assertEqual(Emergencia.objects.filter(direccion__in=direcciones).count(), 2)
+        self.assertEqual(
+            FormularioSCI.objects.filter(emergencia__direccion=self.DIRECCION_COMPLETA).count(), 11
+        )
+        self.assertEqual(
+            FormularioSCI.objects.filter(emergencia__direccion=self.DIRECCION_INCOMPLETA).count(), 3
+        )
+        self.assertEqual(
+            DespliegueUnidad.objects.filter(emergencia__direccion=self.DIRECCION_INCOMPLETA).count(), 1
+        )

@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from emergencias.codigos import codigo_fijo
 from emergencias.models import Emergencia
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
@@ -81,12 +83,12 @@ class Command(BaseCommand):
         if not capacidad.evaluaciones_estaciones.filter(estacion=estacion).exists():
             evaluar_capacidad_estacion(estacion, capacidad, usuario, "Evaluación inicial de demostración.")
         Emergencia.objects.get_or_create(
-            codigo="EM-DEMO-001",
+            direccion="Ubicación referencial de demostración",
             defaults={
+                "codigo": codigo_fijo("Incendio estructural DEMO", timezone.now()),
                 "tipo_emergencia": "Incendio estructural [DEMO]",
                 "descripcion": "Registro de demostración; no corresponde a una emergencia real.",
                 "prioridad": Emergencia.Prioridad.ALTA,
-                "direccion": "Ubicación referencial de demostración",
                 "estacion_responsable": estacion,
                 "registrado_por": usuario,
             },

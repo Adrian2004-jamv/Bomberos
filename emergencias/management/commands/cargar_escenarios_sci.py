@@ -8,6 +8,7 @@ from django.utils import timezone
 from instituciones.models import Estacion
 from inventario.models import Recurso
 
+from emergencias.codigos import codigo_fijo
 from emergencias.models import (
     DespliegueUnidad,
     Emergencia,
@@ -169,15 +170,15 @@ class Command(BaseCommand):
         reporte_completo = ahora - timedelta(days=1, hours=4)
         cierre_completo = reporte_completo + timedelta(hours=3, minutes=35)
         completa, _ = Emergencia.objects.update_or_create(
-            codigo="INC-2026-001",
+            direccion="Sector El Salto, zona urbana de Latacunga",
             defaults={
+                "codigo": codigo_fijo("Incendio estructural", reporte_completo),
                 "tipo_emergencia": "Incendio estructural",
                 "descripcion": "Incendio estructural controlado en una bodega comercial; operación cerrada sin víctimas.",
                 "prioridad": Emergencia.Prioridad.ALTA,
                 "estado": Emergencia.Estado.CERRADA,
                 "fecha_reporte": reporte_completo,
                 "fecha_cierre": cierre_completo,
-                "direccion": "Sector El Salto, zona urbana de Latacunga",
                 "latitud": "-0.934850",
                 "longitud": "-78.614780",
                 "estacion_responsable": estacion,
@@ -255,15 +256,15 @@ class Command(BaseCommand):
 
         reporte_incompleto = ahora - timedelta(hours=1, minutes=20)
         incompleta, _ = Emergencia.objects.update_or_create(
-            codigo="INC-2026-002",
+            direccion="Sector Loma Grande, parroquia Aláquez, Latacunga",
             defaults={
+                "codigo": codigo_fijo("Incendio forestal", reporte_incompleto),
                 "tipo_emergencia": "Incendio forestal",
                 "descripcion": "Incendio de vegetación en ladera; reconocimiento y control de flancos en curso.",
                 "prioridad": Emergencia.Prioridad.CRITICA,
                 "estado": Emergencia.Estado.EN_ATENCION,
                 "fecha_reporte": reporte_incompleto,
                 "fecha_cierre": None,
-                "direccion": "Sector Loma Grande, parroquia Aláquez, Latacunga",
                 "latitud": "-0.879420",
                 "longitud": "-78.572630",
                 "estacion_responsable": estacion,

@@ -1,7 +1,6 @@
 import csv
 import json
 import re
-import unicodedata
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -9,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import (Case, Count, Exists, IntegerField, OuterRef, Q,
                               Value, When)
 from django.http import Http404, JsonResponse, StreamingHttpResponse
@@ -31,6 +30,7 @@ from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
 from .permissions import (estacion_autorizada, puede_consultar_emergencias,
                           puede_consultar_sci, puede_editar_sci,
                           puede_gestionar_emergencias)
+from .codigos import generar_codigo_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           obtener_esquema, obtener_esquema_catalogo,
                           secciones_completadas,
@@ -44,36 +44,6 @@ from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
 
 
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
-
-
-def _iniciales_tipo_emergencia(tipo):
-    """Forma dos letras estables: «Incendio forestal» -> IF, «Rescate» -> RE."""
-    limpio = unicodedata.normalize("NFKD", tipo)
-    palabras = re.findall(r"[A-Za-z0-9]+", limpio.encode("ascii", "ignore").decode())
-    if not palabras:
-        return "EM"
-    if len(palabras) == 1:
-        return palabras[0][:2].upper().ljust(2, "X")
-    return (palabras[0][0] + palabras[1][0]).upper()
-
-
-def _generar_codigo_emergencia(tipo, fecha_reporte):
-    """Genera IF-DDMMAAAA-NNN y serializa el consecutivo en PostgreSQL."""
-    fecha_local = timezone.localtime(fecha_reporte)
-    prefijo = f"{_iniciales_tipo_emergencia(tipo)}-{fecha_local:%d%m%Y}-"
-    # Dos registros simultaneos del mismo tipo y fecha no deben recibir el
-    # mismo consecutivo. El bloqueo dura hasta finalizar transaction.atomic.
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [prefijo])
-    codigos = Emergencia.objects.filter(
-        codigo__startswith=prefijo
-    ).values_list("codigo", flat=True)
-    consecutivos = [
-        int(codigo.removeprefix(prefijo))
-        for codigo in codigos
-        if codigo.removeprefix(prefijo).isdigit()
-    ]
-    return f"{prefijo}{max(consecutivos, default=0) + 1:03d}"
 
 
 def _entrada_catalogo(codigo, esquema):
@@ -264,6 +234,13 @@ def _consulta_filtrada(request):
         )
     if filtros.get("etapa"):
         emergencias = _filtrar_por_etapa(emergencias, filtros["etapa"])
+    # __date convierte la marca de tiempo a la zona horaria configurada antes de
+    # comparar, de modo que el rango corresponde a los días locales que el
+    # usuario eligió y no a los del UTC almacenado. Ambos extremos se incluyen.
+    if filtros.get("desde"):
+        emergencias = emergencias.filter(fecha_reporte__date__gte=filtros["desde"])
+    if filtros.get("hasta"):
+        emergencias = emergencias.filter(fecha_reporte__date__lte=filtros["hasta"])
     return formulario, filtros, emergencias
 
 
@@ -315,6 +292,10 @@ def lista(request):
         "hay_filtros": bool(
             filtros.get("q") or filtros.get("tipo")
             or filtros.get("etapa") or filtros.get("fase")
+            or filtros.get("desde") or filtros.get("hasta")
+            # Un rango mal escrito debe seguir ofreciendo «Limpiar»: sin esto la
+            # única salida sería borrar la dirección a mano.
+            or formulario.errors
         ),
         "puede_crear": puede_gestionar_emergencias(request.user),
     })
@@ -412,7 +393,7 @@ def crear(request):
     if request.method == "POST" and formulario.is_valid():
         with transaction.atomic():
             emergencia = formulario.save(commit=False)
-            emergencia.codigo = _generar_codigo_emergencia(
+            emergencia.codigo = generar_codigo_emergencia(
                 emergencia.tipo_emergencia, emergencia.fecha_reporte
             )
             emergencia.registrado_por = request.user
@@ -600,8 +581,9 @@ def _formularios_sci_permitidos(usuario):
 
 
 def _emergencia_para_visualizar(usuario):
-    emergencias = _emergencias_permitidas(usuario)
-    return emergencias.filter(codigo="EM-SCI-001").first() or emergencias.order_by("pk").first()
+    # Antes se prefería un código sembrado fijo; la migración 0008 lo convirtió
+    # al formato oficial, así que esa búsqueda ya no encontraba nada.
+    return _emergencias_permitidas(usuario).order_by("pk").first()
 
 
 def _preparar_expedientes_sci(usuario):
