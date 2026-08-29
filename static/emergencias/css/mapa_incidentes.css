@@ -6,3 +6,10 @@
 .incident-map-panel .leaflet-popup-content{max-width:17rem;line-height:1.45}.incident-map-panel .leaflet-popup-content a{color:var(--color-red-700);font-weight:800}
 @media(max-width:700px){.incident-operational-map{height:30rem;min-height:30rem}.incident-map-status{top:.5rem;left:3.25rem}.incident-map-legend{top:auto;right:.5rem;bottom:1.6rem;width:11.5rem;max-height:11.5rem;overflow:auto}}
 .incident-map-marker .ti{font-size:1.2rem}
+
+/* Incidentes fuera del filtro del registro: se conservan en el mapa como
+   contexto, pero en gris para que no se confundan con el resultado. La regla
+   va despues de las de color y usa !important porque cada tipo de emergencia
+   fija su propio fondo. */
+.incident-map-marker--muted{color:#fff!important;background:#94a3b8!important;box-shadow:0 1px 4px rgb(0 0 0/22%);opacity:.65}
+.incident-map-marker--muted .ti{opacity:.9}

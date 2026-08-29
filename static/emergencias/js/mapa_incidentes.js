@@ -10,6 +10,22 @@
     }).addTo(map);
     const layer = L.layerGroup().addTo(map);
     let fitted = false;
+
+    // El servidor entrega los incidentes que pasan el filtro del registro. El
+    // mapa sigue dibujandolos todos, pero apaga los que quedan fuera para que
+    // se vea el contexto sin confundirlo con el resultado de la consulta.
+    const hayFiltros = root.dataset.incidentMapFiltered === "1";
+    let idsEnFiltro = new Set();
+    try {
+        idsEnFiltro = new Set(JSON.parse(root.dataset.incidentMapIds || "[]"));
+    } catch (_error) {
+        idsEnFiltro = new Set();
+    }
+    const dentroDelFiltro = (properties) => {
+        if (!hayFiltros) return true;
+        const id = properties.clase === "emergencia" ? properties.id : properties.emergencia_id;
+        return id != null && idsEnFiltro.has(id);
+    };
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[character]);
     const normalise = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const emergencyIcon = (type) => {
@@ -35,19 +51,30 @@
             if (!response.ok) throw new Error("map-data");
             const data = await response.json();
             const bounds = [];
+            let totalDibujado = 0;
             layer.clearLayers();
             data.features.filter((feature) => feature.geometry?.type === "Point").forEach((feature) => {
                 const [longitude, latitude] = feature.geometry.coordinates;
                 const marker = feature.properties.clase === "emergencia"
                     ? emergencyIcon(feature.properties.tipo)
                     : {kind: "unit", icon: "ti-firetruck", label: "Unidad operativa"};
-                const icon = L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<span class="incident-map-marker incident-map-marker--${marker.kind}" role="img" aria-label="${escapeHtml(marker.label)}" title="${escapeHtml(marker.label)}"><i class="ti ${marker.icon}" aria-hidden="true"></i></span>`});
-                L.marker([latitude, longitude], {icon}).bindPopup(popup(feature)).addTo(layer);
-                bounds.push([latitude, longitude]);
+                const activo = dentroDelFiltro(feature.properties);
+                const apagado = activo ? "" : " incident-map-marker--muted";
+                const nota = activo ? "" : " (fuera del filtro)";
+                const etiqueta = escapeHtml(marker.label + nota);
+                const icon = L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<span class="incident-map-marker incident-map-marker--${marker.kind}${apagado}" role="img" aria-label="${etiqueta}" title="${etiqueta}"><i class="ti ${marker.icon}" aria-hidden="true"></i></span>`});
+                L.marker([latitude, longitude], {icon, zIndexOffset: activo ? 500 : 0})
+                    .bindPopup(popup(feature)).addTo(layer);
+                // El encuadre automatico solo considera lo que pasa el filtro:
+                // de lo contrario un incidente lejano y apagado alejaria el mapa.
+                if (activo) bounds.push([latitude, longitude]);
+                totalDibujado += 1;
             });
             if (!fitted && bounds.length) { map.fitBounds(bounds, {padding:[35,35],maxZoom:13}); fitted = true; }
             status.dataset.state = "ready";
-            status.textContent = `${bounds.length} ubicación(es) visible(s)`;
+            status.textContent = hayFiltros
+                ? `${bounds.length} de ${totalDibujado} ubicación(es) dentro del filtro`
+                : `${totalDibujado} ubicación(es) visible(s)`;
         } catch (_error) {
             status.dataset.state = "error";
             status.textContent = "No fue posible actualizar el mapa";

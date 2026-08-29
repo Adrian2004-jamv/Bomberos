@@ -140,6 +140,9 @@ def construir_geojson(usuario, parametros):
                 "nombre_unidad": despliegue.unidad.nombre,
                 "tipo_recurso": despliegue.unidad.tipo.nombre,
                 "emergencia": despliegue.emergencia.codigo,
+                # Permite atenuar la unidad junto al incidente al que atiende
+                # cuando ese incidente queda fuera del filtro del registro.
+                "emergencia_id": despliegue.emergencia_id,
                 "estado": despliegue.estado, "estado_etiqueta": despliegue.get_estado_display(),
                 "estacion": despliegue.estacion_procedencia.nombre,
                 "institucion": despliegue.estacion_procedencia.cuerpo_bomberos.nombre,

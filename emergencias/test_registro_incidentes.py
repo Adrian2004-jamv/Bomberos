@@ -4,6 +4,7 @@ Los tres filtros existían en JavaScript sobre las filas ya dibujadas; aquí se
 comprueba que ahora los resuelve la base y que conviven con la paginación.
 """
 
+import json
 from datetime import datetime
 
 from django.contrib.auth import get_user_model
@@ -354,3 +355,52 @@ class FiltroPorFechaTests(BaseRegistroTests):
         self.assertIn("RG-FEC-2", contenido)
         self.assertNotIn("RG-FEC-1", contenido)
         self.assertNotIn("RG-FEC-3", contenido)
+
+
+class MapaRespetaElFiltroTests(BaseRegistroTests):
+    """El mapa recibe qué incidentes pasan el filtro para atenuar el resto."""
+
+    def setUp(self):
+        def local(dia):
+            return timezone.make_aware(
+                datetime(2026, 3, dia, 12), timezone.get_current_timezone()
+            )
+
+        self.dentro = self.crear("RG-MAP-1", fecha_reporte=local(10))
+        self.fuera = self.crear("RG-MAP-2", fecha_reporte=local(25))
+
+    def ids(self, respuesta):
+        return json.loads(respuesta.context["ids_en_filtro_json"])
+
+    def test_sin_filtros_el_mapa_no_atenua_nada(self):
+        respuesta = self.listar()
+        self.assertFalse(respuesta.context["hay_filtros"])
+        self.assertContains(respuesta, 'data-incident-map-filtered="0"')
+
+    def test_con_rango_solo_viaja_lo_que_pasa_el_filtro(self):
+        respuesta = self.listar(desde="2026-03-01", hasta="2026-03-15")
+        self.assertTrue(respuesta.context["hay_filtros"])
+        self.assertContains(respuesta, 'data-incident-map-filtered="1"')
+        self.assertEqual(self.ids(respuesta), [self.dentro.pk])
+
+    def test_incluye_los_que_no_caben_en_la_pagina(self):
+        """El mapa dibuja todo el ámbito, no solo la página que se ve."""
+        for numero in range(20):
+            self.crear(f"RG-MAP-EXTRA-{numero}",
+                       fecha_reporte=timezone.make_aware(
+                           datetime(2026, 3, 10, 12), timezone.get_current_timezone()))
+        respuesta = self.listar(desde="2026-03-10", hasta="2026-03-10")
+        self.assertEqual(len(respuesta.context["emergencias"]), 12)
+        self.assertEqual(len(self.ids(respuesta)), 21)
+
+    def test_un_filtro_sin_coincidencias_deja_la_lista_vacia(self):
+        respuesta = self.listar(desde="2026-05-01")
+        self.assertEqual(self.ids(respuesta), [])
+        self.assertContains(respuesta, 'data-incident-map-filtered="1"')
+
+    def test_el_conjunto_no_alcanza_a_otra_institucion(self):
+        ajena = self.crear("RG-MAP-AJENA", estacion=self.estacion_ajena,
+                           fecha_reporte=timezone.make_aware(
+                               datetime(2026, 3, 10, 12), timezone.get_current_timezone()))
+        respuesta = self.listar(desde="2026-03-10", hasta="2026-03-10")
+        self.assertNotIn(ajena.pk, self.ids(respuesta))

@@ -272,6 +272,11 @@ def lista(request):
     fase = filtros.get("fase") or "all"
     emergencias = _aplicar_fase(emergencias, fase)
 
+    # El mapa dibuja todos los incidentes autorizados, no solo los de la pagina.
+    # Se le entrega el conjunto que si pasa el filtro para que atenue el resto,
+    # en lugar de repetir la logica de filtrado en JavaScript.
+    ids_en_filtro = list(emergencias.values_list("pk", flat=True))
+
     pagina = Paginator(emergencias, INCIDENTES_POR_PAGINA).get_page(
         request.GET.get("pagina")
     )
@@ -298,6 +303,7 @@ def lista(request):
             or formulario.errors
         ),
         "puede_crear": puede_gestionar_emergencias(request.user),
+        "ids_en_filtro_json": json.dumps(ids_en_filtro),
     })
 
 
