@@ -118,3 +118,32 @@ td a { color: var(--color-red-700); }
 
 @media(max-width:920px){.incident-register-tools{grid-template-columns:1fr 1fr}.incident-filter-submit,.incident-filter-clear,.incident-filter-export{width:100%}}
 @media(max-width:560px){.incident-phase-filters a{justify-content:center;padding:.4rem}.incident-register-tools{grid-template-columns:1fr}}
+
+/* Barra de filtros del registro: pasa de rejilla de columnas fijas a flexbox.
+   La rejilla obligaba a declarar tantas columnas como controles hubiera, y al
+   sumar el rango de fechas los campos se salieron del contenedor. Con flex
+   cada control conserva su ancho natural y baja de linea cuando no cabe. */
+.incident-register-tools{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem .75rem}
+.incident-phase-filters{flex:0 0 auto;flex-wrap:wrap}
+.incident-register-search{flex:1 1 13rem;min-width:0}
+.incident-document-filter{flex:0 1 auto;min-width:0}
+.incident-type-filter{flex:0 1 12rem}
+.incident-type-filter select{width:100%;min-width:0;max-width:none}
+.incident-date-filter{flex:0 1 8.5rem}
+.incident-date-filter input{width:100%;min-width:0;max-width:none}
+.incident-filter-submit,.incident-filter-clear,.incident-filter-export{flex:0 0 auto}
+.incident-filter-error{flex:1 0 100%}
+
+@media(max-width:920px){
+    .incident-register-tools{grid-template-columns:none}
+    .incident-phase-filters{flex:1 0 100%}
+    .incident-register-search{flex:1 1 100%}
+    .incident-type-filter,.incident-date-filter{flex:1 1 8rem}
+    .incident-filter-submit,.incident-filter-clear,.incident-filter-export{flex:1 1 auto;width:auto}
+}
+@media(max-width:560px){
+    .incident-register-tools{grid-template-columns:none}
+    .incident-type-filter{flex:1 1 100%}
+    .incident-date-filter{flex:1 1 calc(50% - .375rem)}
+    .incident-filter-submit,.incident-filter-clear,.incident-filter-export{flex:1 1 100%}
+}
