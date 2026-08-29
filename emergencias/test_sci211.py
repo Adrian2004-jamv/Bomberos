@@ -6,9 +6,12 @@ from django.db import IntegrityError, transaction
 from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
+from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
+from .forms_sci import RegistroRecursoSCI211Form
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services_sci import finalizar_sci211
 
@@ -74,7 +77,62 @@ class SCI211Tests(TestCase):
             )
         return f
 
+    def crear_recurso_verificado(self, estacion=None, codigo="REC-SCI-01"):
+        categoria, _ = CategoriaRecurso.objects.get_or_create(
+            codigo="CAT-SCI-TEST", defaults={"nombre": "Vehículos SCI prueba"}
+        )
+        tipo, _ = TipoRecurso.objects.get_or_create(
+            categoria=categoria, codigo="TIP-SCI-TEST",
+            defaults={"nombre": "Autobomba SCI prueba"},
+        )
+        return Recurso.objects.create(
+            estacion=estacion or self.estacion, tipo=tipo,
+            codigo_interno=codigo, nombre="Autobomba verificada",
+            estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+
+    def finalizar_anteriores(self, codigo_objetivo):
+        """Prepara el flujo previo cuando una prueba se enfoca en un paso posterior."""
+        orden = ["201", "207", "211", "202", "203", "204", "205", "206",
+                 "215", "214", "221", "222"]
+        for codigo in orden[:orden.index(codigo_objetivo)]:
+            if codigo == "211":
+                formulario, _ = FormularioSCI211.objects.get_or_create(
+                    emergencia=self.emergencia,
+                    defaults={
+                        "codigo": f"SCI-211-{self.emergencia.pk}",
+                        "punto_registro": "Puesto de Comando",
+                        "registrador_1": self.usuario.username,
+                        "creado_por": self.usuario,
+                        "modificado_por": self.usuario,
+                    },
+                )
+                formulario.estado = FormularioSCI211.Estado.FINALIZADO
+                formulario.finalizado_por = self.usuario
+                formulario.fecha_finalizacion = timezone.now()
+                formulario.save(update_fields=(
+                    "estado", "finalizado_por", "fecha_finalizacion"
+                ))
+            else:
+                formulario, _ = FormularioSCI.objects.get_or_create(
+                    emergencia=self.emergencia, codigo_sci=codigo,
+                    defaults={
+                        "datos": {"preparado": True},
+                        "creado_por": self.usuario,
+                        "modificado_por": self.usuario,
+                    },
+                )
+                formulario.estado = FormularioSCI.Estado.FINALIZADO
+                formulario.finalizado_por = self.usuario
+                formulario.fecha_finalizacion = timezone.now()
+                formulario.save(update_fields=(
+                    "estado", "finalizado_por", "fecha_finalizacion"
+                ))
+
     def test_creacion_autorizada_y_borrador(self):
+        self.finalizar_anteriores("211")
         self.client.force_login(self.usuario)
         respuesta = self.client.post(reverse("emergencias:sci211_crear", args=[self.emergencia.pk]))
         self.assertEqual(respuesta.status_code, 302)
@@ -100,6 +158,7 @@ class SCI211Tests(TestCase):
             )
 
     def test_finalizacion_congela_datos_e_impide_edicion(self):
+        self.finalizar_anteriores("211")
         formulario = finalizar_sci211(self.crear_formulario(), self.usuario)
         self.assertEqual(formulario.estado, FormularioSCI211.Estado.FINALIZADO)
         self.assertEqual(formulario.institucion_emitida, self.cuerpo.nombre)
@@ -152,6 +211,7 @@ class SCI211Tests(TestCase):
         return datos
 
     def test_finalizar_desde_la_edicion_guarda_antes_de_continuar(self):
+        self.finalizar_anteriores("211")
         """El boton de finalizar debe enviar el formulario, no navegar fuera de el.
 
         Cuando era un enlace, lo escrito se perdia y el usuario chocaba con
@@ -172,6 +232,7 @@ class SCI211Tests(TestCase):
         self.assertEqual(registro.orden, 1)
 
     def test_guardar_borrador_se_queda_en_la_edicion(self):
+        self.finalizar_anteriores("211")
         formulario = self.crear_formulario(completo=False)
         self.client.force_login(self.usuario)
         respuesta = self.client.post(
@@ -184,6 +245,7 @@ class SCI211Tests(TestCase):
         self.assertEqual(formulario.registros.count(), 1)
 
     def test_restriccion_estacion_y_solo_lectura(self):
+        self.finalizar_anteriores("211")
         formulario = self.crear_formulario()
         self.client.force_login(self.otro)
         self.assertEqual(self.client.get(reverse("emergencias:sci211_detalle", args=[formulario.pk])).status_code, 404)
@@ -205,6 +267,7 @@ class SCI211Tests(TestCase):
             self.assertEqual(self.client.get(reverse(f"emergencias:{nombre}", args=args)).status_code, 302)
 
     def test_integracion_detalle_muestra_accion_estado_y_actualizacion(self):
+        self.finalizar_anteriores("211")
         formulario = self.crear_formulario()
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
@@ -217,7 +280,7 @@ class SCI211Tests(TestCase):
             respuesta, 'class="sci-form-tab sci-form-tab--incomplete"', html=False
         )
         self.assertContains(
-            respuesta, 'class="sci-form-tab sci-form-tab--pending"', html=False
+            respuesta, 'class="sci-form-tab sci-form-tab--locked"', html=False
         )
         self.assertContains(respuesta, "Paso 1: SCI-201")
         finalizar_sci211(formulario, self.usuario)
@@ -228,6 +291,105 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, 'class="sci-form-tabs"', html=False)
         self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--complete"', html=False)
         self.assertContains(respuesta, "Finalizado correctamente")
+
+    def test_detalle_presenta_el_orden_operativo_del_manual(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        self.assertEqual(
+            [item["codigo"] for item in respuesta.context["catalogo_sci"]],
+            ["201", "207", "211", "202", "203", "204", "205", "206",
+             "215", "214", "221", "222"],
+        )
+        self.assertContains(respuesta, "Orden recomendado según las fases")
+        self.assertContains(respuesta, "Resumen del Incidente")
+        self.assertContains(respuesta, "Plan de Comunicaciones")
+        self.assertContains(respuesta, "Verificación de la Desmovilización")
+
+    def test_solo_el_primer_formulario_esta_desbloqueado_al_comenzar(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        catalogo = respuesta.context["catalogo_sci"]
+        self.assertFalse(catalogo[0]["bloqueado"])
+        self.assertTrue(all(item["bloqueado"] for item in catalogo[1:]))
+        self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--locked"')
+        self.assertNotContains(
+            respuesta,
+            reverse("emergencias:sci_visualizar", args=["207", self.emergencia.pk]),
+        )
+
+    def test_url_directa_no_permite_saltar_el_orden(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_editar", args=["202", self.emergencia.pk]
+        ))
+        self.assertRedirects(
+            respuesta,
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+            + "#formularios-sci",
+        )
+
+    def test_finalizar_un_paso_desbloquea_solo_el_siguiente(self):
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="201", datos={"ok": True},
+            estado=FormularioSCI.Estado.FINALIZADO,
+            creado_por=self.usuario, modificado_por=self.usuario,
+            finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        catalogo = respuesta.context["catalogo_sci"]
+        self.assertFalse(catalogo[1]["bloqueado"])
+        self.assertTrue(catalogo[2]["bloqueado"])
+
+    def test_editor_generico_solo_ofrece_inventario_verificado_del_ambito(self):
+        self.finalizar_anteriores("202")
+        recurso = self.crear_recurso_verificado()
+        ajeno = self.crear_recurso_verificado(
+            estacion=self.estacion_otra_institucion, codigo="REC-AJENO"
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_editar", args=["202", self.emergencia.pk]
+        ))
+        self.assertContains(respuesta, str(recurso.pk))
+        self.assertContains(respuesta, "REC-SCI-01 - Autobomba verificada")
+        self.assertNotContains(respuesta, "REC-AJENO")
+
+        respuesta = self.client.post(reverse(
+            "emergencias:sci_editar", args=["202", self.emergencia.pk]
+        ), {
+            "plan-0-estrategia": "Controlar incendio",
+            "plan-0-tactica": "Ataque directo",
+            "plan-0-recursos_lugar": str(recurso.pk),
+            "plan-0-recursos_solicitar": "",
+            "plan-0-asignacion": "División A",
+        })
+        self.assertEqual(respuesta.status_code, 302)
+        guardado = FormularioSCI.objects.get(
+            emergencia=self.emergencia, codigo_sci="202"
+        )
+        self.assertIn("REC-SCI-01 - Autobomba verificada", str(guardado.datos))
+        self.assertNotIn(str(ajeno.pk), str(guardado.datos))
+
+    def test_sci211_autocompleta_datos_desde_el_recurso_seleccionado(self):
+        recurso = self.crear_recurso_verificado()
+        form = RegistroRecursoSCI211Form(data={
+            "recurso_inventario": recurso.pk,
+            "solicitado_por": "Comandante",
+            "fecha_hora_solicitud": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "numero_personas": 1,
+            "estado_recurso": "disponible",
+            "asignado_a": "Área de Espera",
+        }, usuario=self.usuario)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["matricula_identificacion"], "REC-SCI-01")
+        self.assertEqual(form.cleaned_data["institucion_procedencia"], self.cuerpo.nombre)
 
     def test_menu_incluye_formularios_sci_y_marca_opcion_activa(self):
         self.client.force_login(self.usuario)
@@ -242,6 +404,7 @@ class SCI211Tests(TestCase):
         )
 
     def test_accion_es_primer_modulo_y_formularios_no_activa_accion(self):
+        self.finalizar_anteriores("215")
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:lista"))
         contenido = respuesta.content.decode()
@@ -313,7 +476,7 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "data-sci-incident", html=False)
         self.assertContains(respuesta, f'data-incident-code="{self.emergencia.codigo}"', html=False)
         expediente = next(item for item in respuesta.context["expedientes"] if item.pk == self.emergencia.pk)
-        self.assertEqual([documento["codigo"] for documento in expediente.documentos_sci], ["205", "211"])
+        self.assertEqual([documento["codigo"] for documento in expediente.documentos_sci], ["211", "205"])
         self.assertContains(respuesta, 'data-document-code="205"', html=False)
         self.assertContains(respuesta, 'data-document-code="211"', html=False)
         self.assertContains(respuesta, 'class="sci-expedient-action"', html=False)
@@ -332,6 +495,7 @@ class SCI211Tests(TestCase):
                 self.assertContains(respuesta, "Vista de catálogo sin incidente asociado")
 
     def test_todos_los_formularios_tienen_visualizacion_vinculada_a_emergencia(self):
+        self.finalizar_anteriores("222")
         self.client.force_login(self.usuario)
         for codigo in ("201", "202", "203", "204", "205", "206", "207", "214", "215", "221", "222"):
             respuesta = self.client.get(reverse(
@@ -343,18 +507,20 @@ class SCI211Tests(TestCase):
             self.assertContains(respuesta, "Imprimir")
 
     def test_formulario_generico_guarda_tabla_y_periodo_operacional(self):
+        self.finalizar_anteriores("205")
+        recurso = self.crear_recurso_verificado(codigo="RADIO-SCI-01")
         self.client.force_login(self.usuario)
         url = reverse("emergencias:sci_editar", args=["205", self.emergencia.pk])
         respuesta = self.client.post(url, {
             "periodo_numero": "1",
             "periodo_inicio": "2026-08-18T08:00",
             "periodo_fin": "2026-08-18T20:00",
-            "canales-0-sistema": "Radio institucional",
+            "canales-0-sistema": str(recurso.pk),
             "canales-0-canal": "Canal 1",
             "canales-0-asignado": "Comando",
             "canales-0-ubicacion": "Puesto de Comando",
             "canales-0-observaciones": "Sin novedades",
-            "canales-1-sistema": "Repetidora",
+            "canales-1-sistema": str(recurso.pk),
             "canales-1-canal": "Canal 2",
             "canales-1-asignado": "Operaciones",
             "canales-1-ubicacion": "Zona caliente",
@@ -372,11 +538,12 @@ class SCI211Tests(TestCase):
         impresion = self.client.get(reverse(
             "emergencias:sci_visualizar", args=["205", self.emergencia.pk]
         ))
-        self.assertContains(impresion, "Radio institucional")
+        self.assertContains(impresion, "RADIO-SCI-01 - Autobomba verificada")
         self.assertContains(impresion, "Zona caliente")
         self.assertContains(impresion, "Editar formulario")
 
     def test_filas_vacias_no_se_guardan(self):
+        self.finalizar_anteriores("215")
         self.client.force_login(self.usuario)
         self.client.post(reverse("emergencias:sci_editar", args=["215", self.emergencia.pk]), {
             "analisis-0-area": "Perímetro",
@@ -390,6 +557,7 @@ class SCI211Tests(TestCase):
         self.assertEqual(len(formulario.datos["analisis"]), 1)
 
     def test_formulario_con_filas_fijas_conserva_las_posiciones_oficiales(self):
+        self.finalizar_anteriores("203")
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse(
             "emergencias:sci_editar", args=["203", self.emergencia.pk]
@@ -399,6 +567,7 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "D. Rama Operaciones Aéreas — Supervisor de ala fija")
 
     def test_finalizar_bloquea_la_edicion_del_formulario_generico(self):
+        self.finalizar_anteriores("214")
         self.client.force_login(self.usuario)
         self.client.post(reverse("emergencias:sci_editar", args=["214", self.emergencia.pk]), {
             "actividades-0-hora": "09:15",
@@ -415,6 +584,7 @@ class SCI211Tests(TestCase):
         )
 
     def test_no_se_puede_finalizar_un_formulario_vacio(self):
+        self.finalizar_anteriores("206")
         self.client.force_login(self.usuario)
         self.client.get(reverse("emergencias:sci_editar", args=["206", self.emergencia.pk]))
         self.client.post(reverse("emergencias:sci_finalizar", args=["206", self.emergencia.pk]))
@@ -429,6 +599,7 @@ class SCI211Tests(TestCase):
         self.assertEqual(respuesta.status_code, 404)
 
     def test_editor_carga_estilos_documentales_y_acciones_funcionales(self):
+        self.finalizar_anteriores("215")
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse(
             "emergencias:sci_editar", args=["215", self.emergencia.pk]
@@ -441,6 +612,7 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Vista de impresión")
 
     def test_vista_imprimible_protegida_y_original_intacto(self):
+        self.finalizar_anteriores("211")
         formulario = self.crear_formulario()
         original = Path("Total de Formularios SCI/SCI - 211 formulario.xlsx")
         antes = original.read_bytes()

@@ -25,6 +25,7 @@
 
     <p class="sci-proposito">{{ esquema.proposito }}</p>
     {% if esquema.aviso %}<p class="sci-aviso">{{ esquema.aviso }}</p>{% endif %}
+    <p class="sci-inventory-notice"><strong>Inventario verificado:</strong> los selectores de recursos muestran únicamente elementos operativos, disponibles y confirmados durante las últimas 24 horas dentro de su ámbito institucional.</p>
 
     <section class="sci-paper__meta">
       <label>1. Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label>
@@ -59,6 +60,12 @@
                   {% if celda.fija %}
                     <span class="sci-tabla__fija">{{ celda.fija }}</span>
                     <input type="hidden" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.fija }}">
+                  {% elif celda.columna.recurso_inventario %}
+                    <select name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" aria-label="{{ celda.columna.etiqueta }}">
+                      <option value="">Seleccione un recurso verificado</option>
+                      {% for recurso in recursos_disponibles %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}
+                    </select>
+                    {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
                   {% else %}
                     <input name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" maxlength="5000">
                   {% endif %}
@@ -113,7 +120,7 @@ document.querySelectorAll(".sci-tabla").forEach((tabla) => {
 
     const renumerar = () => {
         cuerpo.querySelectorAll("tr").forEach((fila, indice) => {
-            fila.querySelectorAll("input[name]").forEach((campo) => {
+            fila.querySelectorAll("input[name], select[name]").forEach((campo) => {
                 campo.name = campo.name.replace(/^(.+?)-\d+-(.+)$/, `$1-${indice}-$2`);
             });
         });
@@ -122,7 +129,7 @@ document.querySelectorAll(".sci-tabla").forEach((tabla) => {
     tabla.querySelector(".sci-tabla__agregar")?.addEventListener("click", () => {
         const ultima = cuerpo.querySelector("tr:last-child");
         const copia = ultima.cloneNode(true);
-        copia.querySelectorAll("input").forEach((campo) => { campo.value = ""; });
+        copia.querySelectorAll("input, select").forEach((campo) => { campo.value = ""; });
         cuerpo.appendChild(copia);
         renumerar();
         copia.querySelector("input")?.focus();

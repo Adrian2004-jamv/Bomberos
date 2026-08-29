@@ -11,6 +11,9 @@
 @media(max-width:760px){.sci-workspace{padding:.5rem}.sci-workspace__toolbar{position:static;align-items:stretch;flex-direction:column}.sci-workspace__toolbar>div:last-child{display:grid;grid-template-columns:1fr}.sci-paper,.sci-paper--landscape{width:100%;min-height:0;padding:10px}.sci-paper__header{grid-template-columns:60px 1fr}.sci-paper__header img{width:48px!important;max-width:48px!important}.sci-paper__header>span{display:none}.sci-paper__meta,.sci-word-sections,.sci-sheet-grid{grid-template-columns:1fr}.sci-word-sections fieldset:has(textarea),.sci-sheet-grid__title{grid-column:auto}.sci-paper__footer{grid-template-columns:1fr}}
 
 /* Formularios SCI con estructura oficial: tablas repetibles, periodo operacional y firmas. */
+.sci-inventory-notice{margin:.8rem 0;padding:.7rem .85rem;border:1px solid #9bd5bd;border-radius:.5rem;color:#086c4b;background:#eefaf5;font-size:.76rem}
+.sci-tabla select{width:100%;min-width:10rem;padding:.45rem;border:1px solid var(--color-slate-300);border-radius:.35rem;color:var(--color-navy-900);background:#fff;font:inherit}
+.sci-resource-empty{display:block;margin-top:.25rem;color:#a45408;font-size:.65rem}
 .sci-proposito{margin:10px 0 0;padding:7px 9px;background:#f3f4f6;border-radius:4px;font-size:12px;font-style:italic;color:#374151}
 .sci-aviso{margin:8px 0 0;padding:7px 9px;border-left:4px solid #d89b00;background:#fff7dd;font-size:12px}
 .sci-ayuda{margin:0 0 6px;font-size:11px;color:#4b5563}

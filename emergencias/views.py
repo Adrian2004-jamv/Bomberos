@@ -2,6 +2,7 @@ import csv
 import json
 import re
 import unicodedata
+from datetime import timedelta
 from types import SimpleNamespace
 
 from django.contrib import messages
@@ -19,7 +20,8 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from inventario.permissions import estaciones_permitidas
+from inventario.models import Recurso
+from inventario.permissions import estaciones_permitidas, recursos_permitidos
 
 from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
                     FiltroIncidentesForm)
@@ -85,6 +87,61 @@ def _entrada_catalogo(codigo, esquema):
     }
 
 
+ORDEN_FORMULARIOS_SCI = (
+    "201", "207", "211",  # Fase 1: entender la situación.
+    "202", "203",         # Fase 2: objetivos y organización.
+    "204", "205", "206", "215",  # Fase 3: desarrollar el PAI.
+    "214",                 # Ejecución y registro continuo.
+    "221",                 # Desmovilización.
+    "222",                 # Comando de Área, cuando aplique.
+)
+ETAPA_FORMULARIO_SCI = {
+    "201": "Entender la situación", "207": "Entender la situación",
+    "211": "Entender la situación", "202": "Objetivos y estrategias",
+    "203": "Organización del periodo", "204": "Desarrollar el PAI",
+    "205": "Desarrollar el PAI", "206": "Desarrollar el PAI",
+    "215": "Seguridad del PAI", "214": "Ejecutar, evaluar y revisar",
+    "221": "Desmovilización", "222": "Comando de Área (si aplica)",
+}
+_POSICION_FORMULARIO_SCI = {
+    codigo: posicion for posicion, codigo in enumerate(ORDEN_FORMULARIOS_SCI)
+}
+
+
+def _formulario_sci_desbloqueado(emergencia, codigo):
+    """Solo permite avanzar cuando todos los formularios anteriores finalizaron."""
+    if codigo not in _POSICION_FORMULARIO_SCI:
+        return False
+    anteriores = ORDEN_FORMULARIOS_SCI[:_POSICION_FORMULARIO_SCI[codigo]]
+    if not anteriores:
+        return True
+    genericos_finalizados = set(
+        emergencia.formularios_sci.filter(
+            estado=FormularioSCI.Estado.FINALIZADO
+        ).values_list("codigo_sci", flat=True)
+    )
+    sci211 = getattr(emergencia, "formulario_sci_211", None)
+    if sci211 and sci211.estado == FormularioSCI211.Estado.FINALIZADO:
+        genericos_finalizados.add("211")
+    return all(anterior in genericos_finalizados for anterior in anteriores)
+
+
+def _redirigir_si_sci_bloqueado(request, emergencia, codigo):
+    if codigo not in _POSICION_FORMULARIO_SCI:
+        raise Http404
+    if _formulario_sci_desbloqueado(emergencia, codigo):
+        return None
+    posicion = _POSICION_FORMULARIO_SCI[codigo]
+    anterior = ORDEN_FORMULARIOS_SCI[posicion - 1]
+    messages.warning(
+        request,
+        f"Finalice primero el formulario SCI-{anterior} para desbloquear SCI-{codigo}.",
+    )
+    return redirect(
+        reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
+    )
+
+
 CATALOGO_FORMULARIOS_SCI = tuple(sorted(
     [_entrada_catalogo(codigo, esquema) for codigo, esquema in ESQUEMAS_SCI.items()] + [{
         "codigo": "211",
@@ -94,7 +151,7 @@ CATALOGO_FORMULARIOS_SCI = tuple(sorted(
                       "asignación y desmovilización de cada recurso del incidente.",
         "implementado": True,
     }],
-    key=lambda entrada: entrada["codigo"],
+    key=lambda entrada: _POSICION_FORMULARIO_SCI[entrada["codigo"]],
 ))
 
 
@@ -487,6 +544,7 @@ def detalle(request, pk):
         for formulario in emergencia.formularios_sci.all()
     }
     catalogo_sci_estado = []
+    anteriores_finalizados = True
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
         formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
         if formulario is None:
@@ -500,7 +558,12 @@ def detalle(request, pk):
             "numero": numero,
             "clave_estado": clave_estado,
             "etiqueta_estado": etiqueta_estado,
+            "etapa_orden": ETAPA_FORMULARIO_SCI[item["codigo"]],
+            "bloqueado": not anteriores_finalizados,
         })
+        anteriores_finalizados = (
+            anteriores_finalizados and clave_estado == "complete"
+        )
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
         "unidad", "estacion_procedencia", "despachado_por"
@@ -524,6 +587,7 @@ def detalle(request, pk):
         ) if puede_gestionar else [],
         "unidades_en_incidente": sum(1 for despliegue in despliegues if despliegue.activo),
         "sci211": sci211,
+        "sci211_bloqueado": not _formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
         "catalogo_sci": catalogo_sci_estado,
     })
@@ -654,6 +718,9 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
     if not puede_consultar_sci(request.user, emergencia):
         raise PermissionDenied
+    bloqueado = _redirigir_si_sci_bloqueado(request, emergencia, codigo)
+    if bloqueado:
+        return bloqueado
     if codigo == "211":
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
@@ -678,12 +745,63 @@ def _contexto_documento_sci(usuario, emergencia, codigo):
         "campos_periodo": [dict(campo, valor=datos.get(campo["nombre"], ""))
                            for campo in campos_periodo(esquema)],
         "secciones": secciones_con_valores(esquema, datos),
+        "recursos_disponibles": _recursos_disponibles_verificados(usuario),
     }
+
+
+def _recursos_disponibles_verificados(usuario):
+    """Inventario utilizable, confirmado durante las últimas 24 horas."""
+    recursos = list(
+        recursos_permitidos(usuario).filter(
+            activo=True,
+            estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad__gte=timezone.now() - timedelta(hours=24),
+        ).select_related("estacion", "tipo", "tipo__categoria").order_by(
+            "estacion__nombre", "tipo__categoria__nombre", "nombre"
+        )
+    )
+    for recurso in recursos:
+        recurso.etiqueta_sci = (
+            f"{recurso.codigo_interno} - {recurso.nombre} "
+            f"({recurso.estacion.nombre})"
+        )
+    return recursos
+
+
+def _normalizar_recursos_sci(esquema, post, recursos):
+    """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI."""
+    normalizado = post.copy()
+    permitidos = {str(recurso.pk): recurso.etiqueta_sci for recurso in recursos}
+    for seccion in esquema["secciones"]:
+        if seccion["tipo"] != "tabla":
+            continue
+        for columna in seccion["columnas"]:
+            if not columna.get("recurso_inventario"):
+                continue
+            patron = re.compile(
+                rf"^{re.escape(seccion['nombre'])}-\d+-{re.escape(columna['nombre'])}$"
+            )
+            for clave in (clave for clave in post if patron.fullmatch(clave)):
+                recurso_id = post.get(clave, "")
+                if not recurso_id:
+                    normalizado[clave] = ""
+                elif recurso_id in permitidos:
+                    normalizado[clave] = permitidos[recurso_id]
+                else:
+                    raise ValidationError(
+                        "El recurso seleccionado ya no está disponible o su "
+                        "verificación superó las 24 horas."
+                    )
+    return normalizado
 
 
 @login_required
 def formulario_sci_editar(request, codigo, emergencia_pk):
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    bloqueado = _redirigir_si_sci_bloqueado(request, emergencia, codigo)
+    if bloqueado:
+        return bloqueado
     if codigo == "211":
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario is None:
@@ -702,12 +820,18 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
         messages.info(request, f"El formulario SCI-{codigo} está finalizado y es de solo lectura.")
         return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
     if request.method == "POST":
-        formulario.datos = extraer_datos(esquema, request.POST)
-        formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
-        formulario.modificado_por = request.user
-        formulario.save()
-        messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
-        return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+        recursos = _recursos_disponibles_verificados(request.user)
+        try:
+            post_validado = _normalizar_recursos_sci(esquema, request.POST, recursos)
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+        else:
+            formulario.datos = extraer_datos(esquema, post_validado)
+            formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
+            formulario.modificado_por = request.user
+            formulario.save()
+            messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
+            return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
     contexto = _contexto_documento_sci(request.user, emergencia, codigo)
     contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
     return render(request, "emergencias/sci_editar.html", contexto)
@@ -716,6 +840,9 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
 @login_required
 def formulario_sci_finalizar(request, codigo, emergencia_pk):
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    bloqueado = _redirigir_si_sci_bloqueado(request, emergencia, codigo)
+    if bloqueado:
+        return bloqueado
     if not puede_editar_sci(request.user, emergencia) or obtener_esquema(codigo) is None:
         raise PermissionDenied
     formulario = get_object_or_404(FormularioSCI, emergencia=emergencia, codigo_sci=codigo)
@@ -733,6 +860,9 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk):
 @require_POST
 def sci211_crear(request, emergencia_pk):
     emergencia = get_object_or_404(_emergencias_permitidas(request.user), pk=emergencia_pk)
+    bloqueado = _redirigir_si_sci_bloqueado(request, emergencia, "211")
+    if bloqueado:
+        return bloqueado
     if not puede_editar_sci(request.user, emergencia):
         raise PermissionDenied
     formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
@@ -745,13 +875,21 @@ def sci211_crear(request, emergencia_pk):
 @login_required
 def sci211_editar(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
+    bloqueado = _redirigir_si_sci_bloqueado(
+        request, formulario.emergencia, "211"
+    )
+    if bloqueado:
+        return bloqueado
     if not puede_editar_sci(request.user, formulario.emergencia):
         raise PermissionDenied
     if not formulario.es_editable:
         messages.info(request, "El formulario finalizado es de solo lectura.")
         return redirect("emergencias:sci211_detalle", pk=pk)
     cabecera = FormularioSCI211Form(request.POST or None, instance=formulario)
-    registros = RegistroRecursoSCI211FormSet(request.POST or None, instance=formulario)
+    registros = RegistroRecursoSCI211FormSet(
+        request.POST or None, instance=formulario,
+        form_kwargs={"usuario": request.user},
+    )
     if request.method == "POST" and cabecera.is_valid() and registros.is_valid():
         cabecera.save(commit=False)
         formulario.modificado_por = request.user
@@ -775,6 +913,11 @@ def sci211_editar(request, pk):
 @login_required
 def sci211_detalle(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
+    bloqueado = _redirigir_si_sci_bloqueado(
+        request, formulario.emergencia, "211"
+    )
+    if bloqueado:
+        return bloqueado
     return render(request, "emergencias/sci211/detalle.html", {
         "formulario_sci": formulario,
         "puede_editar": formulario.es_editable and puede_editar_sci(request.user, formulario.emergencia),
@@ -784,6 +927,11 @@ def sci211_detalle(request, pk):
 @login_required
 def sci211_finalizar(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
+    bloqueado = _redirigir_si_sci_bloqueado(
+        request, formulario.emergencia, "211"
+    )
+    if bloqueado:
+        return bloqueado
     if not puede_editar_sci(request.user, formulario.emergencia) or not formulario.es_editable:
         raise PermissionDenied
     if request.method == "POST":
@@ -800,6 +948,11 @@ def sci211_finalizar(request, pk):
 @login_required
 def sci211_imprimir(request, pk):
     formulario = get_object_or_404(_formularios_sci_permitidos(request.user), pk=pk)
+    bloqueado = _redirigir_si_sci_bloqueado(
+        request, formulario.emergencia, "211"
+    )
+    if bloqueado:
+        return bloqueado
     return render(request, "emergencias/sci211/pdf.html", {
         "formulario": formulario,
         "filas_vacias": range(max(0, 24 - formulario.registros.count())),

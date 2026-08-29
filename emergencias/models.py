@@ -366,6 +366,11 @@ class RegistroRecursoSCI211(models.Model):
         DespliegueUnidad, on_delete=models.PROTECT, related_name="registros_sci211",
         null=True, blank=True, verbose_name="despliegue de origen",
     )
+    recurso_inventario = models.ForeignKey(
+        "inventario.Recurso", on_delete=models.PROTECT,
+        related_name="registros_sci211", null=True, blank=True,
+        verbose_name="recurso verificado del inventario",
+    )
     solicitado_por = models.CharField("solicitado por", max_length=150)
     fecha_hora_solicitud = models.DateTimeField("fecha y hora de solicitud")
     clase_recurso = models.CharField("clase de recurso", max_length=120)

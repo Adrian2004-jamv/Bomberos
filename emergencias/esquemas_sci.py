@@ -17,8 +17,13 @@ FECHA_HORA = "fecha_hora"
 TABLA = "tabla"
 
 
-def _columna(nombre, etiqueta, ancho=""):
-    return {"nombre": nombre, "etiqueta": etiqueta, "ancho": ancho}
+def _columna(nombre, etiqueta, ancho="", recurso_inventario=False):
+    return {
+        "nombre": nombre,
+        "etiqueta": etiqueta,
+        "ancho": ancho,
+        "recurso_inventario": recurso_inventario,
+    }
 
 
 ESQUEMAS_SCI = {
@@ -69,8 +74,8 @@ ESQUEMAS_SCI = {
             {"numero": 7, "nombre": "plan", "etiqueta": "Estrategias, tácticas y asignación de recursos", "tipo": TABLA,
              "columnas": [_columna("estrategia", "7. Estrategia(s)"),
                           _columna("tactica", "8. Táctica(s)"),
-                          _columna("recursos_lugar", "9. Recursos en el lugar", "12%"),
-                          _columna("recursos_solicitar", "9. Recursos por solicitar", "12%"),
+                          _columna("recursos_lugar", "9. Recursos en el lugar", "12%", True),
+                          _columna("recursos_solicitar", "9. Recursos por solicitar", "12%", True),
                           _columna("asignacion", "10. Asignación / Ubicación")],
              "filas_minimas": 6},
             {"numero": 13, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad según las amenazas identificadas", "tipo": TEXTAREA, "filas": 4},
@@ -140,7 +145,8 @@ ESQUEMAS_SCI = {
                       "Líder de Equipo de Intervención, Líder de Recurso Simple o Encargado."},
             {"numero": 6, "nombre": "nombre_especifico", "etiqueta": "Nombre específico de la posición", "tipo": TEXTO},
             {"numero": 7, "nombre": "recursos", "etiqueta": "Recursos asignados", "tipo": TABLA,
-             "columnas": [_columna("responsable", "Nombre del responsable bajo su cargo", "35%"),
+             "columnas": [_columna("recurso", "Recurso verificado", "24%", True),
+                          _columna("responsable", "Nombre del responsable bajo su cargo", "26%"),
                           _columna("funcion", "Función a desempeñar"),
                           _columna("observaciones", "Observaciones", "25%")],
              "filas_minimas": 8},
@@ -161,7 +167,7 @@ ESQUEMAS_SCI = {
         "preparado_por": "Líder de la Unidad de Comunicaciones (LUCO)",
         "secciones": [
             {"numero": 6, "nombre": "canales", "etiqueta": "Distribución de canales de comunicación", "tipo": TABLA,
-             "columnas": [_columna("sistema", "6. Sistema / Equipo", "20%"),
+             "columnas": [_columna("sistema", "6. Sistema / Equipo", "20%", True),
                           _columna("canal", "7. Canal", "12%"),
                           _columna("asignado", "8. Asignado a", "23%"),
                           _columna("ubicacion", "9. Ubicación", "20%"),
@@ -187,14 +193,14 @@ ESQUEMAS_SCI = {
                           _columna("contacto", "10. Forma de contacto")],
              "filas_minimas": 4},
             {"numero": 11, "nombre": "ambulancias", "etiqueta": "B. Servicios de ambulancia requeridos", "tipo": TABLA,
-             "columnas": [_columna("clase_tipo", "11. Clase y tipo", "25%"),
+             "columnas": [_columna("clase_tipo", "11. Ambulancia verificada", "25%", True),
                           _columna("institucion", "12. Institución", "30%"),
                           _columna("observaciones", "13. Observaciones")],
              "filas_minimas": 4},
             {"numero": 14, "nombre": "derivacion", "etiqueta": "C. Derivación de pacientes", "tipo": TABLA,
              "columnas": [_columna("clasificacion", "14. Clasificación (rojo / amarillo / verde)", "22%"),
                           _columna("instalacion", "15. Institución de asistencia médica", "33%"),
-                          _columna("transporte", "16. Medio de transporte (ambulancia / aéreo / otro)", "25%"),
+                          _columna("transporte", "16. Medio de transporte verificado", "25%", True),
                           _columna("observaciones", "Observaciones")],
              "filas_minimas": 4},
         ],
@@ -316,7 +322,7 @@ ESQUEMAS_SCI = {
             {"numero": 4, "nombre": "matriz", "etiqueta": "Prioridades y recursos críticos por incidente", "tipo": TABLA,
              "columnas": [_columna("prioridad", "4. Prioridad del incidente", "10%"),
                           _columna("incidente", "5. Incidente", "22%"),
-                          _columna("recurso", "6. Recurso crítico", "18%"),
+                          _columna("recurso", "6. Recurso crítico", "18%", True),
                           _columna("tiene", "Tiene", "8%"),
                           _columna("falta", "Falta", "8%"),
                           _columna("requiere", "Requiere", "8%"),
