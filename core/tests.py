@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from emergencias.models import Emergencia
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import Recurso
 
@@ -125,3 +126,61 @@ class PwaTests(TestCase):
             contenido = archivo.read_text(encoding="utf-8").lower()
             for prohibido in ("postgres_password", "dj_database_url", "private key", "bearer "):
                 self.assertNotIn(prohibido, contenido)
+
+
+class LimpiarInstitucionesTests(TestCase):
+    """El comando quita lo que sobra, pero nunca historia de operación."""
+
+    def setUp(self):
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        self.canton = Canton.objects.get(codigo="SIGCHOS")
+        self.sobrante = CuerpoBomberos.objects.create(
+            canton=self.canton, nombre="Cuerpo de Bomberos de Sigchos",
+            sigla="CBSI", ruc="PEND000000007", direccion="Sigchos",
+        )
+        self.estacion = Estacion.objects.create(
+            cuerpo_bomberos=self.sobrante, nombre="Estación Principal de Sigchos",
+            codigo="SIG-CENTRAL", direccion="Sigchos",
+            latitud="-0.701000", longitud="-78.889000",
+        )
+
+    def test_sin_ejecutar_no_borra_nada(self):
+        call_command("limpiar_instituciones_no_precargadas", verbosity=0)
+        self.assertTrue(CuerpoBomberos.objects.filter(sigla="CBSI").exists())
+
+    def test_con_ejecutar_retira_la_institucion_sobrante(self):
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        self.assertFalse(CuerpoBomberos.objects.filter(sigla="CBSI").exists())
+        self.assertFalse(Estacion.objects.filter(codigo="SIG-CENTRAL").exists())
+
+    def test_no_toca_las_estaciones_de_latacunga(self):
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        self.assertEqual(CuerpoBomberos.objects.count(), 1)
+        self.assertEqual(
+            Estacion.objects.filter(cuerpo_bomberos__sigla="CBL").count(), 3
+        )
+
+    def test_una_emergencia_impide_el_borrado(self):
+        usuario = get_user_model().objects.create_user(
+            username="limpieza", password="clave", cedula="0700000001",
+        )
+        Emergencia.objects.create(
+            codigo="IE-01012026-001", tipo_emergencia="Incendio estructural",
+            direccion="Sigchos", estacion_responsable=self.estacion,
+            registrado_por=usuario,
+        )
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        self.assertTrue(CuerpoBomberos.objects.filter(sigla="CBSI").exists())
+
+    def test_un_usuario_asignado_impide_el_borrado(self):
+        get_user_model().objects.create_user(
+            username="sigchos", password="clave", cedula="0700000002",
+            estacion=self.estacion,
+        )
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        self.assertTrue(CuerpoBomberos.objects.filter(sigla="CBSI").exists())
+
+    def test_repetir_el_comando_no_falla(self):
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
+        self.assertEqual(CuerpoBomberos.objects.count(), 1)
