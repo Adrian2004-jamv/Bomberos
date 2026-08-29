@@ -1,7 +1,7 @@
 {% if pagina.paginator.num_pages > 1 %}
-<nav class="incident-pagination" aria-label="Paginación de incidentes">
+<nav class="incident-pagination" aria-label="Paginación de emergencias">
     {% if pagina.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}#registro-incidentes"><i class="ti ti-chevron-left" aria-hidden="true"></i> Anterior</a>{% else %}<span class="incident-pagination__off">Anterior</span>{% endif %}
-    <span class="incident-pagination__state">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ pagina.paginator.count }} incidente{{ pagina.paginator.count|pluralize }}</span>
+    <span class="incident-pagination__state">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ pagina.paginator.count }} emergencia{{ pagina.paginator.count|pluralize }}</span>
     {% if pagina.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}pagina={{ pagina.next_page_number }}#registro-incidentes">Siguiente <i class="ti ti-chevron-right" aria-hidden="true"></i></a>{% else %}<span class="incident-pagination__off">Siguiente</span>{% endif %}
 </nav>
 {% endif %}

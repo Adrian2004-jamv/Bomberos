@@ -265,7 +265,7 @@ def cambiar_estado_emergencia(emergencia, nuevo_estado, usuario_responsable):
         if pendientes:
             unidades = ", ".join(despliegue.unidad.codigo_interno for despliegue in pendientes)
             raise ValidationError(
-                f"Todavía hay unidades en el incidente ({unidades}). "
+                f"Todavía hay unidades en la emergencia ({unidades}). "
                 "Finalice o cancele cada despliegue antes de terminar la emergencia."
             )
         momento = timezone.now()

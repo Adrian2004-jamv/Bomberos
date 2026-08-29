@@ -8,8 +8,8 @@
 {% block content %}
 <section class="panel emergency-form-panel">
     <div class="panel__heading">
-        <div><p class="eyebrow">{{ emergencia.codigo }} · {{ emergencia.get_estado_display }}</p><h2>Enviar una unidad al incidente</h2></div>
-        <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}">Volver al incidente</a>
+        <div><p class="eyebrow">{{ emergencia.codigo }} · {{ emergencia.get_estado_display }}</p><h2>Enviar una unidad a la emergencia</h2></div>
+        <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}">Volver a la emergencia</a>
     </div>
     <div class="workflow-notice">
         <strong>{{ emergencia.tipo_emergencia }} · {{ emergencia.direccion }}</strong>
@@ -37,7 +37,7 @@
     {% else %}
     <div class="empty-state">
         <p><strong>No hay unidades disponibles para despachar.</strong></p>
-        <p>Una unidad se puede despachar cuando es de un tipo desplegable, está activa, operativa, disponible y no participa ya en otro incidente.</p>
+        <p>Una unidad se puede despachar cuando es de un tipo desplegable, está activa, operativa, disponible y no participa ya en otra emergencia.</p>
         <a class="button button--ghost" href="{% url 'inventario:lista' %}">Revisar el inventario</a>
     </div>
     {% endif %}

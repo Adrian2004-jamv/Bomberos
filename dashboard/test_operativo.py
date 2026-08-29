@@ -125,7 +125,7 @@ class IndicadoresOperativosTests(BaseOperativoTests):
         respuesta = self.abrir(self.responsable)
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.context["operativo"]["incidentes_en_curso"], 0)
-        self.assertContains(respuesta, "No hay incidentes en curso en su ámbito.")
+        self.assertContains(respuesta, "No hay emergencias en curso en su ámbito.")
 
 
 class TableroDeIncidentesTests(BaseOperativoTests):
@@ -182,11 +182,11 @@ class ActividadYAccesosTests(BaseOperativoTests):
 
     def test_los_accesos_rapidos_respetan_el_permiso_de_gestion(self):
         respuesta = self.abrir(self.responsable)
-        self.assertContains(respuesta, "Registrar incidente")
+        self.assertContains(respuesta, "Registrar emergencia")
         self.assertContains(respuesta, "Mapa operativo")
 
         respuesta_consulta = self.abrir(self.consulta)
-        self.assertNotContains(respuesta_consulta, "Registrar incidente")
+        self.assertNotContains(respuesta_consulta, "Registrar emergencia")
         self.assertContains(respuesta_consulta, "Mapa operativo")
 
     def test_una_cuenta_sin_ambito_no_ve_la_seccion_operativa(self):

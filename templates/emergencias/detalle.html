@@ -25,11 +25,11 @@
     </dl>
 </section>
 <section class="panel incident-state-panel">
-    <div class="panel__heading"><div><p class="eyebrow">Ciclo operativo</p><h2>Estado del incidente</h2></div>
+    <div class="panel__heading"><div><p class="eyebrow">Ciclo operativo</p><h2>Estado de la emergencia</h2></div>
         <span class="incident-phase incident-phase--{% if emergencia.esta_terminada %}finished{% else %}active{% endif %}"><i class="ti {% if emergencia.esta_terminada %}ti-circle-check{% else %}ti-activity-heartbeat{% endif %}" aria-hidden="true"></i> {{ emergencia.get_estado_display }}</span>
     </div>
     {% if transiciones_emergencia %}
-    <p class="incident-state-help">{% if unidades_en_incidente %}Hay {{ unidades_en_incidente }} unidad{{ unidades_en_incidente|pluralize:"es" }} en el incidente. Para cerrarlo o cancelarlo, primero finalice o cancele cada despliegue.{% else %}No quedan unidades activas en el incidente.{% endif %}</p>
+    <p class="incident-state-help">{% if unidades_en_incidente %}Hay {{ unidades_en_incidente }} unidad{{ unidades_en_incidente|pluralize:"es" }} en la emergencia. Para cerrarlo o cancelarlo, primero finalice o cancele cada despliegue.{% else %}No quedan unidades activas en la emergencia.{% endif %}</p>
     <div class="incident-state-actions">
         {% for transicion in transiciones_emergencia %}
         <form method="post" action="{% url 'emergencias:cambiar_estado' emergencia.pk %}">{% csrf_token %}
@@ -41,7 +41,7 @@
     {% elif emergencia.esta_terminada %}
     <p class="incident-state-help">La emergencia está {{ emergencia.get_estado_display|lower }} y ya no admite cambios de estado ni nuevos despliegues.</p>
     {% else %}
-    <p class="incident-state-help">Su perfil puede consultar este incidente, pero no cambiar su estado.</p>
+    <p class="incident-state-help">Su perfil puede consultar esta emergencia, pero no cambiar su estado.</p>
     {% endif %}
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
@@ -56,7 +56,7 @@
         <span><i class="sci-status-dot sci-status-dot--pending" aria-hidden="true"></i>No iniciado</span>
     </div>
     <p class="sci-order-help"><i class="ti ti-list-numbers" aria-hidden="true"></i> Orden recomendado según las fases de planificación operativa del SCI.</p>
-    <nav class="sci-form-tabs" aria-label="Orden de formularios SCI del incidente">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>{% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
+    <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>{% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div>

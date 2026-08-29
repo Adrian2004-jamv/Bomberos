@@ -7,6 +7,7 @@ comprueba que ahora los resuelve la base y que conviven con la paginación.
 import json
 from datetime import datetime
 
+from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
@@ -16,6 +17,7 @@ from django.utils import timezone
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
 from .esquemas_sci import ESQUEMAS_SCI
+from .forms import TIPOS_EMERGENCIA
 from .models import Emergencia, FormularioSCI, FormularioSCI211
 
 
@@ -404,3 +406,88 @@ class MapaRespetaElFiltroTests(BaseRegistroTests):
                                datetime(2026, 3, 10, 12), timezone.get_current_timezone()))
         respuesta = self.listar(desde="2026-03-10", hasta="2026-03-10")
         self.assertNotIn(ajena.pk, self.ids(respuesta))
+
+
+class FormularioDeRegistroTests(BaseRegistroTests):
+    """Tipo como lista cerrada y selector de ubicación en el mapa."""
+
+    def abrir_creacion(self):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:crear"))
+
+    def test_el_tipo_es_una_lista_y_no_texto_libre(self):
+        respuesta = self.abrir_creacion()
+        campo = respuesta.context["form"].fields["tipo_emergencia"]
+        self.assertIsInstance(campo.widget, forms.Select)
+        valores = [valor for valor, _etiqueta in campo.choices if valor]
+        self.assertEqual(valores, list(TIPOS_EMERGENCIA))
+
+    def test_la_lista_ofrece_los_tipos_de_la_simbologia_del_mapa(self):
+        respuesta = self.abrir_creacion()
+        for tipo in TIPOS_EMERGENCIA:
+            self.assertContains(respuesta, f'<option value="{tipo}">')
+
+    def test_un_tipo_fuera_del_catalogo_se_rechaza(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(reverse("emergencias:crear"), {
+            "tipo_emergencia": "Erupción volcánica",
+            "prioridad": Emergencia.Prioridad.ALTA,
+            "fecha_reporte": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "direccion": "Centro",
+            "estacion_responsable": self.estacion.pk,
+        })
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFormError(
+            respuesta.context["form"], "tipo_emergencia",
+            "Escoja una opción válida. Erupción volcánica no es una de las opciones disponibles.",
+        )
+
+    def test_editar_conserva_un_tipo_anterior_al_catalogo(self):
+        """El catálogo se fijó con el sistema en uso; no debe borrar lo antiguo."""
+        antigua = self.crear("RG-ANTIGUA", tipo="Rescate en altura")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:editar", args=[antigua.pk]))
+        campo = respuesta.context["form"].fields["tipo_emergencia"]
+        valores = [valor for valor, _etiqueta in campo.choices]
+        self.assertIn("Rescate en altura", valores)
+        self.assertContains(respuesta, "(registro anterior)")
+
+    def test_el_formulario_trae_el_selector_de_ubicacion(self):
+        respuesta = self.abrir_creacion()
+        self.assertContains(respuesta, "data-location-map")
+        self.assertContains(respuesta, "data-ubicacion-latitud")
+        self.assertContains(respuesta, "data-ubicacion-longitud")
+        self.assertContains(respuesta, "emergencias/js/mapa_ubicacion.js")
+        self.assertContains(respuesta, "vendor/leaflet/leaflet.js")
+
+    def test_la_ubicacion_sigue_siendo_opcional(self):
+        """Se registra por radio antes de conocer la coordenada exacta."""
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(reverse("emergencias:crear"), {
+            "tipo_emergencia": "Incendio forestal",
+            "prioridad": Emergencia.Prioridad.ALTA,
+            "fecha_reporte": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "direccion": "Vía a Pujilí",
+            "estacion_responsable": self.estacion.pk,
+        })
+        self.assertEqual(respuesta.status_code, 302)
+        creada = Emergencia.objects.get(direccion="Vía a Pujilí")
+        self.assertIsNone(creada.latitud)
+
+
+class TerminologiaTests(BaseRegistroTests):
+    """La interfaz dice «emergencia»; los formularios SCI conservan «incidente»."""
+
+    def test_el_registro_habla_de_emergencias(self):
+        respuesta = self.listar()
+        self.assertContains(respuesta, "Registro dinámico de emergencias")
+        self.assertNotContains(respuesta, "Registro dinámico de incidentes")
+
+    def test_los_formularios_sci_conservan_el_termino_oficial(self):
+        emergencia = self.crear("RG-TERM-1")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_visualizar", args=["201", emergencia.pk]
+        ))
+        self.assertContains(respuesta, "Resumen del Incidente".upper())
+        self.assertContains(respuesta, "Nombre del incidente")

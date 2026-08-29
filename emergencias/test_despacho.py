@@ -321,7 +321,7 @@ class TransicionesWebTests(BaseDespachoTests):
         )
         emergencia.refresh_from_db()
         self.assertEqual(emergencia.estado, Emergencia.Estado.EN_ATENCION)
-        self.assertContains(respuesta, "Todavía hay unidades en el incidente")
+        self.assertContains(respuesta, "Todavía hay unidades en la emergencia")
 
     def test_el_cambio_de_estado_solo_acepta_post(self):
         emergencia = self.crear_emergencia()

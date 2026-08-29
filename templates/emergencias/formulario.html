@@ -3,11 +3,11 @@
 
 {% block title %}{{ titulo }}{% endblock %}
 {% block page_title %}{{ titulo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=7"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=8"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_ubicacion.css' %}?v=1">{% endblock %}
 
 {% block content %}
 {% if es_creacion %}
-<nav class="incident-actions" aria-label="Acciones de incidentes">
+<nav class="incident-actions" aria-label="Acciones de emergencias">
     <a class="incident-action" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Registro</a>
     <a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}" aria-current="page"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo</a>
 </nav>
@@ -23,7 +23,7 @@
     </div>
     {% else %}
     <div class="workflow-notice">
-        <strong>Solo se corrige la situación del incidente.</strong>
+        <strong>Solo se corrige la situación de la emergencia.</strong>
         <span>El código, la estación responsable y la fecha del reporte no cambian. El estado operativo se mueve desde el detalle de la emergencia.</span>
     </div>
     {% endif %}
@@ -38,6 +38,16 @@
                 {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
                 {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
             </div>
+            {% if field.name == 'longitud' %}
+            <div class="emergency-field emergency-field--wide location-picker" data-location-picker>
+                <label for="emergency-location-map">Ubicación en el mapa</label>
+                <div id="emergency-location-map" class="location-picker__map" data-location-map role="application" aria-label="Seleccione la ubicación de la emergencia"></div>
+                <div class="location-picker__bar">
+                    <small data-location-hint>Pulse sobre el mapa para situar la emergencia; puede arrastrar la marca para ajustarla.</small>
+                    <button type="button" class="button location-picker__clear" data-location-clear hidden><i class="ti ti-map-pin-off" aria-hidden="true"></i> Quitar ubicación</button>
+                </div>
+            </div>
+            {% endif %}
             {% endfor %}
         </div>
         <div class="form-actions">
@@ -47,3 +57,4 @@
     </form>
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'emergencias/js/mapa_ubicacion.js' %}?v=2"></script>{% endblock %}

@@ -14,14 +14,52 @@ from .services import unidades_desplegables
 # en el minuto corriente puede llegar unos segundos "adelantado".
 TOLERANCIA_FECHA_REPORTE = timedelta(minutes=1)
 
+# Catálogo de tipos de emergencia. Es la única lista: la usan el formulario de
+# registro, el filtro del listado y la simbología del mapa, que asigna un icono
+# y un color a cada uno. Agregar un tipo aquí exige darle su icono en
+# static/emergencias/js/mapa_incidentes.js y su color en la hoja del mapa.
+TIPOS_EMERGENCIA = (
+    "Incendio forestal",
+    "Incendio estructural",
+    "Rescate",
+    "Accidente vehicular",
+    "Inundación",
+    "Materiales peligrosos",
+    "Emergencia médica",
+)
+OPCIONES_TIPO_EMERGENCIA = tuple((tipo, tipo) for tipo in TIPOS_EMERGENCIA)
+
 WIDGETS_EMERGENCIA = {
     "descripcion": forms.Textarea(attrs={"rows": 4}),
     "fecha_reporte": forms.DateTimeInput(
         attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
     ),
-    "latitud": forms.NumberInput(attrs={"step": "0.000001"}),
-    "longitud": forms.NumberInput(attrs={"step": "0.000001"}),
+    "latitud": forms.NumberInput(attrs={"step": "0.000001", "data-ubicacion-latitud": ""}),
+    "longitud": forms.NumberInput(attrs={"step": "0.000001", "data-ubicacion-longitud": ""}),
 }
+
+
+def _preparar_tipo_emergencia(formulario):
+    """Convierte el tipo en una lista cerrada sin descartar lo ya registrado.
+
+    El catálogo se fijó después de que el sistema estuviera en uso, y hay
+    emergencias con descripciones más específicas («Rescate en altura»). Si el
+    valor guardado no está en la lista se agrega solo para ese formulario: de lo
+    contrario, editar una emergencia antigua obligaría a reclasificarla.
+    """
+    anterior = formulario.fields["tipo_emergencia"]
+    opciones = list(OPCIONES_TIPO_EMERGENCIA)
+    actual = getattr(formulario.instance, "tipo_emergencia", "") or ""
+    if actual and actual not in TIPOS_EMERGENCIA:
+        opciones.append((actual, f"{actual} (registro anterior)"))
+    # Se reemplaza el campo entero y no solo el widget: un CharField con la
+    # lista puesta en el widget dibuja el desplegable pero acepta cualquier
+    # valor enviado, de modo que no habria validacion real.
+    formulario.fields["tipo_emergencia"] = forms.ChoiceField(
+        label=anterior.label,
+        required=anterior.required,
+        choices=[("", "Seleccione el tipo")] + opciones,
+    )
 
 
 class EmergenciaForm(forms.ModelForm):
@@ -45,6 +83,7 @@ class EmergenciaForm(forms.ModelForm):
             "cuerpo_bomberos__nombre", "nombre"
         )
         self.fields["fecha_reporte"].input_formats = ("%Y-%m-%dT%H:%M",)
+        _preparar_tipo_emergencia(self)
         preparar_campos(self.fields)
 
     def clean_fecha_reporte(self):
@@ -81,6 +120,7 @@ class EmergenciaEdicionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _preparar_tipo_emergencia(self)
         preparar_campos(self.fields)
 
 
@@ -102,19 +142,10 @@ class FiltroIncidentesForm(forms.Form):
         ("en_elaboracion", "En elaboración"),
         ("completa", "Completa"),
     )
-    TIPOS_EMERGENCIA = (
-        ("", "Todos"),
-        ("Incendio forestal", "Incendio forestal"),
-        ("Incendio estructural", "Incendio estructural"),
-        ("Rescate", "Rescate"),
-        ("Accidente vehicular", "Accidente vehicular"),
-        ("Inundación", "Inundación"),
-        ("Materiales peligrosos", "Materiales peligrosos"),
-        ("Emergencia médica", "Emergencia médica"),
-    )
+    OPCIONES_FILTRO_TIPO = (("", "Todos"),) + OPCIONES_TIPO_EMERGENCIA
 
     q = forms.CharField(
-        label="Buscar incidentes",
+        label="Buscar emergencias",
         required=False,
         max_length=120,
         widget=forms.TextInput(attrs={
@@ -133,7 +164,7 @@ class FiltroIncidentesForm(forms.Form):
     tipo = forms.ChoiceField(
         label="Tipo de emergencia",
         required=False,
-        choices=TIPOS_EMERGENCIA,
+        choices=OPCIONES_FILTRO_TIPO,
         widget=forms.Select(attrs={"data-incident-emergency-type": ""}),
     )
     desde = forms.DateField(

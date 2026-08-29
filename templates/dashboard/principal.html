@@ -22,19 +22,19 @@
 
 {% if puede_consultar_emergencias %}
 <section aria-labelledby="operacion-title">
-    <div class="dashboard-section-title"><span>Situación operativa</span><h2 id="operacion-title">Incidentes y unidades</h2></div>
+    <div class="dashboard-section-title"><span>Situación operativa</span><h2 id="operacion-title">Emergencias y unidades</h2></div>
     <div class="metric-grid">
-        <article class="metric-card metric-card--danger"><span aria-hidden="true"><i class="ti ti-flame"></i></span><div><strong>{{ operativo.incidentes_en_curso }}</strong><p>Incidentes en curso</p></div></article>
+        <article class="metric-card metric-card--danger"><span aria-hidden="true"><i class="ti ti-flame"></i></span><div><strong>{{ operativo.incidentes_en_curso }}</strong><p>Emergencias en curso</p></div></article>
         <article class="metric-card metric-card--warning"><span aria-hidden="true"><i class="ti ti-firetruck"></i></span><div><strong>{{ operativo.unidades_desplegadas }}</strong><p>Unidades desplegadas</p></div></article>
-        <article class="metric-card metric-card--success"><span aria-hidden="true"><i class="ti ti-circle-check"></i></span><div><strong>{{ operativo.incidentes_atendidos }}</strong><p>Incidentes terminados</p></div></article>
+        <article class="metric-card metric-card--success"><span aria-hidden="true"><i class="ti ti-circle-check"></i></span><div><strong>{{ operativo.incidentes_atendidos }}</strong><p>Emergencias terminadas</p></div></article>
         <article class="metric-card"><span aria-hidden="true"><i class="ti ti-file-alert"></i></span><div><strong>{{ operativo.sin_documentar }}</strong><p>En curso sin SCI-211</p></div></article>
     </div>
 </section>
 
-<section class="dashboard-panel dashboard-panel--wide" aria-labelledby="incidentes-title">
+<section class="dashboard-panel dashboard-panel--wide" aria-labelledby="emergencias-title">
     <div class="dashboard-panel-heading">
-        <div class="dashboard-section-title"><span>Atención en marcha</span><h2 id="incidentes-title">Incidentes en curso</h2></div>
-        <a href="{% url 'emergencias:lista' %}">Ver todos los incidentes →</a>
+        <div class="dashboard-section-title"><span>Atención en marcha</span><h2 id="emergencias-title">Emergencias en curso</h2></div>
+        <a href="{% url 'emergencias:lista' %}">Ver todas las emergencias →</a>
     </div>
     {% if incidentes_en_curso %}
         <div class="incident-board">
@@ -51,11 +51,11 @@
                         {% if not incidente.tiene_sci211 %}<span class="incident-board__pending">Sin SCI-211</span>{% endif %}
                     </div>
                     <time datetime="{{ incidente.fecha_reporte|date:'c' }}">{{ incidente.fecha_reporte|date:"d/m/Y H:i" }}</time>
-                    <a href="{% url 'emergencias:detalle' incidente.pk %}">Abrir incidente</a>
+                    <a href="{% url 'emergencias:detalle' incidente.pk %}">Abrir emergencia</a>
                 </article>
             {% endfor %}
         </div>
-    {% else %}<div class="dashboard-empty"><span aria-hidden="true"><i class="ti ti-shield-check"></i></span><p>No hay incidentes en curso en su ámbito.</p></div>{% endif %}
+    {% else %}<div class="dashboard-empty"><span aria-hidden="true"><i class="ti ti-shield-check"></i></span><p>No hay emergencias en curso en su ámbito.</p></div>{% endif %}
 </section>
 {% endif %}
 
@@ -139,7 +139,7 @@
     <section class="dashboard-panel" aria-labelledby="shortcuts-title">
         <div class="dashboard-section-title"><span>Navegación</span><h2 id="shortcuts-title">Accesos rápidos</h2></div>
         <div class="shortcut-grid">
-            {% if puede_gestionar_emergencias %}<a href="{% url 'emergencias:crear' %}"><span aria-hidden="true"><i class="ti ti-flame"></i></span><strong>Registrar incidente</strong><small>Abrir una emergencia</small></a>{% endif %}
+            {% if puede_gestionar_emergencias %}<a href="{% url 'emergencias:crear' %}"><span aria-hidden="true"><i class="ti ti-flame"></i></span><strong>Registrar emergencia</strong><small>Abrir una emergencia</small></a>{% endif %}
             {% if puede_consultar_emergencias %}<a href="{% url 'mapas:operativo' %}"><span aria-hidden="true"><i class="ti ti-map-pin"></i></span><strong>Mapa operativo</strong><small>Unidades en tiempo real</small></a>{% endif %}
             {% if puede_consultar_inventario %}<a href="{% url 'inventario:lista' %}"><span aria-hidden="true">□</span><strong>Consultar inventario</strong><small>Ver recursos autorizados</small></a>{% endif %}
             {% if puede_gestionar_inventario %}<a href="{% url 'inventario:crear' %}"><span aria-hidden="true">+</span><strong>Registrar recurso</strong><small>Añadir al inventario</small></a>{% endif %}

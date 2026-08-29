@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Incidentes reportados{% endblock %}
-{% block page_title %}Incidentes reportados{% endblock %}
+{% block title %}Emergencias reportadas{% endblock %}
+{% block page_title %}Emergencias reportadas{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=9"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}?v=4">{% endblock %}
 
 {% block content %}
-<section class="incident-map-panel" aria-label="Mapa operativo de incidentes">
-    <div id="incidents-operational-map" class="incident-operational-map" data-incident-map data-data-url="{% url 'mapas:datos' %}" data-incident-map-filtered="{% if hay_filtros %}1{% else %}0{% endif %}" data-incident-map-ids="{{ ids_en_filtro_json }}" role="application" aria-label="Ubicación de incidentes y unidades desplegadas"></div>
+<section class="incident-map-panel" aria-label="Mapa operativo de emergencias">
+    <div id="incidents-operational-map" class="incident-operational-map" data-incident-map data-data-url="{% url 'mapas:datos' %}" data-incident-map-filtered="{% if hay_filtros %}1{% else %}0{% endif %}" data-incident-map-ids="{{ ids_en_filtro_json }}" role="application" aria-label="Ubicación de emergencias y unidades desplegadas"></div>
     <div class="incident-map-status" data-incident-map-status role="status" aria-live="polite">Cargando mapa operativo…</div>
     <aside class="incident-map-legend" aria-label="Simbología de emergencias">
         <strong>Tipos de emergencia</strong>
@@ -21,14 +21,14 @@
         <span><i class="incident-legend-icon incident-legend-icon--unit ti ti-firetruck" aria-hidden="true"></i>Unidad operativa</span>
     </aside>
 </section>
-<nav class="incident-actions" aria-label="Acciones de incidentes">
+<nav class="incident-actions" aria-label="Acciones de emergencias">
     <a class="incident-action incident-action--active" href="{% url 'emergencias:lista' %}#registro-incidentes" aria-current="page"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Registro</a>
     {% if puede_crear %}<a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo</a>{% endif %}
 </nav>
 <section id="registro-incidentes" class="panel incident-register" tabindex="-1">
     <div class="panel__heading">
-        <div><p class="eyebrow">Seguimiento operativo</p><h2>Registro dinámico de incidentes</h2><p>Consulta la fase operativa y el avance documental dentro de tu ámbito institucional.</p></div>
-        <div class="incident-summary" aria-label="Resumen de incidentes"><span><strong>{{ total_en_curso }}</strong> En curso</span><span><strong>{{ total_terminadas }}</strong> Terminadas</span></div>
+        <div><p class="eyebrow">Seguimiento operativo</p><h2>Registro dinámico de emergencias</h2><p>Consulta la fase operativa y el avance documental dentro de tu ámbito institucional.</p></div>
+        <div class="incident-summary" aria-label="Resumen de emergencias"><span><strong>{{ total_en_curso }}</strong> En curso</span><span><strong>{{ total_terminadas }}</strong> Terminadas</span></div>
     </div>
     <form class="incident-register-tools" method="get" data-incident-register-tools>
         <div class="incident-phase-filters" role="group" aria-label="Filtrar por fase operativa">
@@ -53,7 +53,7 @@
     </form>
     {% if emergencias %}
         <div class="table-responsive"><table class="incident-register-table">
-            <thead><tr><th>Incidente</th><th>Operación</th><th>Formularios SCI</th><th>Estación y reporte</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Emergencia</th><th>Operación</th><th>Formularios SCI</th><th>Estación y reporte</th><th>Acciones</th></tr></thead>
             <tbody>{% for emergencia in emergencias %}<tr>
                 <td><div class="incident-identity"><a href="{% url 'emergencias:detalle' emergencia.pk %}"><strong>{{ emergencia.codigo }}</strong></a><span>{{ emergencia.tipo_emergencia }}</span><small class="priority priority--{{ emergencia.prioridad }}">Prioridad {{ emergencia.get_prioridad_display }}</small></div></td>
                 <td><div class="incident-operation"><span class="incident-phase incident-phase--{% if emergencia.esta_terminada %}finished{% else %}active{% endif %}"><i class="ti {% if emergencia.esta_terminada %}ti-circle-check{% else %}ti-activity-heartbeat{% endif %}" aria-hidden="true"></i>{{ emergencia.fase_operativa }}</span><small>Estado: {{ emergencia.get_estado_display }}</small></div></td>

@@ -1,0 +1,50 @@
+/* Selector de ubicación del formulario de emergencias. */
+.location-picker__map {
+    width: 100%;
+    height: clamp(16rem, 38vh, 24rem);
+    border: 1px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    background: var(--color-slate-100);
+}
+
+/* Leaflet dibuja los controles y el atribuido sobre el lienzo; sin esto quedan
+   por encima de la barra lateral al desplazar la página. */
+.location-picker__map.leaflet-container { z-index: 0; }
+
+.location-picker__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.location-picker__bar small { color: var(--color-slate-600); font-size: 0.75rem; }
+
+.location-picker__clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.location-picker__clear:hover { color: var(--color-red-700); border-color: #e79aa1; background: #fff7f7; }
+
+/* El marcador reutiliza la simbología del mapa operativo, que vive en la hoja
+   de ese mapa y aquí no se carga. */
+.location-picker .incident-map-marker {
+    display: grid;
+    width: 2.3rem;
+    height: 2.3rem;
+    place-items: center;
+    border: 0.18rem solid #fff;
+    border-radius: 50%;
+    color: #fff;
+    background: #d90416;
+    box-shadow: 0 2px 9px rgb(0 0 0 / 38%);
+    font-size: 1.15rem;
+    font-weight: 900;
+}
