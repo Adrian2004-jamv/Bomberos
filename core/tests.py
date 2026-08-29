@@ -38,18 +38,38 @@ class InicioTests(TestCase):
 
 
 class DatosCotopaxiTests(TestCase):
-    def test_carga_es_repetible_y_crea_siete_instituciones_con_estacion(self):
+    def test_la_carga_es_repetible(self):
         call_command("cargar_datos_cotopaxi", verbosity=0)
         call_command("cargar_datos_cotopaxi", verbosity=0)
 
         self.assertEqual(Canton.objects.count(), 7)
-        self.assertEqual(CuerpoBomberos.objects.count(), 7)
-        self.assertEqual(Estacion.objects.count(), 7)
-        self.assertEqual(Recurso.objects.count(), 21)
-        for canton in Canton.objects.all():
-            self.assertEqual(canton.cuerpos_bomberos.count(), 1)
-            self.assertEqual(canton.cuerpos_bomberos.get().estaciones.count(), 1)
-            self.assertEqual(canton.cuerpos_bomberos.get().estaciones.get().recursos.count(), 3)
+        self.assertEqual(CuerpoBomberos.objects.count(), 1)
+
+    def test_los_siete_cantones_quedan_disponibles(self):
+        """La provincia entera es el ámbito, aunque solo opere Latacunga."""
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        self.assertEqual(Canton.objects.count(), 7)
+        self.assertIn("Sigchos", Canton.objects.values_list("nombre", flat=True))
+
+    def test_solo_se_precarga_el_cuerpo_de_bomberos_de_latacunga(self):
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        cuerpos = CuerpoBomberos.objects.all()
+        self.assertEqual(cuerpos.count(), 1)
+        self.assertEqual(cuerpos.get().nombre, "Cuerpo de Bomberos de Latacunga")
+        self.assertEqual(cuerpos.get().canton.nombre, "Latacunga")
+
+    def test_latacunga_tiene_sus_tres_estaciones(self):
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        estaciones = Estacion.objects.filter(
+            cuerpo_bomberos__canton__codigo="LATACUNGA", activo=True
+        )
+        self.assertEqual(estaciones.count(), 3)
+        self.assertEqual(len(set(estaciones.values_list("codigo", flat=True))), 3)
+
+    def test_cada_estacion_recibe_sus_recursos_iniciales(self):
+        call_command("cargar_datos_cotopaxi", verbosity=0)
+        for estacion in Estacion.objects.all():
+            self.assertEqual(estacion.recursos.count(), 3)
 
 
 class PwaTests(TestCase):

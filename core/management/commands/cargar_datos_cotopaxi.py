@@ -14,19 +14,41 @@ CANTONES_COTOPAXI = (
     ("SIGCHOS", "Sigchos"),
 )
 
+# El sistema arranca como piloto en Latacunga: es la única institución que se
+# precarga, con sus tres estaciones. Los demás cantones siguen en
+# CANTONES_COTOPAXI porque son el catálogo geográfico de la provincia —una
+# emergencia puede ubicarse en cualquiera de ellos— y sus Cuerpos de Bomberos se
+# sumarán cuando se incorporen al sistema.
+#
+# Cada institución lleva su lista de estaciones, declaradas como
+# (código, nombre, dirección, latitud, longitud).
+#
+# Las tres estaciones de Latacunga y sus coordenadas provienen de la ficha
+# pública de cada una en Google Maps. Las direcciones deben confirmarse con la
+# institución: solo la de Sánchez de Orellana figura con nombre de calle; las
+# otras dos aparecen con código plus (29XW+X5R y 69WQ+PM3) y su calle se tomó
+# del trazado del mapa.
 INSTITUCIONES_COTOPAXI = (
-    ("LATACUNGA", "Cuerpo de Bomberos de Latacunga", "CBL", "PEND000000001", "LAT-CENTRAL", "Estación Central", "-0.933333", "-78.616667"),
-    ("LA-MANA", "Cuerpo de Bomberos de La Maná", "CBLM", "PEND000000002", "LAM-CENTRAL", "Estación Principal de La Maná", "-0.940940", "-79.225060"),
-    ("PANGUA", "Cuerpo de Bomberos de Pangua", "CBP", "PEND000000003", "PAN-CENTRAL", "Estación Principal de Pangua", "-1.126000", "-79.084000"),
-    ("PUJILI", "Cuerpo de Bomberos de Pujilí", "CBPU", "PEND000000004", "PUJ-CENTRAL", "Estación Principal de Pujilí", "-0.957600", "-78.696400"),
-    ("SALCEDO", "Cuerpo de Bomberos de Salcedo", "CBS", "PEND000000005", "SAL-CENTRAL", "Estación Principal de Salcedo", "-1.045500", "-78.590600"),
-    ("SAQUISILI", "Cuerpo de Bomberos de Saquisilí", "CBSA", "PEND000000006", "SAQ-CENTRAL", "Estación Principal de Saquisilí", "-0.839900", "-78.667000"),
-    ("SIGCHOS", "Cuerpo de Bomberos de Sigchos", "CBSI", "PEND000000007", "SIG-CENTRAL", "Estación Principal de Sigchos", "-0.701000", "-78.889000"),
+    {
+        "canton": "LATACUNGA", "nombre": "Cuerpo de Bomberos de Latacunga",
+        "sigla": "CBL", "ruc": "PEND000000001",
+        "estaciones": (
+            ("LAT-CENTRAL", "Estación Central",
+             "C. Fernando Sánchez de Orellana, Latacunga",
+             "-0.936987", "-78.613233"),
+            ("LAT-ABRIL", "Estación Primero de Abril",
+             "Av. Primero de Abril, Latacunga",
+             "-0.949780", "-78.604278"),
+            ("LAT-LASSO", "Estación Lasso",
+             "Parroquia Lasso, cantón Latacunga",
+             "-0.752976", "-78.610577"),
+        ),
+    },
 )
 
 
 class Command(BaseCommand):
-    help = "Carga el catálogo inicial de los siete cantones de Cotopaxi."
+    help = "Carga los cantones de Cotopaxi y el Cuerpo de Bomberos de Latacunga."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -83,6 +105,13 @@ class Command(BaseCommand):
             descripcion="Capacidad de respuesta ante incendios estructurales.",
         )
 
+        Estacion.objects.filter(
+            codigo="LAT-CENTRAL", latitud="-0.933333", longitud="-78.616667"
+        ).update(
+            latitud="-0.936987", longitud="-78.613233",
+            direccion="C. Fernando Sánchez de Orellana, Latacunga",
+        )
+
         creados = 0
         actualizados = 0
         for codigo, nombre in CANTONES_COTOPAXI:
@@ -95,14 +124,14 @@ class Command(BaseCommand):
         cuerpos_creados = 0
         estaciones_creadas = 0
         estaciones_principales = []
-        for canton_codigo, nombre, sigla, ruc, codigo_estacion, nombre_estacion, latitud, longitud in INSTITUCIONES_COTOPAXI:
-            canton = Canton.objects.get(codigo=canton_codigo)
+        for institucion in INSTITUCIONES_COTOPAXI:
+            canton = Canton.objects.get(codigo=institucion["canton"])
             cuerpo, cuerpo_creado = CuerpoBomberos.objects.update_or_create(
-                sigla=sigla,
+                sigla=institucion["sigla"],
                 defaults={
                     "canton": canton,
-                    "nombre": nombre,
-                    "ruc": ruc,
+                    "nombre": institucion["nombre"],
+                    "ruc": institucion["ruc"],
                     "direccion": "Dirección pendiente de registro",
                     "telefono": "",
                     "correo": "",
@@ -111,24 +140,27 @@ class Command(BaseCommand):
                 },
             )
             cuerpos_creados += int(cuerpo_creado)
-            if canton_codigo == "LATACUNGA":
-                Estacion.objects.filter(cuerpo_bomberos=cuerpo, codigo="CENTRAL").update(
-                    codigo=codigo_estacion, nombre=nombre_estacion
+            for indice, (codigo_estacion, nombre_estacion, direccion_estacion,
+                          latitud, longitud) in enumerate(institucion["estaciones"]):
+                if institucion["canton"] == "LATACUNGA" and indice == 0:
+                    # Renombra la estación genérica que dejaba la carga anterior.
+                    Estacion.objects.filter(cuerpo_bomberos=cuerpo, codigo="CENTRAL").update(
+                        codigo=codigo_estacion, nombre=nombre_estacion
+                    )
+                estacion, estacion_creada = Estacion.objects.get_or_create(
+                    cuerpo_bomberos=cuerpo,
+                    codigo=codigo_estacion,
+                    defaults={
+                        "nombre": nombre_estacion,
+                        "direccion": direccion_estacion,
+                        "telefono": "",
+                        "latitud": latitud,
+                        "longitud": longitud,
+                        "activo": True,
+                    },
                 )
-            estacion, estacion_creada = Estacion.objects.get_or_create(
-                cuerpo_bomberos=cuerpo,
-                codigo=codigo_estacion,
-                defaults={
-                    "nombre": nombre_estacion,
-                    "direccion": "Dirección pendiente de registro",
-                    "telefono": "",
-                    "latitud": latitud,
-                    "longitud": longitud,
-                    "activo": True,
-                },
-            )
-            estaciones_creadas += int(estacion_creada)
-            estaciones_principales.append(estacion)
+                estaciones_creadas += int(estacion_creada)
+                estaciones_principales.append(estacion)
 
         categoria_vehiculos, _ = CategoriaRecurso.objects.update_or_create(
             codigo="VEH", defaults={"nombre": "Vehículos", "activo": True}
@@ -166,7 +198,10 @@ class Command(BaseCommand):
                 )
                 recursos_creados += int(recurso_creado)
         self.stdout.write(self.style.SUCCESS(
-            f"Cotopaxi disponible: 7 cantones, 7 Cuerpos de Bomberos y 7 estaciones principales. "
+            f"Cotopaxi disponible: {len(CANTONES_COTOPAXI)} cantones, "
+            f"{len(INSTITUCIONES_COTOPAXI)} "
+            f"{'Cuerpo' if len(INSTITUCIONES_COTOPAXI) == 1 else 'Cuerpos'} de Bomberos y "
+            f"{sum(len(i['estaciones']) for i in INSTITUCIONES_COTOPAXI)} estaciones. "
             f"Nuevos: {creados} cantones, {cuerpos_creados} cuerpos, {estaciones_creadas} estaciones "
             f"y {recursos_creados} recursos iniciales."
         ))
