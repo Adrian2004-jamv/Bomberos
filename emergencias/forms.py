@@ -136,10 +136,31 @@ class FiltroIncidentesForm(forms.Form):
         choices=TIPOS_EMERGENCIA,
         widget=forms.Select(attrs={"data-incident-emergency-type": ""}),
     )
+    desde = forms.DateField(
+        label="Desde",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date", "data-incident-date": ""}),
+        error_messages={"invalid": "Indique la fecha inicial con el formato AAAA-MM-DD."},
+    )
+    hasta = forms.DateField(
+        label="Hasta",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date", "data-incident-date": ""}),
+        error_messages={"invalid": "Indique la fecha final con el formato AAAA-MM-DD."},
+    )
     fase = forms.ChoiceField(required=False, choices=FASES, widget=forms.HiddenInput)
 
     def clean_q(self):
         return self.cleaned_data["q"].strip()
+
+    def clean(self):
+        datos = super().clean()
+        desde, hasta = datos.get("desde"), datos.get("hasta")
+        if desde and hasta and desde > hasta:
+            # Se señala el campo final porque es el que el usuario acaba de
+            # elegir en el flujo habitual.
+            self.add_error("hasta", "La fecha final no puede ser anterior a la inicial.")
+        return datos
 
 
 class UnidadDesplegableChoiceField(forms.ModelChoiceField):

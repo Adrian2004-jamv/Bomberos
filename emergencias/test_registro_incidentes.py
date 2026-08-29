@@ -4,10 +4,13 @@ Los tres filtros existían en JavaScript sobre las filas ya dibujadas; aquí se
 comprueba que ahora los resuelve la base y que conviven con la paginación.
 """
 
+from datetime import datetime
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
@@ -44,13 +47,17 @@ class BaseRegistroTests(TestCase):
         cls.usuario.groups.add(Group.objects.get(name="Responsable institucional"))
 
     def crear(self, codigo, tipo="Incendio estructural",
-              estado=Emergencia.Estado.REPORTADA, estacion=None, direccion="Centro"):
+              estado=Emergencia.Estado.REPORTADA, estacion=None, direccion="Centro",
+              fecha_reporte=None):
+        campos = {}
+        if fecha_reporte is not None:
+            campos["fecha_reporte"] = fecha_reporte
         return Emergencia.objects.create(
             codigo=codigo, tipo_emergencia=tipo,
             prioridad=Emergencia.Prioridad.ALTA, estado=estado,
             direccion=direccion, latitud="-0.933333", longitud="-78.616667",
             estacion_responsable=estacion or self.estacion,
-            registrado_por=self.usuario,
+            registrado_por=self.usuario, **campos,
         )
 
     def listar(self, **parametros):
@@ -267,3 +274,83 @@ class AlcanceYFormularioTests(BaseRegistroTests):
     def test_el_registro_no_acepta_post(self):
         self.client.force_login(self.usuario)
         self.assertEqual(self.client.post(reverse("emergencias:lista")).status_code, 405)
+
+
+class FiltroPorFechaTests(BaseRegistroTests):
+    """Rango de fechas sobre la fecha de reporte, en hora local."""
+
+    def setUp(self):
+        def local(anio, mes, dia, hora=12):
+            ingenuo = datetime(anio, mes, dia, hora)
+            return timezone.make_aware(ingenuo, timezone.get_current_timezone())
+
+        self.crear("RG-FEC-1", fecha_reporte=local(2026, 3, 1))
+        self.crear("RG-FEC-2", fecha_reporte=local(2026, 3, 10))
+        self.crear("RG-FEC-3", fecha_reporte=local(2026, 3, 20))
+
+    def test_sin_fechas_muestra_todos(self):
+        self.assertEqual(len(self.codigos(self.listar())), 3)
+
+    def test_desde_incluye_su_propio_dia(self):
+        codigos = self.codigos(self.listar(desde="2026-03-10"))
+        self.assertEqual(sorted(codigos), ["RG-FEC-2", "RG-FEC-3"])
+
+    def test_hasta_incluye_su_propio_dia(self):
+        codigos = self.codigos(self.listar(hasta="2026-03-10"))
+        self.assertEqual(sorted(codigos), ["RG-FEC-1", "RG-FEC-2"])
+
+    def test_rango_cerrado_acota_por_ambos_extremos(self):
+        codigos = self.codigos(self.listar(desde="2026-03-05", hasta="2026-03-15"))
+        self.assertEqual(codigos, ["RG-FEC-2"])
+
+    def test_un_solo_dia_se_expresa_con_el_mismo_valor(self):
+        codigos = self.codigos(self.listar(desde="2026-03-10", hasta="2026-03-10"))
+        self.assertEqual(codigos, ["RG-FEC-2"])
+
+    def test_un_rango_sin_incidentes_no_devuelve_nada(self):
+        self.assertEqual(self.codigos(self.listar(desde="2026-04-01")), [])
+
+    def test_el_rango_invertido_avisa_y_no_filtra(self):
+        respuesta = self.listar(desde="2026-03-20", hasta="2026-03-01")
+        self.assertContains(respuesta, "La fecha final no puede ser anterior a la inicial.")
+        self.assertEqual(len(self.codigos(respuesta)), 3)
+
+    def test_una_fecha_ilegible_avisa_y_no_rompe(self):
+        respuesta = self.listar(desde="no-es-fecha")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "formato AAAA-MM-DD")
+
+    def test_se_combina_con_los_demas_filtros(self):
+        self.crear("RG-FEC-4", tipo="Incendio forestal",
+                   fecha_reporte=timezone.make_aware(
+                       datetime(2026, 3, 12, 12), timezone.get_current_timezone()))
+        codigos = self.codigos(self.listar(
+            desde="2026-03-05", hasta="2026-03-15", tipo="Incendio forestal"))
+        self.assertEqual(codigos, ["RG-FEC-4"])
+
+    def test_la_barra_conserva_las_fechas_elegidas(self):
+        respuesta = self.listar(desde="2026-03-05", hasta="2026-03-15")
+        self.assertContains(respuesta, 'value="2026-03-05"')
+        self.assertContains(respuesta, 'value="2026-03-15"')
+        self.assertContains(respuesta, "Limpiar")
+
+    def test_la_hora_local_decide_el_dia_y_no_la_marca_utc(self):
+        """A las 22:00 de Ecuador ya es el día siguiente en UTC.
+
+        Si el filtro comparara la marca almacenada sin convertirla, este
+        incidente caería fuera del rango que el usuario ve en pantalla.
+        """
+        self.crear("RG-FEC-NOCHE", fecha_reporte=timezone.make_aware(
+            datetime(2026, 3, 25, 22), timezone.get_current_timezone()))
+        codigos = self.codigos(self.listar(desde="2026-03-25", hasta="2026-03-25"))
+        self.assertEqual(codigos, ["RG-FEC-NOCHE"])
+
+    def test_la_exportacion_respeta_el_rango(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:exportar"), {"desde": "2026-03-05", "hasta": "2026-03-15"}
+        )
+        contenido = b"".join(respuesta.streaming_content).decode("utf-8-sig")
+        self.assertIn("RG-FEC-2", contenido)
+        self.assertNotIn("RG-FEC-1", contenido)
+        self.assertNotIn("RG-FEC-3", contenido)

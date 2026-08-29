@@ -106,6 +106,9 @@ td a { color: var(--color-red-700); }
 .incident-filter-export:hover{color:#fff;border-color:#087c61;background:#087c61}
 .incident-document-filter select{color:var(--color-navy-900)}
 .incident-type-filter select{max-width:12rem}
+.incident-date-filter input{min-height:2.45rem;max-width:10rem;padding:.4rem .55rem;border:1px solid var(--color-slate-300);border-radius:.5rem;color:var(--color-navy-900);font:inherit;font-size:.74rem}
+.incident-date-filter input:focus{outline:2px solid var(--color-red-700);outline-offset:-1px}
+.incident-filter-error{display:flex;align-items:center;gap:.4rem;grid-column:1/-1;margin:0;padding:.5rem .7rem;border-left:3px solid #d89b00;border-radius:.35rem;background:#fff7dd;color:#7a5b00;font-size:.74rem;font-weight:700}
 .incident-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.75rem;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--color-slate-200)}
 .incident-pagination a{display:inline-flex;align-items:center;gap:.25rem;min-height:2.4rem;padding:.45rem .8rem;border:1px solid var(--color-slate-300);border-radius:.5rem;color:var(--color-navy-900);font-size:.74rem;font-weight:800;text-decoration:none}
 .incident-pagination a:hover{color:var(--color-red-700);border-color:#e79aa1;background:#fff7f7}

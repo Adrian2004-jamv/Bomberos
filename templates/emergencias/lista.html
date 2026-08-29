@@ -39,9 +39,17 @@
         {{ form.fase }}
         <label class="incident-register-search"><i class="ti ti-search" aria-hidden="true"></i><span class="sr-only">{{ form.q.label }}</span>{{ form.q }}</label>
         <label class="incident-document-filter incident-type-filter"><span>{{ form.tipo.label }}</span>{{ form.tipo }}</label>
+        <label class="incident-document-filter incident-date-filter"><span>{{ form.desde.label }}</span>{{ form.desde }}</label>
+        <label class="incident-document-filter incident-date-filter"><span>{{ form.hasta.label }}</span>{{ form.hasta }}</label>
         <button class="incident-filter-submit" type="submit"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
         <a class="incident-filter-export" href="{% url 'emergencias:exportar' %}{% if querystring %}?{{ querystring }}{% endif %}"><i class="ti ti-file-download" aria-hidden="true"></i> Exportar CSV</a>
         {% if hay_filtros %}<a class="incident-filter-clear" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-x" aria-hidden="true"></i> Limpiar</a>{% endif %}
+        {% if form.errors %}
+        <p class="incident-filter-error" role="alert"><i class="ti ti-alert-triangle" aria-hidden="true"></i>
+            {% for errores in form.errors.values %}{% for error in errores %}{{ error }} {% endfor %}{% endfor %}
+            Se muestra el registro completo.
+        </p>
+        {% endif %}
     </form>
     {% if emergencias %}
         <div class="table-responsive"><table class="incident-register-table">
