@@ -43,6 +43,14 @@ services:
       python manage.py migrate --no-input
       python manage.py cargar_datos_cotopaxi
       python manage.py crear_superusuario_inicial
+      if [ "${DJANGO_RETIRAR_INSTITUCIONES:-}" = "1" ]; then
+        # Va despues de cargar_datos_cotopaxi porque necesita que la estacion
+        # de destino exista. El comando traslada a Latacunga las emergencias,
+        # los recursos, los usuarios y las evaluaciones que colgaban de las
+        # instituciones retiradas, y solo entonces las elimina: no se pierde
+        # informacion. Es idempotente, de modo que repetirlo no hace nada.
+        python manage.py limpiar_instituciones_no_precargadas --ejecutar
+      fi
       if [ "${DJANGO_CARGAR_ESCENARIOS:-}" = "1" ]; then
         # El escenario exige que la estacion de Latacunga tenga las unidades
         # AB-01 y AMB-01. cargar_datos_cotopaxi no crea la ambulancia, asi que
@@ -103,6 +111,14 @@ services:
       # INC-2026-002, con sus unidades desplegadas y su SCI-211 ya armado. Es la
       # unica via de poblar el panel de despliegues, porque el sistema todavia
       # no permite crearlos desde la interfaz. Retirela despues de la carga.
+      #
+      # DJANGO_RETIRAR_INSTITUCIONES tampoco se declara aqui. Las bases creadas
+      # antes de que el sistema se acotara a Latacunga conservan los siete
+      # Cuerpos de Bomberos de la provincia, que siguen apareciendo en el
+      # selector de estacion responsable. Definala a mano y con valor 1 para que
+      # la construccion los retire; el comando traslada antes su informacion a
+      # la estacion LAT-CENTRAL. Retirela despues, aunque dejarla puesta es
+      # inocuo: en la siguiente construccion no encontrara nada que hacer.
       #
       # DJANGO_ALLOWED_HOSTS y DJANGO_CSRF_TRUSTED_ORIGINS no se declaran aqui:
       # settings.py toma el dominio de RENDER_EXTERNAL_HOSTNAME, que la propia
