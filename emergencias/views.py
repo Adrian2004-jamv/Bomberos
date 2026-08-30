@@ -35,10 +35,9 @@ from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           obtener_esquema, obtener_esquema_catalogo,
                           secciones_completadas,
                           secciones_con_valores)
-from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
-                       cambiar_estado_despliegue, cambiar_estado_emergencia,
-                       desplegar_unidad, registrar_posicion_unidad,
-                       transiciones_disponibles)
+from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
+                       cambiar_estado_emergencia, desplegar_unidad,
+                       registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
                           desplegar_recursos_del_sci211, finalizar_sci,
                           finalizar_sci211)
@@ -570,10 +569,6 @@ def detalle(request, pk):
         "puede_gestionar_en_admin": request.user.is_staff,
         "puede_transmitir_gps": puede_gestionar_emergencias(request.user),
         "puede_gestionar": puede_gestionar,
-        "transiciones_emergencia": transiciones_disponibles(
-            TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
-        ) if puede_gestionar else [],
-        "unidades_en_incidente": sum(1 for despliegue in despliegues if despliegue.activo),
         "sci211": sci211,
         "sci211_bloqueado": not _formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),

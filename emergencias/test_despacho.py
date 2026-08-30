@@ -281,14 +281,25 @@ class DespachoWebTests(BaseDespachoTests):
 
 
 class TransicionesWebTests(BaseDespachoTests):
-    def test_detalle_ofrece_las_transiciones_del_incidente(self):
+    def test_el_detalle_ya_no_muestra_el_ciclo_operativo(self):
+        """El panel se retiró de la pantalla; la ruta de estado sigue viva."""
         emergencia = self.crear_emergencia()
         self.client.force_login(self.responsable)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[emergencia.pk]))
-        self.assertContains(respuesta, reverse("emergencias:cambiar_estado", args=[emergencia.pk]))
-        self.assertContains(respuesta, 'value="en_atencion"', html=False)
-        self.assertContains(respuesta, 'value="cancelada"', html=False)
-        self.assertNotContains(respuesta, 'value="cerrada"')
+        self.assertNotContains(respuesta, "Ciclo operativo")
+        self.assertNotContains(respuesta, "incident-state-panel")
+
+    def test_la_ruta_de_estado_sigue_atendiendo(self):
+        """Sin el panel, cambiar de estado exige llamar la ruta directamente."""
+        emergencia = self.crear_emergencia()
+        self.client.force_login(self.responsable)
+        respuesta = self.client.post(
+            reverse("emergencias:cambiar_estado", args=[emergencia.pk]),
+            {"estado": Emergencia.Estado.EN_ATENCION},
+        )
+        self.assertEqual(respuesta.status_code, 302)
+        emergencia.refresh_from_db()
+        self.assertEqual(emergencia.estado, Emergencia.Estado.EN_ATENCION)
 
     def test_detalle_no_ofrece_transiciones_a_un_perfil_de_consulta(self):
         emergencia = self.crear_emergencia()

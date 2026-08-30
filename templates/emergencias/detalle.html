@@ -24,26 +24,6 @@
         {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
     </dl>
 </section>
-<section class="panel incident-state-panel">
-    <div class="panel__heading"><div><p class="eyebrow">Ciclo operativo</p><h2>Estado de la emergencia</h2></div>
-        <span class="incident-phase incident-phase--{% if emergencia.esta_terminada %}finished{% else %}active{% endif %}"><i class="ti {% if emergencia.esta_terminada %}ti-circle-check{% else %}ti-activity-heartbeat{% endif %}" aria-hidden="true"></i> {{ emergencia.get_estado_display }}</span>
-    </div>
-    {% if transiciones_emergencia %}
-    <p class="incident-state-help">{% if unidades_en_incidente %}Hay {{ unidades_en_incidente }} unidad{{ unidades_en_incidente|pluralize:"es" }} en la emergencia. Para cerrarlo o cancelarlo, primero finalice o cancele cada despliegue.{% else %}No quedan unidades activas en la emergencia.{% endif %}</p>
-    <div class="incident-state-actions">
-        {% for transicion in transiciones_emergencia %}
-        <form method="post" action="{% url 'emergencias:cambiar_estado' emergencia.pk %}">{% csrf_token %}
-            <input type="hidden" name="estado" value="{{ transicion.valor }}">
-            <button class="sci-panel-action{% if transicion.valor == 'cerrada' %} sci-panel-action--primary{% endif %}" type="submit">{{ transicion.etiqueta }}</button>
-        </form>
-        {% endfor %}
-    </div>
-    {% elif emergencia.esta_terminada %}
-    <p class="incident-state-help">La emergencia está {{ emergencia.get_estado_display|lower }} y ya no admite cambios de estado ni nuevos despliegues.</p>
-    {% else %}
-    <p class="incident-state-help">Su perfil puede consultar esta emergencia, pero no cambiar su estado.</p>
-    {% endif %}
-</section>
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
     {% if not sci211_bloqueado %}{% if sci211 and sci211.es_editable %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Continuar SCI-211</a>
