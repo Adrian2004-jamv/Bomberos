@@ -719,7 +719,11 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
 
 
 def _contexto_documento_sci(usuario, emergencia, codigo):
-    esquema = obtener_esquema(codigo)
+    # El SCI-211 se captura con su modelo propio, de modo que no figura entre
+    # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
+    # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
+    # blanco en lugar de responder que la pagina no existe.
+    esquema = obtener_esquema_catalogo(codigo)
     if esquema is None:
         raise Http404
     formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()

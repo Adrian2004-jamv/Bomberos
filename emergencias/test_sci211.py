@@ -308,6 +308,29 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Plan de Comunicaciones")
         self.assertContains(respuesta, "Verificación de la Desmovilización")
 
+    def test_ver_el_sci_211_sin_crearlo_muestra_la_cuadricula_en_blanco(self):
+        """Antes respondia 404: el 211 no figura entre los esquemas editables."""
+        self.finalizar_anteriores("211")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_visualizar", args=["211", self.emergencia.pk]
+        ))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Formulario SCI-211")
+        self.assertContains(respuesta, "A. Solicitud")
+        self.assertContains(respuesta, "12. Observaciones")
+
+    def test_ver_el_sci_211_ya_creado_lleva_a_su_documento(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse(
+            "emergencias:sci_visualizar", args=["211", self.emergencia.pk]
+        ))
+        self.assertRedirects(
+            respuesta, reverse("emergencias:sci211_imprimir", args=[formulario.pk])
+        )
+
     def test_solo_el_primer_formulario_esta_desbloqueado_al_comenzar(self):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
