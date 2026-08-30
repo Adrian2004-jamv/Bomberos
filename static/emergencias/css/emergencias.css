@@ -147,3 +147,14 @@ td a { color: var(--color-red-700); }
     .incident-date-filter{flex:1 1 calc(50% - .375rem)}
     .incident-filter-submit,.incident-filter-clear,.incident-filter-export{flex:1 1 100%}
 }
+
+/* Panel de control de una emergencia concreta. */
+.incident-metrics-panel{border-top:4px solid var(--color-navy-900)}
+.incident-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem}
+.incident-metric{display:flex;align-items:flex-start;gap:.6rem;padding:.8rem;border:1px solid var(--color-slate-200);border-radius:.65rem;background:var(--color-slate-100)}
+.incident-metric__icon{display:grid;width:2.1rem;height:2.1rem;flex:0 0 auto;place-items:center;border-radius:.5rem;background:#fff;color:var(--color-red-700);font-size:1.05rem}
+.incident-metric strong{display:block;color:var(--color-navy-950);font-size:1.25rem;line-height:1.2}
+.incident-metric small{display:block;margin-top:.15rem;color:var(--color-slate-600);font-size:.7rem}
+.incident-metric__aparte{color:var(--color-slate-600);font-size:.8rem;font-weight:700}
+.incident-metric .incident-progress{margin-top:.4rem}
+@media(max-width:560px){.incident-metrics{grid-template-columns:1fr 1fr}}

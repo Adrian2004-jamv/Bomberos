@@ -17,7 +17,7 @@
             <i class="ti ti-firetruck" aria-hidden="true"></i> Acción
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} nav-item--active{% endif %}" href="{% url 'dashboard:principal' %}"{% if request.resolver_match.namespace == 'dashboard' %} aria-current="page"{% endif %}>
-            <i class="ti ti-dashboard" aria-hidden="true"></i> Dashboard
+            <i class="ti ti-dashboard" aria-hidden="true"></i> Panel de control
         </a>
         <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
             <i class="ti ti-building-community" aria-hidden="true"></i> Instituciones

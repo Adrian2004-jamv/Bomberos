@@ -434,7 +434,7 @@ class SCI211Tests(TestCase):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:lista"))
         contenido = respuesta.content.decode()
-        self.assertLess(contenido.index("> Acción"), contenido.index("> Dashboard"))
+        self.assertLess(contenido.index("> Acción"), contenido.index("> Panel de control"))
         self.assertContains(
             respuesta,
             f'href="{reverse("emergencias:lista")}" aria-current="page"',

@@ -3,7 +3,7 @@
 
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=12"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=13"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
 
 {% block content %}
 <section class="panel">
@@ -23,6 +23,37 @@
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
         {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
     </dl>
+</section>
+<section class="panel incident-metrics-panel">
+    <div class="panel__heading"><div><p class="eyebrow">Situación de esta emergencia</p><h2>Panel de control</h2></div></div>
+    <div class="incident-metrics">
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-clock-hour-4" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.duracion|default:"—" }}</strong><small>{% if indicadores.sigue_abierta %}Tiempo transcurrido{% else %}Duración total{% endif %}</small></div>
+        </article>
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-firetruck" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.unidades_activas }}{% if indicadores.unidades_totales != indicadores.unidades_activas %} <span class="incident-metric__aparte">de {{ indicadores.unidades_totales }}</span>{% endif %}</strong><small>Unidades en el sitio</small></div>
+        </article>
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-users" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.personal_comprometido|default:"—" }}</strong><small>Personal comprometido</small></div>
+        </article>
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-stopwatch" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.tiempo_respuesta|default:"—" }}</strong><small>{% if indicadores.tiempo_respuesta %}Hasta la primera llegada{% else %}Sin arribos registrados{% endif %}</small></div>
+        </article>
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-package" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.recursos_registrados }}</strong><small>Recursos en el SCI-211</small></div>
+        </article>
+        <article class="incident-metric">
+            <span class="incident-metric__icon"><i class="ti ti-file-check" aria-hidden="true"></i></span>
+            <div><strong>{{ indicadores.avance_documental.completados }}/{{ indicadores.avance_documental.total }}</strong><small>Formularios SCI</small>
+                <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ indicadores.avance_documental.total }}" aria-valuenow="{{ indicadores.avance_documental.completados }}" aria-label="Avance documental de esta emergencia"><span style="width:{{ indicadores.avance_documental.porcentaje }}%"></span></div>
+            </div>
+        </article>
+    </div>
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading"><div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
