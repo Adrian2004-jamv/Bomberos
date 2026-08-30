@@ -2,6 +2,8 @@ from itertools import chain
 
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
+from emergencias.indicadores import anotar_indicadores, preparar_indicadores
+
 from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI211
 from emergencias.permissions import (
     puede_consultar_emergencias,
@@ -87,7 +89,7 @@ def _incidentes_en_curso(estaciones, limite=6):
     resolverlas por fila obligaría a una consulta por incidente al pintar la
     tabla.
     """
-    return (
+    consulta = (
         _emergencias_del_ambito(estaciones)
         .exclude(estado__in=ESTADOS_TERMINADOS)
         .select_related("estacion_responsable", "estacion_responsable__cuerpo_bomberos")
@@ -101,8 +103,11 @@ def _incidentes_en_curso(estaciones, limite=6):
                 FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk"))
             ),
         )
-        .order_by("-fecha_reporte", "-pk")[:limite]
+        .order_by("-fecha_reporte", "-pk")
     )
+    # El resumen de cada emergencia se anota en la misma consulta; resolverlo
+    # por fila costaría varias consultas por tarjeta.
+    return preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
 
 
 def _resumen_operativo(estaciones):

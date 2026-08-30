@@ -1,15 +1,17 @@
-"""Indicadores de una emergencia concreta.
+"""Indicadores por emergencia para el panel de control.
 
-El panel de control resume toda la provincia; esto responde lo mismo pero
-acotado a un solo registro: cuánto lleva abierta, cuánta gente y cuántas
-unidades tiene comprometidas, qué tan rápido llegó la primera y cuánto de su
-documentación SCI está lista.
+El panel resume la provincia con cuatro cifras; esto añade, en la misma
+pantalla, la lectura rápida de cada emergencia abierta: cuánto lleva, cuántas
+unidades tiene en el sitio, cuánta gente hay comprometida y cuánto tardó la
+primera unidad en llegar.
 
-Todas las cifras salen de lo ya registrado —despliegues y formularios— de modo
-que no hay un dato que alguien deba mantener aparte.
+Todo se anota en la consulta que ya trae las emergencias, de modo que la lista
+completa cuesta una consulta y no una por fila. Las cifras se derivan de lo ya
+registrado —despliegues y formularios—, así que no hay ningún dato que alguien
+deba mantener aparte ni que pueda contradecir a la pantalla que lo alimenta.
 """
 
-from django.db.models import Min, Sum
+from django.db.models import Count, Min, Q, Sum
 from django.utils import timezone
 
 from .models import DespliegueUnidad
@@ -17,7 +19,7 @@ from .models import DespliegueUnidad
 TOTAL_FORMULARIOS_SCI = 12
 
 
-def _formato_duracion(diferencia):
+def formato_duracion(diferencia):
     """Convierte una duración en algo legible: «2 h 35 min»."""
     if diferencia is None:
         return None
@@ -33,49 +35,38 @@ def _formato_duracion(diferencia):
     return f"{minutos} min"
 
 
-def _avance_documental(emergencia):
-    genericos = emergencia.formularios_sci.count()
-    tiene_211 = hasattr(emergencia, "formulario_sci_211")
-    completados = genericos + int(tiene_211)
-    return {
-        "completados": completados,
-        "total": TOTAL_FORMULARIOS_SCI,
-        "porcentaje": round(completados / TOTAL_FORMULARIOS_SCI * 100),
-    }
+def anotar_indicadores(emergencias):
+    """Agrega a la consulta lo que necesita el resumen de cada emergencia."""
+    return emergencias.annotate(
+        unidades_totales=Count("despliegues", distinct=True),
+        primera_llegada=Min("despliegues__fecha_llegada"),
+        personal_comprometido=Sum("formulario_sci_211__registros__numero_personas"),
+        recursos_registrados=Count(
+            "formulario_sci_211__registros", distinct=True
+        ),
+        formularios_genericos=Count("formularios_sci", distinct=True),
+    )
 
 
-def resumen_de_emergencia(emergencia):
-    """Devuelve los indicadores propios de una emergencia."""
-    despliegues = emergencia.despliegues.all()
-    activos = [d for d in despliegues if d.estado in DespliegueUnidad.ESTADOS_ACTIVOS]
+def preparar_indicadores(emergencias):
+    """Calcula sobre cada fila lo que no conviene resolver en la base.
 
-    sci211 = getattr(emergencia, "formulario_sci_211", None)
-    personal = None
-    recursos_registrados = 0
-    if sci211 is not None:
-        agregado = sci211.registros.aggregate(
-            personas=Sum("numero_personas"), total=Min("orden")
+    Las duraciones dependen del instante actual y su formato es de
+    presentación, de modo que se arman aquí y no en la consulta.
+    """
+    ahora = timezone.now()
+    for emergencia in emergencias:
+        fin = emergencia.fecha_cierre or ahora
+        emergencia.duracion = formato_duracion(fin - emergencia.fecha_reporte)
+        emergencia.sigue_abierta = emergencia.fecha_cierre is None
+        emergencia.tiempo_respuesta = (
+            formato_duracion(emergencia.primera_llegada - emergencia.fecha_reporte)
+            if emergencia.primera_llegada else None
         )
-        personal = agregado["personas"]
-        recursos_registrados = sci211.registros.count()
-
-    # La primera llegada mide cuánto tardó la respuesta en tocar el sitio.
-    primera_llegada = despliegues.aggregate(momento=Min("fecha_llegada"))["momento"]
-    tiempo_respuesta = None
-    if primera_llegada and emergencia.fecha_reporte:
-        tiempo_respuesta = _formato_duracion(primera_llegada - emergencia.fecha_reporte)
-
-    fin = emergencia.fecha_cierre or timezone.now()
-    duracion = _formato_duracion(fin - emergencia.fecha_reporte)
-
-    return {
-        "duracion": duracion,
-        "sigue_abierta": emergencia.fecha_cierre is None,
-        "unidades_activas": len(activos),
-        "unidades_totales": len(despliegues),
-        "personal_comprometido": personal,
-        "recursos_registrados": recursos_registrados,
-        "tiempo_respuesta": tiempo_respuesta,
-        "primera_llegada": primera_llegada,
-        "avance_documental": _avance_documental(emergencia),
-    }
+        completados = emergencia.formularios_genericos + int(emergencia.tiene_sci211)
+        emergencia.formularios_completados = completados
+        emergencia.formularios_total = TOTAL_FORMULARIOS_SCI
+        emergencia.formularios_porcentaje = round(
+            completados / TOTAL_FORMULARIOS_SCI * 100
+        )
+    return emergencias

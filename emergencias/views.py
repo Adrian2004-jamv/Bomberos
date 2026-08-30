@@ -31,7 +31,6 @@ from .permissions import (estacion_autorizada, puede_consultar_emergencias,
                           puede_consultar_sci, puede_editar_sci,
                           puede_gestionar_emergencias)
 from .codigos import generar_codigo_emergencia
-from .indicadores import resumen_de_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           obtener_esquema, obtener_esquema_catalogo,
                           secciones_completadas,
@@ -570,7 +569,6 @@ def detalle(request, pk):
         "puede_gestionar_en_admin": request.user.is_staff,
         "puede_transmitir_gps": puede_gestionar_emergencias(request.user),
         "puede_gestionar": puede_gestionar,
-        "indicadores": resumen_de_emergencia(emergencia),
         "sci211": sci211,
         "sci211_bloqueado": not _formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),

@@ -143,3 +143,13 @@
     .dashboard-evaluation > a { width: 100%; }
     .incident-board > article > a { width: 100%; }
 }
+
+/* Resumen rápido de cada emergencia dentro del panel de control: evita entrar
+   a la ficha solo para saber cuánto lleva o cuánta gente tiene encima. */
+.incident-board__resumen{display:grid;grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));gap:.5rem;margin:.65rem 0 0;padding-top:.65rem;border-top:1px solid var(--color-slate-200)}
+.incident-board__resumen div{min-width:0}
+.incident-board__resumen dt{color:var(--color-slate-600);font-size:.65rem;text-transform:uppercase;letter-spacing:.03em}
+.incident-board__resumen dd{margin:.15rem 0 0;color:var(--color-navy-950);font-size:.95rem;font-weight:800}
+.incident-board__resumen dd span{color:var(--color-slate-600);font-size:.75rem;font-weight:700}
+.incident-board__resumen .incident-progress{margin-top:.3rem}
+@media(max-width:560px){.incident-board__resumen{grid-template-columns:1fr 1fr}}

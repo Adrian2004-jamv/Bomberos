@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=4">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -52,6 +52,16 @@
                     </div>
                     <time datetime="{{ incidente.fecha_reporte|date:'c' }}">{{ incidente.fecha_reporte|date:"d/m/Y H:i" }}</time>
                     <a href="{% url 'emergencias:detalle' incidente.pk %}">Abrir emergencia</a>
+                    <dl class="incident-board__resumen" aria-label="Resumen de {{ incidente.codigo }}">
+                        <div><dt>Transcurrido</dt><dd>{{ incidente.duracion|default:"—" }}</dd></div>
+                        <div><dt>Unidades</dt><dd>{{ incidente.unidades_activas }}{% if incidente.unidades_totales != incidente.unidades_activas %} <span>de {{ incidente.unidades_totales }}</span>{% endif %}</dd></div>
+                        <div><dt>Personal</dt><dd>{{ incidente.personal_comprometido|default:"—" }}</dd></div>
+                        <div><dt>Recursos</dt><dd>{{ incidente.recursos_registrados }}</dd></div>
+                        <div><dt>{% if incidente.tiempo_respuesta %}Primera llegada{% else %}Sin arribos{% endif %}</dt><dd>{{ incidente.tiempo_respuesta|default:"—" }}</dd></div>
+                        <div><dt>Formularios</dt><dd>{{ incidente.formularios_completados }}/{{ incidente.formularios_total }}
+                            <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ incidente.formularios_total }}" aria-valuenow="{{ incidente.formularios_completados }}" aria-label="Avance documental de {{ incidente.codigo }}"><span style="width:{{ incidente.formularios_porcentaje }}%"></span></div>
+                        </dd></div>
+                    </dl>
                 </article>
             {% endfor %}
         </div>
