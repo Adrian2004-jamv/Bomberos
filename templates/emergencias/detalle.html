@@ -60,7 +60,7 @@
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div>
-        {% if puede_gestionar and emergencia.admite_despliegues %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:despachar' emergencia.pk %}"><i class="ti ti-firetruck" aria-hidden="true"></i> Despachar unidad</a>{% endif %}
+        {% if puede_gestionar and emergencia.admite_despliegues %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci_editar' '211' emergencia.pk %}"><i class="ti ti-firetruck" aria-hidden="true"></i> Registrar unidad en el SCI-211</a>{% endif %}
     </div>
     {% if despliegues %}<div class="table-responsive"><table>
         <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Tiempos</th><th>Acciones</th></tr></thead>
@@ -85,6 +85,6 @@
                 {% if not despliegue.transiciones and not despliegue.activo %}<span class="deployment-closed">Despliegue terminado</span>{% endif %}
             </div></td>
         </tr>{% endfor %}</tbody>
-    </table></div>{% else %}<div class="empty-state"><p>No hay unidades desplegadas para esta emergencia.</p></div>{% endif %}
+    </table></div>{% else %}<div class="empty-state"><p>No hay unidades desplegadas. Las unidades se despachan al registrarlas en el formulario SCI-211.</p></div>{% endif %}
 </section>
 {% endblock %}

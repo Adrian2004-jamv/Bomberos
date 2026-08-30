@@ -13,7 +13,9 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .forms_sci import RegistroRecursoSCI211Form
 from .esquemas_sci import ESQUEMAS_SCI, HORA, secciones_con_valores
+from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
+from .services import desplegar_unidad
 from .services_sci import finalizar_sci211
 
 
@@ -752,3 +754,150 @@ class ControlesDeFechaSCITests(TestCase):
         ))
         self.assertContains(respuesta, "overflow-wrap:anywhere")
         self.assertContains(respuesta, "table-layout:fixed")
+
+
+class DespachoDesdeSCI211Tests(SCI211Tests):
+    """Registrar una unidad en el SCI-211 es la decisión de despacharla."""
+
+    def crear_unidad_desplegable(self, codigo="AB-SCI-01"):
+        categoria, _ = CategoriaRecurso.objects.get_or_create(
+            codigo="CAT-DESP", defaults={"nombre": "Vehículos"}
+        )
+        tipo, _ = TipoRecurso.objects.get_or_create(
+            categoria=categoria, codigo="TIP-DESP",
+            defaults={"nombre": "Autobomba", "es_unidad_desplegable": True},
+        )
+        return Recurso.objects.create(
+            estacion=self.estacion, tipo=tipo, codigo_interno=codigo,
+            nombre="Autobomba desplegable",
+            estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+
+    def guardar_con_recurso(self, formulario, recurso):
+        self.client.force_login(self.usuario)
+        registro = formulario.registros.first()
+        return self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            {
+                "punto_registro": "Puesto de Comando",
+                "registrador_1": "Usuario de Prueba",
+                "registrador_2": "", "registrador_3": "",
+                "registros-TOTAL_FORMS": "1", "registros-INITIAL_FORMS": "1",
+                "registros-MIN_NUM_FORMS": "1", "registros-MAX_NUM_FORMS": "1000",
+                "registros-0-id": str(registro.pk),
+                "registros-0-recurso_inventario": str(recurso.pk),
+                "registros-0-solicitado_por": "CI Prueba",
+                "registros-0-fecha_hora_solicitud": "2026-08-29T10:00",
+                "registros-0-tipo_recurso": "", "registros-0-clase_recurso": "",
+                "registros-0-institucion_procedencia": "",
+                "registros-0-matricula_identificacion": "",
+                "registros-0-numero_personas": "2",
+                "registros-0-estado_recurso": "disponible",
+                "registros-0-asignado_a": "Área de Espera",
+                "registros-0-desmovilizado_por": "",
+                "registros-0-observaciones": "",
+            },
+        )
+
+    def test_registrar_una_unidad_la_despacha(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.crear_unidad_desplegable()
+        self.guardar_con_recurso(formulario, unidad)
+
+        despliegue = DespliegueUnidad.objects.filter(
+            emergencia=self.emergencia, unidad=unidad
+        ).first()
+        self.assertIsNotNone(despliegue)
+        self.assertIn(despliegue.estado, DespliegueUnidad.ESTADOS_ACTIVOS)
+        unidad.refresh_from_db()
+        self.assertEqual(unidad.disponibilidad, Recurso.Disponibilidad.ASIGNADO)
+
+    def test_el_registro_queda_enlazado_a_su_despliegue(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.crear_unidad_desplegable()
+        self.guardar_con_recurso(formulario, unidad)
+
+        registro = formulario.registros.first()
+        self.assertIsNotNone(registro.despliegue)
+        self.assertEqual(registro.despliegue.unidad, unidad)
+
+    def test_guardar_dos_veces_no_despacha_por_duplicado(self):
+        """Antes obligaba a despachar aparte y quedaba el riesgo de repetirlo."""
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.crear_unidad_desplegable()
+        self.guardar_con_recurso(formulario, unidad)
+        self.guardar_con_recurso(formulario, unidad)
+
+        self.assertEqual(
+            DespliegueUnidad.objects.filter(emergencia=self.emergencia, unidad=unidad).count(), 1
+        )
+
+    def test_un_equipo_que_no_es_unidad_no_genera_despliegue(self):
+        """El SCI-211 registra también equipos; un ERA no sale como unidad."""
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        equipo = self.crear_recurso_verificado(codigo="ERA-SCI-01")
+        self.guardar_con_recurso(formulario, equipo)
+
+        self.assertFalse(
+            DespliegueUnidad.objects.filter(emergencia=self.emergencia, unidad=equipo).exists()
+        )
+
+    def test_una_unidad_ya_ocupada_no_se_puede_registrar(self):
+        """Al despacharla queda ASIGNADA y sale del desplegable de recursos.
+
+        El formulario la rechaza antes de intentar el despacho, que es la
+        barrera correcta: una unidad no puede atender dos emergencias.
+        """
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.crear_unidad_desplegable()
+        otra = Emergencia.objects.create(
+            codigo="IE-01012026-777", tipo_emergencia="Incendio forestal",
+            direccion="Otro sitio", estacion_responsable=self.estacion,
+            registrado_por=self.usuario,
+        )
+        desplegar_unidad(otra, unidad, self.usuario)
+
+        respuesta = self.guardar_con_recurso(formulario, unidad)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            DespliegueUnidad.objects.filter(emergencia=self.emergencia).count(), 0
+        )
+        self.assertEqual(
+            DespliegueUnidad.objects.filter(emergencia=otra, unidad=unidad).count(), 1
+        )
+
+
+class CuadriculaSCI211Tests(SCI211Tests):
+    """Autocompletado del recurso y alta de filas sin recargar."""
+
+    def abrir_editor(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.crear_recurso_verificado(codigo="REC-CUAD-01")
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+
+    def test_cada_opcion_lleva_los_datos_del_recurso(self):
+        respuesta = self.abrir_editor()
+        self.assertContains(respuesta, 'data-clase="Vehículos SCI prueba"')
+        self.assertContains(respuesta, 'data-tipo="Autobomba SCI prueba"')
+        self.assertContains(respuesta, 'data-matricula="REC-CUAD-01"')
+
+    def test_los_campos_derivados_estan_marcados_para_el_guion(self):
+        respuesta = self.abrir_editor()
+        for marca in ("clase", "tipo", "institucion", "matricula"):
+            self.assertContains(respuesta, f'data-derivado="{marca}"')
+
+    def test_el_editor_ofrece_agregar_otro_recurso(self):
+        respuesta = self.abrir_editor()
+        self.assertContains(respuesta, "data-add-resource")
+        self.assertContains(respuesta, "data-resource-template")
+        self.assertContains(respuesta, "__prefix__")
+        self.assertContains(respuesta, "emergencias/js/sci211_recursos.js")

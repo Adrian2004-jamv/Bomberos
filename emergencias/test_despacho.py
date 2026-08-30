@@ -296,7 +296,7 @@ class TransicionesWebTests(BaseDespachoTests):
         respuesta = self.client.get(reverse("emergencias:detalle", args=[emergencia.pk]))
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, 'name="estado"')
-        self.assertNotContains(respuesta, "Despachar unidad")
+        self.assertNotContains(respuesta, "Registrar unidad en el SCI-211")
 
     def test_cambio_de_estado_desde_la_interfaz(self):
         emergencia = self.crear_emergencia()
@@ -390,7 +390,7 @@ class TransicionesWebTests(BaseDespachoTests):
             respuesta, reverse("emergencias:despliegue_estado", args=[despliegue.pk])
         )
         self.assertContains(respuesta, 'value="en_ruta"', html=False)
-        self.assertContains(respuesta, "Despachar unidad")
+        self.assertContains(respuesta, "Registrar unidad en el SCI-211")
 
 
 class EdicionEmergenciaTests(BaseDespachoTests):

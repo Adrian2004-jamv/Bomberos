@@ -103,3 +103,58 @@ def _tiene_contenido(datos):
         elif str(valor or "").strip():
             return True
     return False
+
+
+@transaction.atomic
+def desplegar_recursos_del_sci211(formulario, usuario):
+    """Despacha las unidades que el SCI-211 registra y aún no están desplegadas.
+
+    El SCI-211 es la fuente maestra de recursos del incidente, de modo que
+    anotar una unidad allí es la decisión de enviarla: obligar además a
+    despacharla por otra pantalla duplicaba el trabajo y dejaba las dos vistas
+    contradiciéndose.
+
+    Solo se despachan las unidades desplegables. El formulario también registra
+    equipos —un ERA, por ejemplo—, que no salen como unidad y no generan
+    despliegue.
+
+    Devuelve ``(despachadas, avisos)``. Un recurso que no se pueda despachar no
+    detiene al resto ni impide guardar el formulario: se informa y el usuario
+    decide.
+    """
+    from .models import DespliegueUnidad
+    from .services import desplegar_unidad
+
+    despachadas = 0
+    avisos = []
+    registros = formulario.registros.select_related(
+        "recurso_inventario__tipo", "despliegue"
+    ).filter(recurso_inventario__isnull=False, despliegue__isnull=True)
+
+    for registro in registros:
+        recurso = registro.recurso_inventario
+        if not recurso.tipo.es_unidad_desplegable:
+            continue
+        # Si la unidad ya está atendiendo esta misma emergencia, se enlaza en
+        # lugar de intentar un despacho que la restricción rechazaría.
+        existente = DespliegueUnidad.objects.filter(
+            emergencia=formulario.emergencia, unidad=recurso,
+            estado__in=DespliegueUnidad.ESTADOS_ACTIVOS,
+        ).first()
+        if existente is not None:
+            registro.despliegue = existente
+            registro.save(update_fields=["despliegue"])
+            continue
+        try:
+            despliegue = desplegar_unidad(
+                formulario.emergencia, recurso, usuario,
+                observaciones=f"Despacho registrado en el {formulario.codigo}.",
+            )
+        except ValidationError as error:
+            avisos.append(f"{recurso.codigo_interno}: {' '.join(error.messages)}")
+            continue
+        registro.despliegue = despliegue
+        registro.save(update_fields=["despliegue"])
+        despachadas += 1
+
+    return despachadas, avisos

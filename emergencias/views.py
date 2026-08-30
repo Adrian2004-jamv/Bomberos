@@ -39,7 +39,8 @@ from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
                        cambiar_estado_despliegue, cambiar_estado_emergencia,
                        desplegar_unidad, registrar_posicion_unidad,
                        transiciones_disponibles)
-from .services_sci import (crear_sci211_desde_emergencia, finalizar_sci,
+from .services_sci import (crear_sci211_desde_emergencia,
+                          desplegar_recursos_del_sci211, finalizar_sci,
                           finalizar_sci211)
 
 
@@ -892,6 +893,16 @@ def sci211_editar(request, pk):
         for orden, instancia in enumerate(instancias, start=1):
             instancia.orden = orden
             instancia.save()
+        # Anotar una unidad en el SCI-211 es la decisión de enviarla, así que el
+        # despacho ocurre aquí y no en una pantalla aparte.
+        despachadas, avisos = desplegar_recursos_del_sci211(formulario, request.user)
+        if despachadas:
+            messages.success(
+                request,
+                f"Se despachó {despachadas} unidad(es) desde el SCI-211."
+            )
+        for aviso in avisos:
+            messages.warning(request, f"No se pudo despachar {aviso}")
         if request.POST.get("accion") == "finalizar":
             messages.success(request, "Borrador guardado. Confirme para finalizar.")
             return redirect("emergencias:sci211_finalizar", pk=pk)
