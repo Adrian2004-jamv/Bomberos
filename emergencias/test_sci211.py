@@ -1023,3 +1023,91 @@ class InventarioSinConfirmarTests(ConUnidadDesplegable, SCI211Tests):
         )
         _, avisos = desplegar_recursos_del_sci211(formulario, self.usuario)
         self.assertEqual(avisos, [])
+
+
+class ListaCompletaDeRecursosTests(ConUnidadDesplegable, SCI211Tests):
+    """Nada desaparece de la lista: lo que no puede salir se ve y se explica."""
+
+    def unidad_ocupada(self, codigo="AMB-OCUPADA"):
+        unidad = self.crear_unidad_desplegable(codigo)
+        Recurso.objects.filter(pk=unidad.pk).update(
+            disponibilidad=Recurso.Disponibilidad.ASIGNADO
+        )
+        unidad.refresh_from_db()
+        return unidad
+
+    def abrir(self, formulario):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+
+    def test_una_unidad_asignada_sigue_en_la_lista(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.unidad_ocupada()
+        campo = self.abrir(formulario).context["registros"].forms[0].fields["recurso_inventario"]
+        self.assertIn(unidad, campo.queryset)
+
+    def test_la_etiqueta_dice_por_que_no_puede_salir(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.unidad_ocupada()
+        self.assertContains(self.abrir(formulario), "ya asignada a otra emergencia")
+
+    def test_la_opcion_bloqueada_no_se_puede_elegir(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.unidad_ocupada()
+        marca = f'<option value="{unidad.pk}"'
+        cuerpo = self.abrir(formulario).content.decode()
+        opcion = cuerpo[cuerpo.index(marca):cuerpo.index(marca) + 400]
+        self.assertIn("disabled", opcion.split("</option>")[0])
+
+    def test_el_servidor_rechaza_una_unidad_ocupada(self):
+        unidad = self.unidad_ocupada()
+        formulario = RegistroRecursoSCI211Form(
+            data={
+                "recurso_inventario": unidad.pk, "solicitado_por": "CI",
+                "fecha_hora_solicitud": "2026-01-01T10:00", "numero_personas": "2",
+                "estado_recurso": "disponible", "asignado_a": "Zona de operaciones",
+            },
+            usuario=self.usuario,
+        )
+        self.assertFalse(formulario.is_valid())
+        self.assertIn("recurso_inventario", formulario.errors)
+
+    def test_una_unidad_libre_se_acepta(self):
+        unidad = self.crear_unidad_desplegable("AMB-LIBRE")
+        formulario = RegistroRecursoSCI211Form(
+            data={
+                "recurso_inventario": unidad.pk, "solicitado_por": "CI",
+                "fecha_hora_solicitud": "2026-01-01T10:00", "numero_personas": "2",
+                "estado_recurso": "disponible", "asignado_a": "Zona de operaciones",
+            },
+            usuario=self.usuario,
+        )
+        self.assertTrue(formulario.is_valid(), formulario.errors)
+
+    def test_el_recurso_ya_guardado_se_conserva_aunque_quede_ocupado(self):
+        self.finalizar_anteriores("211")
+        contenedor = self.crear_formulario(completo=False)
+        unidad = self.crear_unidad_desplegable("AMB-GUARDADA")
+        registro = contenedor.registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=unidad, clase_recurso="Vehículos",
+            institucion_procedencia="Bomberos",
+            matricula_identificacion=unidad.codigo_interno,
+            numero_personas=2, estado_recurso="disponible",
+        )
+        Recurso.objects.filter(pk=unidad.pk).update(
+            disponibilidad=Recurso.Disponibilidad.ASIGNADO
+        )
+        formulario = RegistroRecursoSCI211Form(
+            data={
+                "recurso_inventario": unidad.pk, "solicitado_por": "CI",
+                "fecha_hora_solicitud": "2026-01-01T10:00", "numero_personas": "2",
+                "estado_recurso": "disponible", "asignado_a": "Zona de operaciones",
+            },
+            instance=registro, usuario=self.usuario,
+        )
+        self.assertTrue(formulario.is_valid(), formulario.errors)

@@ -27,6 +27,10 @@ class SelectRecursoInventario(forms.Select):
         )
         recurso = getattr(value, "instance", None)
         if recurso is not None:
+            # Se muestra bloqueada en lugar de esconderse: así se entiende
+            # que la unidad existe y por qué no está disponible ahora.
+            if motivo_no_disponible(recurso):
+                opcion["attrs"]["disabled"] = True
             opcion["attrs"].update({
                 "data-clase": recurso.tipo.categoria.nombre,
                 "data-tipo": recurso.tipo.nombre,
@@ -36,14 +40,36 @@ class SelectRecursoInventario(forms.Select):
             })
         return opcion
 
-def etiqueta_de_recurso(recurso):
-    """Nombra el recurso y avisa si su disponibilidad no está confirmada al día.
+def motivo_no_disponible(recurso):
+    """Explica por qué una unidad no puede registrarse, o None si sí puede.
 
-    La confirmación caduca a las 24 horas. Antes ese vencimiento borraba la
-    unidad de la lista y quien despachaba no entendía por qué su ambulancia no
-    aparecía; ahora se muestra con la advertencia y él decide.
+    Antes la lista simplemente omitía lo que no estaba libre y la ambulancia
+    desaparecía sin explicación. El motivo importa tanto como el hecho: no es
+    lo mismo una unidad ya despachada a otra emergencia que una averiada.
+    """
+    if not recurso.activo:
+        return "dada de baja"
+    if recurso.estado_operativo == Recurso.EstadoOperativo.FUERA_SERVICIO:
+        return "fuera de servicio"
+    if recurso.estado_operativo == Recurso.EstadoOperativo.MANTENIMIENTO:
+        return "en mantenimiento"
+    if recurso.disponibilidad == Recurso.Disponibilidad.ASIGNADO:
+        return "ya asignada a otra emergencia"
+    if recurso.disponibilidad != Recurso.Disponibilidad.DISPONIBLE:
+        return recurso.get_disponibilidad_display().lower()
+    return None
+
+def etiqueta_de_recurso(recurso):
+    """Nombra el recurso y explica su situación cuando no está libre.
+
+    La confirmación de disponibilidad caduca a las 24 horas. Antes ese
+    vencimiento borraba la unidad de la lista y quien despachaba no entendía
+    por qué su ambulancia no aparecía; ahora se muestra con la nota y decide.
     """
     texto = f"{recurso.codigo_interno} - {recurso.nombre} ({recurso.estacion.nombre})"
+    motivo = motivo_no_disponible(recurso)
+    if motivo:
+        return f"{texto} · {motivo}"
     if not recurso.disponibilidad_actualizada:
         texto += " · disponibilidad sin confirmar hoy"
     return texto
@@ -66,17 +92,12 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         super().__init__(*args, **kwargs)
         queryset = Recurso.objects.none()
         if usuario and usuario.is_authenticated:
-            # Se ofrece lo que está operativo y libre. La confirmación de
-            # disponibilidad se advierte junto al nombre, pero no oculta la
-            # unidad: dejar un carro en el patio porque nadie refrescó una
-            # casilla en las últimas 24 horas no es una decisión operativa.
-            vigentes = Q(
-                activo=True,
-                estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
-                disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
-            )
+            # Se ofrece el inventario completo del ámbito. Lo que no puede
+            # salir aparece bloqueado y con el motivo al lado; ocultarlo dejaba
+            # a quien despacha buscando una ambulancia que sí existe.
+            vigentes = Q(activo=True)
             # Un recurso ya vinculado debe seguir visible para consultar y
-            # guardar el registro aunque después haya sido asignado.
+            # guardar el registro aunque después haya sido dado de baja.
             if self.instance and self.instance.recurso_inventario_id:
                 vigentes |= Q(pk=self.instance.recurso_inventario_id)
             queryset = recursos_permitidos(usuario).filter(vigentes).select_related(
@@ -133,6 +154,15 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         datos = super().clean()
         recurso = datos.get("recurso_inventario")
         if recurso:
+            # La opción va bloqueada en el desplegable, pero el navegador no es
+            # la única forma de enviar el formulario. Se admite el recurso que
+            # ya estaba guardado aunque después haya dejado de estar libre.
+            motivo = motivo_no_disponible(recurso)
+            if motivo and recurso.pk != self.instance.recurso_inventario_id:
+                self.add_error(
+                    "recurso_inventario",
+                    f"La unidad {recurso.codigo_interno} está {motivo}.",
+                )
             datos["clase_recurso"] = recurso.tipo.categoria.nombre
             datos["tipo_recurso"] = recurso.tipo.nombre
             datos["institucion_procedencia"] = recurso.estacion.cuerpo_bomberos.nombre

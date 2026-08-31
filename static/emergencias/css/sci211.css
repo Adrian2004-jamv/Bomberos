@@ -11,3 +11,6 @@
 
 /* Aviso cuando el inventario no ofrece ningún recurso seleccionable. */
 .sci-resource-empty-notice{margin:0 0 .9rem;padding:.7rem .9rem;border-left:4px solid #d89b00;border-radius:.35rem;background:#fff7dd;color:#7a5b00;font-size:.8rem}
+
+/* Las unidades que no pueden salir se ven, pero se distinguen de un vistazo. */
+select[data-recurso-inventario] option:disabled { color: var(--color-slate-400); }
