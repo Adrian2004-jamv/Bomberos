@@ -204,3 +204,41 @@ class TransmisionDelChoferTests(BaseChoferTests):
         )
         self.assertIn(respuesta.status_code, (400, 403, 404))
         self.assertEqual(despliegue.posiciones.count(), 0)
+
+# ==========================================
+# MÓDULO: ALTA DE LA CUENTA
+# ==========================================
+
+class AltaDeChoferTests(BaseChoferTests):
+    """El rol debe poder otorgarse desde la pantalla de nueva cuenta."""
+
+    def setUp(self):
+        self.gestor = get_user_model().objects.create_user(
+            username="sistemas-cho", cedula="1000000004", password="clave",
+            estacion=self.estacion,
+        )
+        self.gestor.groups.add(
+            Group.objects.get(name="Operador de sistemas institucional")
+        )
+
+    def test_el_formulario_ofrece_el_rol_de_chofer(self):
+        self.client.force_login(self.gestor)
+        respuesta = self.client.get(reverse("usuarios:crear"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Chofer de unidad")
+
+    def test_se_crea_una_cuenta_con_el_rol_de_chofer(self):
+        self.client.force_login(self.gestor)
+        respuesta = self.client.post(reverse("usuarios:crear"), {
+            "username": "chofer-nuevo",
+            "first_name": "Ana", "last_name": "Moreno",
+            "cedula": "1000000009", "email": "", "telefono": "",
+            "cargo_institucional": "Conductora",
+            "estacion": self.estacion.pk,
+            "grupo": Group.objects.get(name="Chofer de unidad").pk,
+            "password1": "ClaveSegura2026", "password2": "ClaveSegura2026",
+        })
+        self.assertEqual(respuesta.status_code, 302)
+        creada = get_user_model().objects.get(username="chofer-nuevo")
+        self.assertTrue(es_chofer(creada))
+        self.assertTrue(solo_es_chofer(creada))

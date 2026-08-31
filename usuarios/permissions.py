@@ -8,6 +8,10 @@ GRUPOS_CREABLES_INSTITUCION = (
     "Responsable de estación",
     "Encargado de inventario",
     "Operador de consulta",
+    # Conduce una unidad. Su cuenta solo alcanza el despliegue que se le asigne
+    # en el SCI-211, de modo que puede crearla cualquier gestor de la
+    # institución sin ampliar el acceso de nadie.
+    "Chofer de unidad",
 )
 
 def es_operador_sistemas(usuario):
