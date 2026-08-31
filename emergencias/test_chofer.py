@@ -242,3 +242,30 @@ class AltaDeChoferTests(BaseChoferTests):
         creada = get_user_model().objects.get(username="chofer-nuevo")
         self.assertTrue(es_chofer(creada))
         self.assertTrue(solo_es_chofer(creada))
+
+class RegresoDesdeLaConsolaTests(BaseChoferTests):
+    """El botón de volver no debe llevarlo a una pantalla que no puede abrir."""
+
+    def test_el_chofer_regresa_a_su_unidad(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:transmitir_gps", args=[despliegue.pk]))
+        self.assertContains(respuesta, reverse("emergencias:mi_unidad"))
+        self.assertNotContains(
+            respuesta, reverse("emergencias:detalle", args=[despliegue.emergencia_id])
+        )
+
+    def test_quien_gestiona_sigue_regresando_a_la_emergencia(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.jefe)
+        respuesta = self.client.get(reverse("emergencias:transmitir_gps", args=[despliegue.pk]))
+        self.assertContains(
+            respuesta, reverse("emergencias:detalle", args=[despliegue.emergencia_id])
+        )
+
+    def test_el_enlace_que_ofrece_la_consola_si_se_puede_abrir(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.client.get(reverse("emergencias:transmitir_gps", args=[despliegue.pk]))
+        regreso = self.client.get(reverse("emergencias:mi_unidad"))
+        self.assertEqual(regreso.status_code, 200)
