@@ -138,6 +138,7 @@ def desplegar_recursos_del_sci211(formulario, usuario):
         if existente is not None:
             registro.despliegue = existente
             registro.save(update_fields=["despliegue"])
+            sincronizar_responsable(registro, existente)
             continue
         try:
             despliegue = desplegar_unidad(
@@ -149,6 +150,21 @@ def desplegar_recursos_del_sci211(formulario, usuario):
             continue
         registro.despliegue = despliegue
         registro.save(update_fields=["despliegue"])
+        sincronizar_responsable(registro, despliegue)
         despachadas += 1
 
     return despachadas, avisos
+
+
+def sincronizar_responsable(registro, despliegue):
+    """Lleva al despliegue el chofer que el SCI-211 asignó a la unidad.
+
+    El formulario es donde se decide quién va en la unidad; el despliegue
+    necesita saberlo porque de ahí cuelga el permiso para transmitir la
+    ubicación. Se copia en cada guardado para que un cambio de conductor a
+    mitad de la operación llegue también al despliegue.
+    """
+    if registro.responsable_unidad_id == despliegue.responsable_unidad_id:
+        return
+    despliegue.responsable_unidad_id = registro.responsable_unidad_id
+    despliegue.save(update_fields=["responsable_unidad"])

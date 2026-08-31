@@ -1,0 +1,76 @@
+/* Pantalla del chofer. Se diseña para un teléfono en la mano y con prisa:
+   pocos datos, tipografía grande y dos botones que se aciertan sin mirar. */
+
+.unidad-asignada { border-top: 4px solid var(--color-red-600); }
+
+.unidad-asignada__cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.unidad-asignada__cabecera h2 { margin: 0.2rem 0 0; font-size: 1.6rem; }
+.unidad-asignada__tipo { margin: 0.2rem 0 0; color: var(--color-navy-900); font-size: 1.05rem; font-weight: 750; }
+
+.unidad-asignada__datos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+}
+
+.unidad-asignada__datos div { padding: 0.75rem; border-radius: var(--radius-sm); background: var(--color-slate-100); }
+.unidad-asignada__datos dt { color: var(--color-slate-600); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.unidad-asignada__datos dd { margin: 0.25rem 0 0; color: var(--color-navy-950); font-size: 1rem; font-weight: 750; }
+
+.unidad-asignada__descripcion {
+    margin: 0 0 1rem;
+    padding: 0.8rem;
+    border-left: 4px solid var(--color-slate-300);
+    background: var(--color-slate-100);
+    font-size: 0.9rem;
+}
+
+.unidad-asignada__acciones { display: grid; gap: 0.6rem; }
+
+.unidad-accion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    /* Alto generoso: se pulsa con guantes y en movimiento. */
+    min-height: 3.4rem;
+    border-radius: var(--radius-sm);
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.unidad-accion--navegar { color: #fff; background: var(--color-navy-900); }
+.unidad-accion--navegar:hover { background: var(--color-navy-950); }
+.unidad-accion--gps { color: #fff; background: var(--color-red-700); }
+.unidad-accion--gps:hover { background: #a20d16; }
+
+.unidad-sin-coordenadas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 3rem;
+    border: 1px dashed var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    color: var(--color-slate-600);
+    font-size: 0.85rem;
+}
+
+.unidad-vacia { display: grid; justify-items: center; gap: 0.5rem; padding: 2.5rem 1.5rem; text-align: center; }
+.unidad-vacia span { font-size: 2.5rem; color: var(--color-slate-400); }
+.unidad-vacia h2 { margin: 0; }
+.unidad-vacia p { max-width: 34rem; margin: 0; color: var(--color-slate-600); }
+
+@media (min-width: 640px) {
+    .unidad-asignada__acciones { grid-template-columns: 1fr 1fr; }
+}

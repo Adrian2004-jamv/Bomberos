@@ -24,7 +24,7 @@ from inventario.permissions import estaciones_permitidas
 from inventario.services import actualizar_estado_recurso
 
 from .models import DespliegueUnidad, Emergencia, PosicionUnidad
-from .permissions import estacion_autorizada, puede_gestionar_emergencias
+from .permissions import conduce_el_despliegue, es_chofer, estacion_autorizada, puede_gestionar_emergencias
 
 TRANSICIONES_VALIDAS = {
     DespliegueUnidad.Estado.ASIGNADA: {
@@ -64,15 +64,25 @@ TRANSICIONES_EMERGENCIA = {
     Emergencia.Estado.CANCELADA: set(),
 }
 
-def validar_usuario(usuario):
+def validar_usuario(usuario, permitir_chofer=False):
+    """Comprueba que el usuario exista, esté activo y pueda gestionar despliegues.
+
+    ``permitir_chofer`` abre el paso a quien solo conduce. Se usa al informar
+    posiciones, que es lo único que hace desde la carretera; despachar unidades
+    o mover el estado del despliegue siguen exigiendo permiso de gestión.
+    """
     Usuario = get_user_model()
     if (
         not isinstance(usuario, Usuario)
         or not usuario.pk
         or not Usuario.objects.filter(pk=usuario.pk, is_active=True).exists()
-        or not puede_gestionar_emergencias(usuario)
     ):
         raise ValidationError("El usuario no está autorizado para gestionar despliegues.")
+    if puede_gestionar_emergencias(usuario):
+        return
+    if permitir_chofer and es_chofer(usuario):
+        return
+    raise ValidationError("El usuario no está autorizado para gestionar despliegues.")
 
 def unidades_desplegables(emergencia, usuario_responsable):
     """Unidades que ``desplegar_unidad`` aceptaría para esta emergencia.
@@ -318,7 +328,7 @@ def registrar_posicion_unidad(
     fuente=PosicionUnidad.Fuente.NAVEGADOR,
 ):
     """Valida y conserva una posición dentro del recorrido de un despliegue."""
-    validar_usuario(usuario_responsable)
+    validar_usuario(usuario_responsable, permitir_chofer=True)
     if not isinstance(despliegue, DespliegueUnidad) or not despliegue.pk:
         raise ValidationError("El despliegue no existe.")
     try:
@@ -327,8 +337,12 @@ def registrar_posicion_unidad(
         ).get(pk=despliegue.pk)
     except DespliegueUnidad.DoesNotExist as error:
         raise ValidationError("El despliegue no existe.") from error
-    if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
-        raise ValidationError("El despliegue está fuera del ámbito autorizado.")
+    # Quien conduce la unidad informa su propia posición aunque no gestione
+    # emergencias: es el caso normal del chofer, cuyo alcance es este despliegue
+    # y ninguno más.
+    if not conduce_el_despliegue(usuario_responsable, actual):
+        if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
+            raise ValidationError("El despliegue está fuera del ámbito autorizado.")
     if actual.estado not in DespliegueUnidad.ESTADOS_ACTIVOS:
         raise ValidationError("El despliegue ya no está activo.")
     if not actual.emergencia.admite_despliegues:

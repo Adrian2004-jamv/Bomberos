@@ -132,6 +132,17 @@ class DespliegueUnidad(models.Model):
         related_name="despliegues_despachados",
         verbose_name="despachado por",
     )
+    # Quien va en la unidad. Es quien transmite su ubicación y el único que ve
+    # esta emergencia si su perfil es de chofer; queda vacío en los despliegues
+    # anteriores a que el sistema pidiera este dato.
+    responsable_unidad = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="despliegues_conducidos",
+        verbose_name="responsable de la unidad",
+        null=True,
+        blank=True,
+    )
     estado = models.CharField(
         "estado", max_length=15, choices=Estado.choices, default=Estado.ASIGNADA
     )
@@ -372,6 +383,15 @@ class RegistroRecursoSCI211(models.Model):
     fecha_hora_arribo = models.DateTimeField("fecha y hora de arribo", null=True, blank=True)
     institucion_procedencia = models.CharField("institución de procedencia", max_length=150)
     matricula_identificacion = models.CharField("matrícula o identificación", max_length=80)
+    responsable_unidad = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="registros_sci_conducidos",
+        verbose_name="responsable de la unidad",
+        null=True,
+        blank=True,
+        help_text="Quien va en la unidad. Podrá transmitir su ubicación.",
+    )
     numero_personas = models.PositiveSmallIntegerField("número de personas", default=1)
     estado_recurso = models.CharField(max_length=20, choices=EstadoRecurso.choices)
     asignado_a = models.CharField(

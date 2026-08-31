@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static l10n %}
+
+{% block title %}Mi unidad{% endblock %}
+{% block page_title %}Mi unidad{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=1">{% endblock %}
+
+{% block content %}
+{% if sin_asignacion %}
+<section class="panel unidad-vacia">
+    <span aria-hidden="true"><i class="ti ti-steering-wheel"></i></span>
+    <h2>No tiene una unidad asignada</h2>
+    <p>Cuando le asignen una unidad en el formulario SCI-211 de una emergencia, aparecerá aquí con su ubicación y el botón para transmitir.</p>
+</section>
+{% else %}
+{% for despliegue in despliegues %}
+<section class="panel unidad-asignada">
+    <div class="unidad-asignada__cabecera">
+        <div>
+            <p class="eyebrow">Emergencia asignada</p>
+            <h2>{{ despliegue.emergencia.codigo }}</h2>
+            <p class="unidad-asignada__tipo">{{ despliegue.emergencia.tipo_emergencia }}</p>
+        </div>
+        <span class="priority priority--{{ despliegue.emergencia.prioridad }}">Prioridad {{ despliegue.emergencia.get_prioridad_display }}</span>
+    </div>
+
+    <dl class="unidad-asignada__datos">
+        <div><dt>Su unidad</dt><dd>{{ despliegue.unidad.codigo_interno }} · {{ despliegue.unidad.nombre }}</dd></div>
+        <div><dt>Estado del despliegue</dt><dd>{{ despliegue.get_estado_display }}</dd></div>
+        <div><dt>Dirección</dt><dd>{{ despliegue.emergencia.direccion }}</dd></div>
+        <div><dt>Reportada</dt><dd>{{ despliegue.emergencia.fecha_reporte|date:"d/m/Y H:i" }}</dd></div>
+    </dl>
+
+    {% if despliegue.emergencia.descripcion %}
+    <p class="unidad-asignada__descripcion">{{ despliegue.emergencia.descripcion }}</p>
+    {% endif %}
+
+    <div class="unidad-asignada__acciones">
+        {% if despliegue.emergencia.latitud and despliegue.emergencia.longitud %}
+        {# Abre la aplicación de mapas del teléfono con la ruta ya trazada.
+           «localize off» es obligatorio: la configuración regional escribe los
+           decimales con coma y la coordenada llegaría ilegible al mapa. #}
+        {% localize off %}
+        <a class="unidad-accion unidad-accion--navegar"
+           href="https://www.google.com/maps/dir/?api=1&destination={{ despliegue.emergencia.latitud }},{{ despliegue.emergencia.longitud }}&travelmode=driving"
+           target="_blank" rel="noopener">
+            <i class="ti ti-navigation" aria-hidden="true"></i> Iniciar navegación
+        </a>
+        {% endlocalize %}
+        {% else %}
+        <span class="unidad-sin-coordenadas"><i class="ti ti-map-pin-off" aria-hidden="true"></i> La emergencia no tiene coordenadas registradas</span>
+        {% endif %}
+
+        <a class="unidad-accion unidad-accion--gps" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}">
+            <i class="ti ti-broadcast" aria-hidden="true"></i> Transmitir mi ubicación
+        </a>
+    </div>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

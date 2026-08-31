@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from inventario.models import Recurso
-from inventario.permissions import recursos_permitidos
+from inventario.permissions import estaciones_permitidas, recursos_permitidos
 
 from .models import FormularioSCI211, RegistroRecursoSCI211
 
@@ -78,6 +78,7 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         self.fields["recurso_inventario"].empty_label = (
             "Seleccione un recurso disponible y verificado"
         )
+        self.preparar_responsable(usuario)
         for nombre, marca in (
             ("clase_recurso", "clase"), ("tipo_recurso", "tipo"),
             ("institucion_procedencia", "institucion"),
@@ -85,6 +86,37 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         ):
             self.fields[nombre].required = False
             self.fields[nombre].widget.attrs["data-derivado"] = marca
+
+    def preparar_responsable(self, usuario):
+        """Ofrece los choferes de la institución para ponerlos al volante.
+
+        Solo aparecen quienes tienen el perfil de chofer: son los únicos que
+        podrán abrir la consola de transmisión, de modo que asignar a otro
+        dejaría la unidad sin nadie que informe su ubicación.
+        """
+        from usuarios.models import Usuario
+
+        from .permissions import GRUPO_CHOFER
+
+        campo = self.fields["responsable_unidad"]
+        candidatos = Usuario.objects.none()
+        if usuario and usuario.is_authenticated:
+            candidatos = Usuario.objects.filter(
+                is_active=True,
+                groups__name=GRUPO_CHOFER,
+                estacion__in=estaciones_permitidas(usuario),
+            ).select_related("estacion").order_by("first_name", "last_name", "username")
+            # Un chofer ya asignado sigue visible aunque cambie de estación.
+            if self.instance and self.instance.responsable_unidad_id:
+                candidatos = candidatos | Usuario.objects.filter(
+                    pk=self.instance.responsable_unidad_id
+                )
+        campo.queryset = candidatos.distinct()
+        campo.empty_label = "Sin responsable asignado"
+        campo.label_from_instance = (
+            lambda persona: f"{persona.get_full_name() or persona.username}"
+                            f"{f' ({persona.estacion.codigo})' if persona.estacion_id else ''}"
+        )
 
     def clean(self):
         datos = super().clean()

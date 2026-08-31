@@ -106,6 +106,7 @@ TEMPLATES = [
                 "inventario.context_processors.acceso_catalogos",
                 "operaciones.context_processors.acceso_capacidades",
                 "usuarios.context_processors.acceso_usuarios",
+                "emergencias.context_processors.perfil_chofer",
             ],
         },
     },

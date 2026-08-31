@@ -27,7 +27,9 @@ from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
-from .permissions import (estacion_autorizada, puede_consultar_emergencias,
+from .permissions import (conduce_el_despliegue, despliegues_asignados,
+                          es_chofer, estacion_autorizada, solo_es_chofer,
+                          puede_consultar_emergencias,
                           puede_consultar_sci, puede_editar_sci,
                           puede_gestionar_emergencias)
 from .codigos import generar_codigo_emergencia
@@ -255,6 +257,10 @@ def lista(request):
     texto y etapa, pero sin la fase: son las cifras que rotulan los botones y
     deben corresponder a lo que se veria al pulsarlos.
     """
+    # El chofer aterriza aquí al iniciar sesión, porque es la página de destino
+    # configurada. En vez de negarle el paso se le lleva a la suya.
+    if solo_es_chofer(request.user):
+        return redirect("emergencias:mi_unidad")
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
 
@@ -502,7 +508,7 @@ def despachar(request, pk):
 @require_POST
 def actualizar_despliegue(request, pk):
     """Mueve un despliegue por sus estados y libera la unidad al terminar."""
-    despliegue = get_object_or_404(despliegues_permitidos(request.user), pk=pk)
+    despliegue = despliegue_alcanzable(request.user, pk)
     try:
         cambiar_estado_despliegue(
             despliegue,
@@ -975,14 +981,30 @@ def despliegues_permitidos(usuario):
 @login_required
 @ensure_csrf_cookie
 def transmitir_gps(request, pk):
-    if not puede_gestionar_emergencias(request.user):
-        raise PermissionDenied
-    despliegue = get_object_or_404(despliegues_permitidos(request.user), pk=pk)
+    # El chofer llega aquí por su propia unidad; el resto, por su estación y
+    # solo si puede gestionarla: esta consola no es de consulta.
+    despliegue = despliegue_alcanzable(request.user, pk, exigir_gestion=True)
     if not despliegue.activo or not despliegue.emergencia.admite_despliegues:
         raise PermissionDenied("El despliegue no admite transmisión GPS.")
     contexto = {"despliegue": despliegue}
 
     return render(request, "emergencias/transmitir_gps.html", contexto)
+
+def despliegue_alcanzable(usuario, pk, exigir_gestion=False):
+    """Devuelve el despliegue si el usuario lo conduce o alcanza su estación.
+
+    ``exigir_gestion`` reproduce la barrera de las pantallas que no son de
+    consulta: un operador de consulta ve la última posición de una unidad, pero
+    no abre la consola desde la que se transmite.
+    """
+    despliegue = DespliegueUnidad.objects.filter(pk=pk).select_related(
+        "unidad", "emergencia"
+    ).first()
+    if despliegue is not None and conduce_el_despliegue(usuario, despliegue):
+        return despliegue
+    if exigir_gestion and not puede_gestionar_emergencias(usuario):
+        raise PermissionDenied
+    return get_object_or_404(despliegues_permitidos(usuario), pk=pk)
 
 def error_json(mensaje, estado, codigo):
     return JsonResponse({"error": mensaje, "codigo": codigo}, status=estado)
@@ -993,7 +1015,7 @@ def registrar_posicion(request, pk):
         return error_json("Autenticación requerida.", 401, "no_autenticado")
     if request.content_type != "application/json":
         return error_json("El contenido debe ser JSON.", 415, "contenido_no_valido")
-    if not puede_gestionar_emergencias(request.user):
+    if not (puede_gestionar_emergencias(request.user) or es_chofer(request.user)):
         return error_json("No tiene autorización para reportar posiciones.", 403, "sin_autorizacion")
     try:
         datos = json.loads(request.body)
@@ -1001,7 +1023,7 @@ def registrar_posicion(request, pk):
         return error_json("El cuerpo JSON no es válido.", 400, "json_no_valido")
     if not isinstance(datos, dict):
         return error_json("El cuerpo JSON debe ser un objeto.", 400, "datos_no_validos")
-    despliegue = get_object_or_404(despliegues_permitidos(request.user), pk=pk)
+    despliegue = despliegue_alcanzable(request.user, pk)
     fecha_dispositivo = datos.get("fecha_dispositivo")
     if fecha_dispositivo:
         fecha_dispositivo = parse_datetime(str(fecha_dispositivo))
@@ -1033,7 +1055,7 @@ def ultima_posicion(request, pk):
         return error_json("Autenticación requerida.", 401, "no_autenticado")
     if not puede_consultar_emergencias(request.user):
         return error_json("No tiene autorización para consultar el despliegue.", 403, "sin_autorizacion")
-    despliegue = get_object_or_404(despliegues_permitidos(request.user), pk=pk)
+    despliegue = despliegue_alcanzable(request.user, pk)
     posicion = despliegue.posiciones.order_by("-fecha_recepcion", "-pk").first()
     if posicion is None:
         return JsonResponse({"disponible": False, "mensaje": "Todavía no existen posiciones."})
@@ -1047,3 +1069,26 @@ def ultima_posicion(request, pk):
         "fecha_recepcion": posicion.fecha_recepcion.isoformat(),
         "estado_despliegue": despliegue.estado,
     })
+
+
+# ==========================================
+# MÓDULO: PANTALLA DEL CHOFER
+# ==========================================
+
+@login_required
+def mi_unidad(request):
+    """Única pantalla del chofer: la unidad que conduce y su emergencia.
+
+    Se resuelve por los despliegues que tiene asignados y no por su estación,
+    de modo que solo alcanza lo suyo aunque comparta institución con el resto.
+    """
+    if not es_chofer(request.user):
+        raise PermissionDenied
+
+    despliegues = list(despliegues_asignados(request.user))
+    contexto = {
+        "despliegues": despliegues,
+        "sin_asignacion": not despliegues,
+    }
+
+    return render(request, "emergencias/mi_unidad.html", contexto)
