@@ -8,3 +8,6 @@
 .official-field input.is-derived{background:var(--color-slate-100);color:var(--color-slate-700);cursor:not-allowed}
 .sci-add-resource{display:inline-flex;align-items:center;gap:.4rem;margin-top:.9rem;font-size:.8rem;font-weight:800}
 .sci-add-resource:hover{color:var(--color-red-700);border-color:#e79aa1;background:#fff7f7}
+
+/* Aviso cuando el inventario no ofrece ningún recurso seleccionable. */
+.sci-resource-empty-notice{margin:0 0 .9rem;padding:.7rem .9rem;border-left:4px solid #d89b00;border-radius:.35rem;background:#fff7dd;color:#7a5b00;font-size:.8rem}

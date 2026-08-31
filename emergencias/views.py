@@ -911,8 +911,12 @@ def sci211_editar(request, pk):
             return redirect("emergencias:sci211_finalizar", pk=pk)
         messages.success(request, "Borrador SCI-211 guardado.")
         return redirect("emergencias:sci211_editar", pk=pk)
+    # Si el inventario no ofrece nada, la lista sale con una sola opción vacía y
+    # no se entiende por qué. Conviene decirlo antes de que alguien lo busque.
+    hay_recursos = registros.forms[0].fields["recurso_inventario"].queryset.exists()
     contexto = {
         "formulario_sci": formulario, "cabecera": cabecera, "registros": registros,
+        "sin_recursos_disponibles": not hay_recursos,
     }
 
     return render(request, "emergencias/sci211/formulario.html", contexto)
@@ -943,11 +947,22 @@ def sci211_finalizar(request, pk):
     if not puede_editar_sci(request.user, formulario.emergencia) or not formulario.es_editable:
         raise PermissionDenied
     if request.method == "POST":
+        # También se despacha aquí. A esta pantalla se puede llegar sin haber
+        # guardado el editor —desde la ficha de la emergencia o por la propia
+        # dirección—, y sin este paso la unidad quedaba anotada en el formulario
+        # pero nunca salía. El servicio ignora lo ya despachado.
+        despachadas, avisos = desplegar_recursos_del_sci211(formulario, request.user)
+        for aviso in avisos:
+            messages.warning(request, f"No se pudo despachar {aviso}")
         try:
             finalizar_sci211(formulario, request.user)
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
             return redirect("emergencias:sci211_editar", pk=pk)
+        if despachadas:
+            messages.success(
+                request, f"Se despachó {despachadas} unidad(es) desde el SCI-211."
+            )
         messages.success(request, "Formulario SCI-211 finalizado. Ahora es de solo lectura.")
         return redirect("emergencias:sci211_detalle", pk=pk)
     contexto = {"formulario_sci": formulario}

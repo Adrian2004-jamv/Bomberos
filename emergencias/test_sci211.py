@@ -897,3 +897,55 @@ class CuadriculaSCI211Tests(SCI211Tests):
         self.assertContains(respuesta, "data-resource-template")
         self.assertContains(respuesta, "__prefix__")
         self.assertContains(respuesta, "emergencias/js/sci211_recursos.js")
+
+class DespachoAlFinalizarTests(SCI211Tests):
+    """Finalizar también despacha: se llega aquí sin pasar por el editor."""
+
+    def crear_unidad_desplegable(self, codigo="AMB-FIN-01"):
+        categoria, _ = CategoriaRecurso.objects.get_or_create(
+            codigo="CAT-FIN", defaults={"nombre": "Vehículos"}
+        )
+        tipo, _ = TipoRecurso.objects.get_or_create(
+            categoria=categoria, codigo="TIP-FIN",
+            defaults={"nombre": "Ambulancia tipo II", "es_unidad_desplegable": True},
+        )
+        return Recurso.objects.create(
+            estacion=self.estacion, tipo=tipo, codigo_interno=codigo,
+            nombre="Ambulancia", estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+
+    def test_finalizar_despacha_la_unidad_anotada(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        unidad = self.crear_unidad_desplegable()
+        formulario.registros.create(
+            orden=1, solicitado_por="CI", fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=unidad, clase_recurso="Vehículos",
+            institucion_procedencia="Bomberos", matricula_identificacion=unidad.codigo_interno,
+            numero_personas=2, estado_recurso="disponible",
+        )
+        self.client.force_login(self.usuario)
+        self.client.post(reverse("emergencias:sci211_finalizar", args=[formulario.pk]))
+
+        self.assertTrue(
+            DespliegueUnidad.objects.filter(
+                emergencia=self.emergencia, unidad=unidad
+            ).exists()
+        )
+
+    def test_el_editor_avisa_cuando_no_hay_recursos_que_ofrecer(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+        self.assertContains(respuesta, "No hay recursos que ofrecer")
+
+    def test_con_recursos_disponibles_no_aparece_el_aviso(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.crear_unidad_desplegable(codigo="AMB-FIN-02")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+        self.assertNotContains(respuesta, "No hay recursos que ofrecer")
