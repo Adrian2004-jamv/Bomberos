@@ -15,7 +15,6 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .consumers import MapaPosicionesConsumer, grupo_estacion
 
-
 class ConsumidorMapaTests(TransactionTestCase):
     def setUp(self):
         canton = Canton.objects.create(nombre="Latacunga", codigo="WS-LAT")
@@ -83,7 +82,6 @@ class ConsumidorMapaTests(TransactionTestCase):
         await comunicador.send_json_to({"accion": "registrar_posicion", "latitud": 0})
         self.assertTrue(await comunicador.receive_nothing(timeout=0.1))
         await comunicador.disconnect()
-
 
 class PublicacionPosicionTests(TestCase):
     @classmethod

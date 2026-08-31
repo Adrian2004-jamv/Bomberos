@@ -7,7 +7,6 @@ from core.forms import preparar_campos
 from .models import CategoriaRecurso, Recurso, TipoRecurso
 from .permissions import estaciones_permitidas
 
-
 class RecursoForm(forms.ModelForm):
     class Meta:
         model = Recurso
@@ -66,7 +65,6 @@ class RecursoForm(forms.ModelForm):
             raise ValidationError("No puede trasladar el recurso desde este formulario.")
         return estacion
 
-
 class CambioEstadoRecursoForm(forms.Form):
     nuevo_estado_operativo = forms.ChoiceField(
         label="Nuevo estado operativo", choices=Recurso.EstadoOperativo.choices
@@ -97,10 +95,6 @@ class CambioEstadoRecursoForm(forms.Form):
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control"
 
-
-
-
-
 class CategoriaRecursoForm(forms.ModelForm):
     class Meta:
         model = CategoriaRecurso
@@ -116,7 +110,6 @@ class CategoriaRecursoForm(forms.ModelForm):
 
     def clean_codigo(self):
         return self.cleaned_data["codigo"].strip().upper()
-
 
 class TipoRecursoForm(forms.ModelForm):
     class Meta:

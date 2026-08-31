@@ -3,7 +3,6 @@ GRUPOS_GESTION_INSTITUCIONAL = {
     "Responsable provincial",
 }
 
-
 def puede_gestionar_instituciones(usuario):
     if not usuario.is_authenticated:
         return False

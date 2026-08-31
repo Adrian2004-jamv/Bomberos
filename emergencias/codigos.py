@@ -20,7 +20,6 @@ from django.utils import timezone
 
 PATRON_CODIGO = re.compile(r"^[A-Z0-9]{2}-\d{8}-\d{3,}$")
 
-
 def iniciales_tipo_emergencia(tipo):
     """Forma dos letras estables: «Incendio forestal» -> IF, «Rescate» -> RE."""
     limpio = unicodedata.normalize("NFKD", tipo or "")
@@ -31,12 +30,10 @@ def iniciales_tipo_emergencia(tipo):
         return palabras[0][:2].upper().ljust(2, "X")
     return (palabras[0][0] + palabras[1][0]).upper()
 
-
 def prefijo_codigo(tipo, fecha_reporte):
     """Devuelve ``II-DDMMAAAA-``, la parte del código sin el consecutivo."""
     fecha_local = timezone.localtime(fecha_reporte)
     return f"{iniciales_tipo_emergencia(tipo)}-{fecha_local:%d%m%Y}-"
-
 
 def generar_codigo_emergencia(tipo, fecha_reporte):
     """Genera el siguiente código libre y serializa el consecutivo en PostgreSQL."""
@@ -47,10 +44,9 @@ def generar_codigo_emergencia(tipo, fecha_reporte):
     # mismo consecutivo. El bloqueo dura hasta finalizar transaction.atomic.
     with connection.cursor() as cursor:
         cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [prefijo])
-    return f"{prefijo}{_siguiente_consecutivo(Emergencia, prefijo):03d}"
+    return f"{prefijo}{siguiente_consecutivo(Emergencia, prefijo):03d}"
 
-
-def _siguiente_consecutivo(Emergencia, prefijo):
+def siguiente_consecutivo(Emergencia, prefijo):
     codigos = Emergencia.objects.filter(codigo__startswith=prefijo).values_list(
         "codigo", flat=True
     )
@@ -60,7 +56,6 @@ def _siguiente_consecutivo(Emergencia, prefijo):
         if codigo.removeprefix(prefijo).isdigit()
     ]
     return max(consecutivos, default=0) + 1
-
 
 def codigo_fijo(tipo, fecha_reporte, consecutivo=1):
     """Código reproducible para datos de demostración y escenarios de prueba.

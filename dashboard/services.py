@@ -5,26 +5,12 @@ from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from emergencias.indicadores import anotar_indicadores, preparar_indicadores
 
 from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI211
-from emergencias.permissions import (
-    puede_consultar_emergencias,
-    puede_gestionar_emergencias,
-)
+from emergencias.permissions import puede_consultar_emergencias, puede_gestionar_emergencias
 from instituciones.permissions import puede_gestionar_instituciones
 from inventario.models import HistorialEstadoRecurso, Recurso
-from inventario.permissions import (
-    estaciones_permitidas,
-    puede_consultar_inventario,
-    puede_gestionar_inventario,
-    recursos_permitidos,
-    tiene_alcance_global,
-)
+from inventario.permissions import estaciones_permitidas, puede_consultar_inventario, puede_gestionar_inventario, recursos_permitidos, tiene_alcance_global
 from operaciones.models import EvaluacionCapacidadEstacion
-from operaciones.permissions import (
-    puede_consultar_capacidades,
-    puede_evaluar_capacidades,
-)
-
-
+from operaciones.permissions import puede_consultar_capacidades, puede_evaluar_capacidades
 ORDEN_GRUPOS = (
     "Administrador del sistema",
     "Responsable provincial",
@@ -35,15 +21,13 @@ ORDEN_GRUPOS = (
     "Operador de consulta",
 )
 
-
-def _rol_principal(usuario):
+def rol_principal(usuario):
     if usuario.is_superuser:
         return "Superusuario técnico"
     grupos = set(usuario.groups.values_list("name", flat=True))
     return next((nombre for nombre in ORDEN_GRUPOS if nombre in grupos), "Usuario autorizado")
 
-
-def _descripcion_alcance(usuario, estaciones):
+def descripcion_alcance(usuario, estaciones):
     if tiene_alcance_global(usuario):
         return "Información consolidada de todos los Cuerpos de Bomberos de Cotopaxi."
     if usuario.estacion_id and usuario.groups.filter(
@@ -56,8 +40,7 @@ def _descripcion_alcance(usuario, estaciones):
         return "No existe un ámbito institucional asignado a esta cuenta."
     return "Información correspondiente a su ámbito autorizado."
 
-
-def _evaluaciones_mas_recientes(estaciones):
+def evaluaciones_mas_recientes(estaciones):
     base = EvaluacionCapacidadEstacion.objects.filter(estacion__in=estaciones)
     ultimo_id = base.filter(
         estacion_id=OuterRef("estacion_id"),
@@ -70,19 +53,15 @@ def _evaluaciones_mas_recientes(estaciones):
         "evaluado_por",
     ).order_by("-fecha_evaluacion", "-pk")
 
-
 ESTADOS_TERMINADOS = (Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA)
 
-
-def _emergencias_del_ambito(estaciones):
+def emergencias_del_ambito(estaciones):
     return Emergencia.objects.filter(estacion_responsable__in=estaciones)
 
-
-def _despliegues_del_ambito(estaciones):
+def despliegues_del_ambito(estaciones):
     return DespliegueUnidad.objects.filter(estacion_procedencia__in=estaciones)
 
-
-def _incidentes_en_curso(estaciones, limite=6):
+def incidentes_en_curso(estaciones, limite=6):
     """Incidentes abiertos, con las unidades que tienen encima y su documentación.
 
     Las unidades y la existencia del SCI-211 se anotan en la misma consulta;
@@ -90,7 +69,7 @@ def _incidentes_en_curso(estaciones, limite=6):
     tabla.
     """
     consulta = (
-        _emergencias_del_ambito(estaciones)
+        emergencias_del_ambito(estaciones)
         .exclude(estado__in=ESTADOS_TERMINADOS)
         .select_related("estacion_responsable", "estacion_responsable__cuerpo_bomberos")
         .annotate(
@@ -109,16 +88,15 @@ def _incidentes_en_curso(estaciones, limite=6):
     # por fila costaría varias consultas por tarjeta.
     return preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
 
-
-def _resumen_operativo(estaciones):
-    emergencias = _emergencias_del_ambito(estaciones)
+def resumen_operativo(estaciones):
+    emergencias = emergencias_del_ambito(estaciones)
     en_curso = emergencias.exclude(estado__in=ESTADOS_TERMINADOS)
     return {
         "incidentes_en_curso": en_curso.count(),
         "incidentes_atendidos": emergencias.filter(
             estado__in=ESTADOS_TERMINADOS
         ).count(),
-        "unidades_desplegadas": _despliegues_del_ambito(estaciones)
+        "unidades_desplegadas": despliegues_del_ambito(estaciones)
         .filter(estado__in=DespliegueUnidad.ESTADOS_ACTIVOS)
         .count(),
         # Un incidente abierto sin SCI-211 es documentación pendiente: ese
@@ -128,15 +106,14 @@ def _resumen_operativo(estaciones):
         ).count(),
     }
 
-
-def _actividad_operativa(estaciones, limite):
+def actividad_operativa(estaciones, limite):
     emergencias = (
-        _emergencias_del_ambito(estaciones)
+        emergencias_del_ambito(estaciones)
         .select_related("estacion_responsable")
         .order_by("-fecha_reporte", "-pk")[:limite]
     )
     despliegues = (
-        _despliegues_del_ambito(estaciones)
+        despliegues_del_ambito(estaciones)
         .select_related("unidad", "emergencia")
         .order_by("-fecha_asignacion", "-pk")[:limite]
     )
@@ -162,11 +139,10 @@ def _actividad_operativa(estaciones, limite):
         ),
     )
 
-
 def construir_dashboard(usuario, limite_actividad=8):
     estaciones = estaciones_permitidas(usuario)
     recursos = recursos_permitidos(usuario)
-    evaluaciones_recientes = _evaluaciones_mas_recientes(estaciones)
+    evaluaciones_recientes = evaluaciones_mas_recientes(estaciones)
 
     resumen_recursos = recursos.aggregate(
         total=Count("pk"),
@@ -222,7 +198,7 @@ def construir_dashboard(usuario, limite_actividad=8):
     )[:limite_actividad]
     actividad = sorted(
         chain(
-            _actividad_operativa(estaciones, limite_actividad),
+            actividad_operativa(estaciones, limite_actividad),
             (
                 {
                     "fecha": cambio.fecha_registro,
@@ -247,11 +223,11 @@ def construir_dashboard(usuario, limite_actividad=8):
     )[:limite_actividad]
 
     return {
-        "rol_principal": _rol_principal(usuario),
-        "alcance_descripcion": _descripcion_alcance(usuario, estaciones),
+        "rol_principal": rol_principal(usuario),
+        "alcance_descripcion": descripcion_alcance(usuario, estaciones),
         "resumen": resumen_recursos,
-        "operativo": _resumen_operativo(estaciones),
-        "incidentes_en_curso": _incidentes_en_curso(estaciones),
+        "operativo": resumen_operativo(estaciones),
+        "incidentes_en_curso": incidentes_en_curso(estaciones),
         "categorias": categorias,
         "estados_operativos": estados_operativos,
         "evaluaciones_recientes": evaluaciones_recientes[:6],

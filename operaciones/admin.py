@@ -1,18 +1,11 @@
 from django.contrib import admin
 
-from .models import (
-    EvaluacionCapacidadEstacion,
-    RequisitoRecursoCapacidad,
-    TipoCapacidadOperativa,
-)
-
-
+from .models import EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad, TipoCapacidadOperativa
 class RequisitoRecursoCapacidadInline(admin.TabularInline):
     model = RequisitoRecursoCapacidad
     extra = 0
     autocomplete_fields = ("tipo_recurso",)
     fields = ("tipo_recurso", "cantidad_minima", "obligatorio", "observaciones")
-
 
 @admin.register(TipoCapacidadOperativa)
 class TipoCapacidadOperativaAdmin(admin.ModelAdmin):
@@ -26,7 +19,6 @@ class TipoCapacidadOperativaAdmin(admin.ModelAdmin):
         ("Descripción", {"fields": ("descripcion",)}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(EvaluacionCapacidadEstacion)
 class EvaluacionCapacidadEstacionAdmin(admin.ModelAdmin):

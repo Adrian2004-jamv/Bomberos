@@ -18,7 +18,6 @@ from .models import DespliegueUnidad
 
 TOTAL_FORMULARIOS_SCI = 12
 
-
 def formato_duracion(diferencia):
     """Convierte una duración en algo legible: «2 h 35 min»."""
     if diferencia is None:
@@ -34,7 +33,6 @@ def formato_duracion(diferencia):
         return f"{horas} h {minutos} min"
     return f"{minutos} min"
 
-
 def anotar_indicadores(emergencias):
     """Agrega a la consulta lo que necesita el resumen de cada emergencia."""
     return emergencias.annotate(
@@ -46,7 +44,6 @@ def anotar_indicadores(emergencias):
         ),
         formularios_genericos=Count("formularios_sci", distinct=True),
     )
-
 
 def preparar_indicadores(emergencias):
     """Calcula sobre cada fila lo que no conviene resolver en la base.

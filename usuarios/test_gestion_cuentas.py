@@ -11,9 +11,7 @@ from django.urls import reverse
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
-
 CLAVE_NUEVA = "Cotopaxi-2026-segura"
-
 
 class BaseCuentasTests(TestCase):
     @classmethod
@@ -68,7 +66,6 @@ class BaseCuentasTests(TestCase):
         usuario.groups.add(Group.objects.get(name=grupo))
         return usuario
 
-
 class ClavePropiaTests(BaseCuentasTests):
     def test_una_cuenta_creada_desde_codigo_no_arrastra_la_obligacion(self):
         """El valor por omisión es falso: solo se activa donde alguien la asigna."""
@@ -102,7 +99,6 @@ class ClavePropiaTests(BaseCuentasTests):
         respuesta = self.client.get(reverse("emergencias:lista"))
         self.assertContains(respuesta, reverse("usuarios:cambiar_clave"))
         self.assertContains(respuesta, "Cambiar contraseña")
-
 
 class ObligacionDeCambioTests(BaseCuentasTests):
     def setUp(self):
@@ -146,7 +142,6 @@ class ObligacionDeCambioTests(BaseCuentasTests):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("usuarios:login")).status_code, 200)
 
-
 class CreacionDeCuentasTests(BaseCuentasTests):
     def test_la_cuenta_creada_nace_obligada_a_cambiar_la_clave(self):
         self.client.force_login(self.operador)
@@ -168,7 +163,6 @@ class CreacionDeCuentasTests(BaseCuentasTests):
         self.assertTrue(creada.debe_cambiar_clave)
         self.assertEqual(list(creada.groups.values_list("name", flat=True)),
                          ["Responsable de estación"])
-
 
 class EdicionDeCuentasTests(BaseCuentasTests):
     def test_el_operador_corrige_datos_y_rol(self):
@@ -238,7 +232,6 @@ class EdicionDeCuentasTests(BaseCuentasTests):
             403,
         )
 
-
 class DesactivacionTests(BaseCuentasTests):
     def test_desactiva_y_reactiva_una_cuenta(self):
         self.client.force_login(self.operador)
@@ -280,7 +273,6 @@ class DesactivacionTests(BaseCuentasTests):
         self.assertNotContains(
             respuesta, reverse("usuarios:cambiar_actividad", args=[self.operador.pk])
         )
-
 
 class RestablecerClaveTests(BaseCuentasTests):
     def test_el_operador_restablece_y_obliga_a_reemplazarla(self):

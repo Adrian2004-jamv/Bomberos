@@ -6,12 +6,10 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-
 def validar_fecha_no_futura(value):
     """Compatibilidad requerida por la migración histórica 0001."""
     if value > timezone.localdate():
         raise ValidationError("La fecha de ingreso no puede estar en el futuro.")
-
 
 class TipoCapacidadOperativa(models.Model):
     nombre = models.CharField("nombre", max_length=150)
@@ -28,7 +26,6 @@ class TipoCapacidadOperativa(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
-
 
 class RequisitoRecursoCapacidad(models.Model):
     capacidad = models.ForeignKey(
@@ -67,7 +64,6 @@ class RequisitoRecursoCapacidad(models.Model):
 
     def __str__(self):
         return f"{self.capacidad.nombre}: {self.cantidad_minima} × {self.tipo_recurso.nombre}"
-
 
 class EvaluacionCapacidadEstacion(models.Model):
     class Estado(models.TextChoices):

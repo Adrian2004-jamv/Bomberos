@@ -6,18 +6,11 @@ from django.db.models import Q
 from core.forms import preparar_campos
 
 from .models import Usuario
-from .permissions import (
-    GRUPO_SISTEMAS_INSTITUCIONAL,
-    GRUPOS_CREABLES_INSTITUCION,
-    estaciones_asignables,
-)
-
-
+from .permissions import GRUPO_SISTEMAS_INSTITUCIONAL, GRUPOS_CREABLES_INSTITUCION, estaciones_asignables
 CAMPOS_PERFIL = (
     "first_name", "last_name", "cedula", "email", "telefono",
     "cargo_institucional", "estacion",
 )
-
 
 def grupos_asignables(usuario_gestor):
     """Roles que este gestor puede otorgar.
@@ -30,12 +23,10 @@ def grupos_asignables(usuario_gestor):
         disponibles.extend((GRUPO_SISTEMAS_INSTITUCIONAL, "Responsable provincial"))
     return Group.objects.filter(name__in=disponibles).order_by("name")
 
-
 def _preparar_campos(formulario, usuario_gestor):
     formulario.fields["estacion"].queryset = estaciones_asignables(usuario_gestor)
     formulario.fields["grupo"].queryset = grupos_asignables(usuario_gestor)
     preparar_campos(formulario.fields, clase="user-form-control")
-
 
 class UsuarioInstitucionalForm(UserCreationForm):
     grupo = forms.ModelChoiceField(label="Rol operativo", queryset=Group.objects.none())
@@ -57,7 +48,6 @@ class UsuarioInstitucionalForm(UserCreationForm):
             usuario.save()
             usuario.groups.set([self.cleaned_data["grupo"]])
         return usuario
-
 
 class UsuarioEdicionForm(forms.ModelForm):
     """Corrige los datos de una cuenta existente.

@@ -18,7 +18,6 @@ from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecurso
 from .services import desplegar_unidad
 from .services_sci import finalizar_sci211
 
-
 class SCI211Tests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -658,7 +657,6 @@ class SCI211Tests(TestCase):
         self.assertIn("Matrícula", html)
         self.assertIn("@page", html)
 
-
 class ControlesDeFechaSCITests(TestCase):
     """Las columnas de fecha se llenan con un calendario, no escribiendo."""
 
@@ -754,7 +752,6 @@ class ControlesDeFechaSCITests(TestCase):
         ))
         self.assertContains(respuesta, "overflow-wrap:anywhere")
         self.assertContains(respuesta, "table-layout:fixed")
-
 
 class DespachoDesdeSCI211Tests(SCI211Tests):
     """Registrar una unidad en el SCI-211 es la decisión de despacharla."""
@@ -872,7 +869,6 @@ class DespachoDesdeSCI211Tests(SCI211Tests):
         self.assertEqual(
             DespliegueUnidad.objects.filter(emergencia=otra, unidad=unidad).count(), 1
         )
-
 
 class CuadriculaSCI211Tests(SCI211Tests):
     """Autocompletado del recurso y alta de filas sin recargar."""

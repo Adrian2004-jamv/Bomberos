@@ -7,7 +7,6 @@ from django.test import TestCase
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-
 class CargaInventarioBomberilTests(TestCase):
     @classmethod
     def setUpTestData(cls):

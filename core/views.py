@@ -7,10 +7,8 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.http import require_GET
 
-
 def inicio(request):
     return redirect("dashboard:principal")
-
 
 @require_GET
 @never_cache
@@ -53,7 +51,6 @@ def manifiesto(request):
         content_type="application/manifest+json",
     )
 
-
 @require_GET
 @never_cache
 def service_worker(request):
@@ -65,7 +62,6 @@ def service_worker(request):
     response["Service-Worker-Allowed"] = "/"
     response["X-Content-Type-Options"] = "nosniff"
     return response
-
 
 @require_GET
 @cache_control(public=True, max_age=3600)

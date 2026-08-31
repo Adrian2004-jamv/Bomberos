@@ -12,7 +12,6 @@ from .codigos import (PATRON_CODIGO, codigo_fijo, generar_codigo_emergencia,
                       iniciales_tipo_emergencia)
 from .models import Emergencia
 
-
 class InicialesTests(TestCase):
     def test_toma_la_inicial_de_las_dos_primeras_palabras(self):
         self.assertEqual(iniciales_tipo_emergencia("Incendio estructural"), "IE")
@@ -31,7 +30,6 @@ class InicialesTests(TestCase):
     def test_texto_vacio_cae_en_el_valor_neutro(self):
         self.assertEqual(iniciales_tipo_emergencia(""), "EM")
         self.assertEqual(iniciales_tipo_emergencia(None), "EM")
-
 
 class CodigoEmergenciaTests(TestCase):
     def setUp(self):
@@ -89,7 +87,6 @@ class CodigoEmergenciaTests(TestCase):
         self.usuario.save(update_fields=["estacion"])
         emergencia = self._crear("Rescate vehicular", timezone.now())
         self.assertRegex(emergencia.codigo, PATRON_CODIGO)
-
 
 class CodigoFijoTests(TestCase):
     def test_es_reproducible_para_los_mismos_argumentos(self):

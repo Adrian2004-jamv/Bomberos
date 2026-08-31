@@ -3,7 +3,6 @@ from django.db import transaction
 
 from instituciones.models import Canton
 
-
 CANTONES_COTOPAXI = (
     ("LATACUNGA", "Latacunga"),
     ("LA-MANA", "La Maná"),
@@ -45,7 +44,6 @@ INSTITUCIONES_COTOPAXI = (
         ),
     },
 )
-
 
 class Command(BaseCommand):
     help = "Carga los cantones de Cotopaxi y el Cuerpo de Bomberos de Latacunga."

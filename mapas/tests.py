@@ -13,7 +13,6 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .services import clasificar_antiguedad
 
-
 class MapaOperativoTests(TestCase):
     @classmethod
     def setUpTestData(cls):

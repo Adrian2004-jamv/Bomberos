@@ -9,7 +9,6 @@ from .models import (EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad,
                      TipoCapacidadOperativa)
 from .permissions import estaciones_capacidades_permitidas, tiene_alcance_global
 
-
 class EvaluacionCapacidadForm(forms.Form):
     estacion = forms.ModelChoiceField(label="Estación", queryset=Estacion.objects.none())
     tipo_capacidad = forms.ModelChoiceField(
@@ -33,7 +32,6 @@ class EvaluacionCapacidadForm(forms.Form):
         if capacidad_inicial and not self.is_bound:
             self.initial["tipo_capacidad"] = capacidad_inicial
         preparar_campos(self.fields)
-
 
 class FiltroHistorialCapacidadForm(forms.Form):
     institucion = forms.ModelChoiceField(
@@ -93,7 +91,6 @@ class FiltroHistorialCapacidadForm(forms.Form):
             self.add_error("fecha_hasta", "La fecha final no puede ser anterior a la inicial.")
         return datos
 
-
 class TipoCapacidadOperativaForm(forms.ModelForm):
     class Meta:
         model = TipoCapacidadOperativa
@@ -109,7 +106,6 @@ class TipoCapacidadOperativaForm(forms.ModelForm):
 
     def clean_codigo(self):
         return self.cleaned_data["codigo"].strip().upper()
-
 
 class RequisitoRecursoCapacidadForm(forms.ModelForm):
     class Meta:
@@ -145,7 +141,6 @@ class RequisitoRecursoCapacidadForm(forms.ModelForm):
             self.data.get(self.add_prefix(campo))
             for campo in ("tipo_recurso", "cantidad_minima")
         )
-
 
 RequisitoCapacidadFormSet = forms.inlineformset_factory(
     TipoCapacidadOperativa,

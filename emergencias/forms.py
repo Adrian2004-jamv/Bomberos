@@ -9,7 +9,6 @@ from inventario.permissions import estaciones_permitidas
 from .models import Emergencia
 from .services import unidades_desplegables
 
-
 # El navegador envía la fecha con precisión de minuto, así que un registro hecho
 # en el minuto corriente puede llegar unos segundos "adelantado".
 TOLERANCIA_FECHA_REPORTE = timedelta(minutes=1)
@@ -38,8 +37,7 @@ WIDGETS_EMERGENCIA = {
     "longitud": forms.NumberInput(attrs={"step": "0.000001", "data-ubicacion-longitud": ""}),
 }
 
-
-def _preparar_tipo_emergencia(formulario):
+def preparar_tipo_emergencia(formulario):
     """Convierte el tipo en una lista cerrada sin descartar lo ya registrado.
 
     El catálogo se fijó después de que el sistema estuviera en uso, y hay
@@ -60,7 +58,6 @@ def _preparar_tipo_emergencia(formulario):
         required=anterior.required,
         choices=[("", "Seleccione el tipo")] + opciones,
     )
-
 
 class EmergenciaForm(forms.ModelForm):
     class Meta:
@@ -83,7 +80,7 @@ class EmergenciaForm(forms.ModelForm):
             "cuerpo_bomberos__nombre", "nombre"
         )
         self.fields["fecha_reporte"].input_formats = ("%Y-%m-%dT%H:%M",)
-        _preparar_tipo_emergencia(self)
+        preparar_tipo_emergencia(self)
         preparar_campos(self.fields)
 
     def clean_fecha_reporte(self):
@@ -96,7 +93,6 @@ class EmergenciaForm(forms.ModelForm):
         if fecha and fecha > timezone.now() + TOLERANCIA_FECHA_REPORTE:
             raise forms.ValidationError("La fecha del reporte no puede estar en el futuro.")
         return fecha
-
 
 class EmergenciaEdicionForm(forms.ModelForm):
     """Corrección de la información situacional de un incidente en curso.
@@ -120,9 +116,8 @@ class EmergenciaEdicionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        _preparar_tipo_emergencia(self)
+        preparar_tipo_emergencia(self)
         preparar_campos(self.fields)
-
 
 class FiltroIncidentesForm(forms.Form):
     """Filtros del registro de incidentes, resueltos en el servidor.
@@ -193,7 +188,6 @@ class FiltroIncidentesForm(forms.Form):
             self.add_error("hasta", "La fecha final no puede ser anterior a la inicial.")
         return datos
 
-
 class UnidadDesplegableChoiceField(forms.ModelChoiceField):
     """Identifica cada unidad por su estación.
 
@@ -203,7 +197,6 @@ class UnidadDesplegableChoiceField(forms.ModelChoiceField):
 
     def label_from_instance(self, obj):
         return f"{obj.codigo_interno} - {obj.nombre} ({obj.estacion.nombre})"
-
 
 class DespachoUnidadForm(forms.Form):
     """Selección de la unidad que se despacha al incidente.

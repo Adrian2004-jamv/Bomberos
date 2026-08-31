@@ -23,7 +23,6 @@ from core.management.commands.cargar_datos_cotopaxi import INSTITUCIONES_COTOPAX
 DESTINO_PREDETERMINADO = "LAT-CENTRAL"
 LARGO_CODIGO_RECURSO = 50
 
-
 class Command(BaseCommand):
     help = (
         "Traslada la información de los Cuerpos de Bomberos que ya no forman "

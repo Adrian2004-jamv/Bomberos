@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import CategoriaRecurso, HistorialEstadoRecurso, Recurso, TipoRecurso
 
-
 @admin.register(CategoriaRecurso)
 class CategoriaRecursoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "codigo", "activo", "fecha_actualizacion")
@@ -14,7 +13,6 @@ class CategoriaRecursoAdmin(admin.ModelAdmin):
         ("Descripción", {"fields": ("descripcion",)}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(TipoRecurso)
 class TipoRecursoAdmin(admin.ModelAdmin):
@@ -28,7 +26,6 @@ class TipoRecursoAdmin(admin.ModelAdmin):
         ("Descripción", {"fields": ("descripcion",)}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(Recurso)
 class RecursoAdmin(admin.ModelAdmin):
@@ -79,7 +76,6 @@ class RecursoAdmin(admin.ModelAdmin):
         ("Observaciones", {"fields": ("observaciones",)}),
         ("Auditoría", {"fields": ("fecha_confirmacion_disponibilidad", "fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(HistorialEstadoRecurso)
 class HistorialEstadoRecursoAdmin(admin.ModelAdmin):

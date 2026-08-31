@@ -8,13 +8,7 @@ from django.utils import timezone
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, HistorialEstadoRecurso, Recurso, TipoRecurso
-from operaciones.models import (
-    EvaluacionCapacidadEstacion,
-    RequisitoRecursoCapacidad,
-    TipoCapacidadOperativa,
-)
-
-
+from operaciones.models import EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad, TipoCapacidadOperativa
 class DashboardInstitucionalTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -263,7 +257,6 @@ class DashboardInstitucionalTests(TestCase):
             )
         respuesta = self.abrir_dashboard("encargado")
         self.assertEqual(len(respuesta.context["actividad_reciente"]), 8)
-
 
 class DashboardSinDatosTests(TestCase):
     @classmethod

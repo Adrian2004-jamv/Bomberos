@@ -6,7 +6,6 @@ from django.utils import timezone
 from .models import HistorialEstadoRecurso, Recurso
 from .permissions import puede_gestionar_recurso
 
-
 @transaction.atomic
 def actualizar_estado_recurso(
     recurso,

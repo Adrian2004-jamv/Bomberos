@@ -2,8 +2,7 @@
 
 from whitenoise.storage import CompressedManifestStaticFilesStorage
 
-
-def _sin_mapas_de_origen(patrones):
+def sin_mapas_de_origen(patrones):
     """Quita las reglas que reescriben los comentarios `sourceMappingURL`.
 
     Devuelve la misma estructura de `patterns` sin esas reglas y sin las
@@ -20,7 +19,6 @@ def _sin_mapas_de_origen(patrones):
             resultado.append((extension, conservadas))
     return tuple(resultado)
 
-
 class EstaticosConManifiesto(CompressedManifestStaticFilesStorage):
     """Almacenamiento con manifiesto que ignora los mapas de origen.
 
@@ -35,4 +33,4 @@ class EstaticosConManifiesto(CompressedManifestStaticFilesStorage):
     versionado automático.
     """
 
-    patterns = _sin_mapas_de_origen(CompressedManifestStaticFilesStorage.patterns)
+    patterns = sin_mapas_de_origen(CompressedManifestStaticFilesStorage.patterns)

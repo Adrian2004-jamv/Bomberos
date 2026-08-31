@@ -9,15 +9,8 @@ from instituciones.models import Estacion
 from inventario.models import Recurso
 
 from emergencias.codigos import codigo_fijo
-from emergencias.models import (
-    DespliegueUnidad,
-    Emergencia,
-    FormularioSCI,
-    FormularioSCI211,
-    RegistroRecursoSCI211,
-)
+from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from emergencias.services_sci import finalizar_sci211
-
 
 DATOS_COMPLETOS = {
     "201": {
@@ -137,7 +130,6 @@ DATOS_PARCIALES = {
         "observaciones": "Documento provisional.",
     },
 }
-
 
 class Command(BaseCommand):
     help = "Crea un incidente SCI completo y otro en elaboración con información coherente."

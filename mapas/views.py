@@ -11,56 +11,78 @@ from inventario.permissions import estaciones_permitidas
 
 from .services import construir_geojson, construir_recorrido
 
+ESTADOS_ABIERTOS = (
+    Emergencia.Estado.REPORTADA,
+    Emergencia.Estado.EN_ATENCION,
+    Emergencia.Estado.CONTROLADA,
+)
+
+ESTADOS_GPS = (
+    ("reciente", "Posición reciente"),
+    ("retraso", "Posición con retraso"),
+    ("desactualizada", "Sin actualización prolongada"),
+    ("sin_posicion", "Esperando primera posición"),
+)
+
+# ==========================================
+# MÓDULO: MAPA OPERATIVO
+# ==========================================
 
 @login_required
 def mapa_operativo(request):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
+
     estaciones = estaciones_permitidas(request.user).filter(activo=True)
     cuerpos = CuerpoBomberos.objects.filter(estaciones__in=estaciones, activo=True).distinct()
     emergencias = Emergencia.objects.filter(
         estacion_responsable__in=estaciones,
-        estado__in=(Emergencia.Estado.REPORTADA, Emergencia.Estado.EN_ATENCION, Emergencia.Estado.CONTROLADA),
+        estado__in=ESTADOS_ABIERTOS,
     )
-    return render(request, "mapas/operativo.html", {
+
+    contexto = {
         "estaciones_filtro": estaciones,
         "cuerpos_filtro": cuerpos,
         "emergencias_filtro": emergencias,
         "estados_despliegue": DespliegueUnidad.Estado.choices,
-        "estados_gps": (
-            ("reciente", "Posición reciente"), ("retraso", "Posición con retraso"),
-            ("desactualizada", "Sin actualización prolongada"),
-            ("sin_posicion", "Esperando primera posición"),
-        ),
-    })
+        "estados_gps": ESTADOS_GPS,
+    }
 
+    return render(request, "mapas/operativo.html", contexto)
 
-def _error(mensaje, estado):
+# ==========================================
+# MÓDULO: DATOS PARA EL MAPA
+# ==========================================
+
+def responder_error(mensaje, estado):
     return JsonResponse({"error": mensaje}, status=estado)
-
 
 @require_GET
 def datos_operativos(request):
     if not request.user.is_authenticated:
-        return _error("Autenticación requerida.", 401)
+        return responder_error("Autenticación requerida.", 401)
+
     if not puede_consultar_emergencias(request.user):
-        return _error("No tiene autorización para consultar el mapa.", 403)
+        return responder_error("No tiene autorización para consultar el mapa.", 403)
+
     try:
         datos = construir_geojson(request.user, request.GET)
     except ValidationError as error:
-        return _error(next(iter(error.messages), "Los filtros no son válidos."), 400)
-    return JsonResponse(datos)
+        return responder_error(next(iter(error.messages), "Los filtros no son válidos."), 400)
 
+    return JsonResponse(datos)
 
 @require_GET
 def recorrido_despliegue(request, pk):
     if not request.user.is_authenticated:
-        return _error("Autenticación requerida.", 401)
-    if not puede_consultar_emergencias(request.user):
-        return _error("No tiene autorización para consultar el recorrido.", 403)
-    recorrido = construir_recorrido(request.user, pk)
-    if recorrido is None:
-        return _error("El despliegue no existe o no está autorizado.", 404)
-    return JsonResponse(recorrido)
+        return responder_error("Autenticación requerida.", 401)
 
-# Create your views here.
+    if not puede_consultar_emergencias(request.user):
+        return responder_error("No tiene autorización para consultar el recorrido.", 403)
+
+    recorrido = construir_recorrido(request.user, pk)
+
+    if recorrido is None:
+        return responder_error("El despliegue no existe o no está autorizado.", 404)
+
+    return JsonResponse(recorrido)

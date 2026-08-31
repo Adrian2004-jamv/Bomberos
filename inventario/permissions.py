@@ -1,6 +1,5 @@
 from instituciones.models import Estacion
 
-
 GRUPOS_GLOBALES = {"Administrador del sistema", "Responsable provincial"}
 GRUPOS_INSTITUCIONALES = {
     "Responsable institucional",
@@ -9,18 +8,15 @@ GRUPOS_INSTITUCIONALES = {
 GRUPOS_ESTACION_GESTION = {"Responsable de estación", "Encargado de inventario"}
 GRUPO_CONSULTA = "Operador de consulta"
 
-
 def _grupos(usuario):
     if not usuario.is_authenticated:
         return set()
     return set(usuario.groups.values_list("name", flat=True))
 
-
 def tiene_alcance_global(usuario):
     return usuario.is_authenticated and (
         usuario.is_superuser or bool(_grupos(usuario) & GRUPOS_GLOBALES)
     )
-
 
 def puede_consultar_inventario(usuario):
     if tiene_alcance_global(usuario):
@@ -35,7 +31,6 @@ def puede_consultar_inventario(usuario):
         )
     )
 
-
 def puede_gestionar_inventario(usuario):
     if tiene_alcance_global(usuario):
         return True
@@ -44,7 +39,6 @@ def puede_gestionar_inventario(usuario):
         usuario.estacion_id
         and (grupos & GRUPOS_INSTITUCIONALES or grupos & GRUPOS_ESTACION_GESTION)
     )
-
 
 def estaciones_permitidas(usuario):
     estaciones = Estacion.objects.select_related("cuerpo_bomberos", "cuerpo_bomberos__canton")
@@ -61,18 +55,15 @@ def estaciones_permitidas(usuario):
         return estaciones.filter(pk=usuario.estacion_id)
     return estaciones.none()
 
-
 def recursos_permitidos(usuario):
     from .models import Recurso
 
     return Recurso.objects.filter(estacion__in=estaciones_permitidas(usuario))
 
-
 def puede_gestionar_recurso(usuario, recurso):
     return puede_gestionar_inventario(usuario) and estaciones_permitidas(usuario).filter(
         pk=recurso.estacion_id
     ).exists()
-
 
 def puede_gestionar_catalogos(usuario):
     """Los catálogos son provinciales, no de cada institución.

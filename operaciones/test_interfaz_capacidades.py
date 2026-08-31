@@ -8,13 +8,7 @@ from django.urls import reverse
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-from .models import (
-    EvaluacionCapacidadEstacion,
-    RequisitoRecursoCapacidad,
-    TipoCapacidadOperativa,
-)
-
-
+from .models import EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad, TipoCapacidadOperativa
 class InterfazCapacidadesTests(TestCase):
     @classmethod
     def setUpTestData(cls):

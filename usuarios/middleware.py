@@ -9,7 +9,6 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.functional import cached_property
 
-
 class ExigirCambioDeClave:
     def __init__(self, get_response):
         self.get_response = get_response

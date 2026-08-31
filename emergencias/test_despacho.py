@@ -21,7 +21,6 @@ from .models import DespliegueUnidad, Emergencia
 from .services import (cambiar_estado_emergencia, desplegar_unidad,
                        unidades_desplegables)
 
-
 class BaseDespachoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -115,7 +114,6 @@ class BaseDespachoTests(TestCase):
             activo=activo,
         )
 
-
 class EstadoEmergenciaTests(BaseDespachoTests):
     def test_transicion_valida_avanza_el_incidente(self):
         emergencia = self.crear_emergencia()
@@ -192,7 +190,6 @@ class EstadoEmergenciaTests(BaseDespachoTests):
                 emergencia, Emergencia.Estado.EN_ATENCION, self.consulta
             )
 
-
 class UnidadesDesplegablesTests(BaseDespachoTests):
     def test_solo_ofrece_unidades_operativas_disponibles_y_del_ambito(self):
         emergencia = self.crear_emergencia()
@@ -212,7 +209,6 @@ class UnidadesDesplegablesTests(BaseDespachoTests):
         desplegar_unidad(emergencia, unidad, self.responsable)
         otra = self.crear_emergencia(codigo="EM-DP-002")
         self.assertNotIn(unidad, unidades_desplegables(otra, self.responsable))
-
 
 class DespachoWebTests(BaseDespachoTests):
     def test_responsable_despacha_una_unidad_desde_la_interfaz(self):
@@ -278,7 +274,6 @@ class DespachoWebTests(BaseDespachoTests):
         respuesta = self.client.get(reverse("emergencias:despachar", args=[emergencia.pk]))
         self.assertEqual(respuesta.status_code, 302)
         self.assertIn(reverse("usuarios:login"), respuesta.headers["Location"])
-
 
 class TransicionesWebTests(BaseDespachoTests):
     def test_el_detalle_ya_no_muestra_el_ciclo_operativo(self):
@@ -402,7 +397,6 @@ class TransicionesWebTests(BaseDespachoTests):
         )
         self.assertContains(respuesta, 'value="en_ruta"', html=False)
         self.assertContains(respuesta, "Registrar unidad en el SCI-211")
-
 
 class EdicionEmergenciaTests(BaseDespachoTests):
     def test_responsable_corrige_la_situacion_del_incidente(self):

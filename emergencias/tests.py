@@ -12,14 +12,7 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, HistorialEstadoRecurso, Recurso, TipoRecurso
 
 from .models import DespliegueUnidad, Emergencia
-from .services import (
-    cambiar_estado_despliegue,
-    cancelar_despliegue,
-    desplegar_unidad,
-    finalizar_despliegue,
-)
-
-
+from .services import cambiar_estado_despliegue, cancelar_despliegue, desplegar_unidad, finalizar_despliegue
 class EmergenciasYDesplieguesTests(TestCase):
     @classmethod
     def setUpTestData(cls):

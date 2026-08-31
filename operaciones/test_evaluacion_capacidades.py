@@ -7,13 +7,8 @@ from django.test import TestCase
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-from .models import (
-    EvaluacionCapacidadEstacion,
-    RequisitoRecursoCapacidad,
-    TipoCapacidadOperativa,
-)
+from .models import EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad, TipoCapacidadOperativa
 from .services import evaluar_capacidad_estacion
-
 
 class EvaluarCapacidadSoloRecursosTests(TestCase):
     @classmethod

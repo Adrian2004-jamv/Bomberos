@@ -7,7 +7,6 @@ from django.core.management.base import BaseCommand
 
 _AFIRMATIVOS = ("1", "true", "yes", "on", "si", "sí")
 
-
 class Command(BaseCommand):
     help = (
         "Crea el superusuario inicial a partir de variables de entorno. "

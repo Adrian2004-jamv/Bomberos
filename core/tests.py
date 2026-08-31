@@ -12,7 +12,6 @@ from emergencias.models import Emergencia
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import Recurso
 
-
 class InicioTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -37,7 +36,6 @@ class InicioTests(TestCase):
         respuesta = self.client.get(reverse("core:inicio"))
 
         self.assertRedirects(respuesta, reverse("dashboard:principal"))
-
 
 class DatosCotopaxiTests(TestCase):
     def test_la_carga_es_repetible(self):
@@ -72,7 +70,6 @@ class DatosCotopaxiTests(TestCase):
         call_command("cargar_datos_cotopaxi", verbosity=0)
         for estacion in Estacion.objects.all():
             self.assertEqual(estacion.recursos.count(), 3)
-
 
 class PwaTests(TestCase):
     def test_manifiesto_publico_tiene_mime_y_contenido_requerido(self):
@@ -127,7 +124,6 @@ class PwaTests(TestCase):
             contenido = archivo.read_text(encoding="utf-8").lower()
             for prohibido in ("postgres_password", "dj_database_url", "private key", "bearer "):
                 self.assertNotIn(prohibido, contenido)
-
 
 class LimpiarInstitucionesTests(TestCase):
     """El comando traslada lo que colgaba de la institución y luego la retira."""

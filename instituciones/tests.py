@@ -6,7 +6,6 @@ from django.urls import reverse
 from .forms import CuerpoBomberosForm, EstacionForm
 from .models import Canton, CuerpoBomberos, Estacion
 
-
 class InterfazInstitucionesTests(TestCase):
     @classmethod
     def setUpTestData(cls):

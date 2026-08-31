@@ -5,10 +5,8 @@ from django.utils import timezone
 from .esquemas_sci import TABLA
 from .models import FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 
-
-def _nombre_usuario(usuario):
+def nombre_usuario(usuario):
     return usuario.get_full_name() or usuario.username
-
 
 @transaction.atomic
 def crear_sci211_desde_emergencia(emergencia, usuario):
@@ -16,7 +14,7 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
         emergencia=emergencia,
         codigo=f"SCI-211-{emergencia.codigo}",
         punto_registro="Puesto de Comando",
-        registrador_1=_nombre_usuario(usuario),
+        registrador_1=nombre_usuario(usuario),
         creado_por=usuario,
         modificado_por=usuario,
     )
@@ -31,7 +29,7 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
             estado = RegistroRecursoSCI211.EstadoRecurso.NO_DISPONIBLE
         RegistroRecursoSCI211.objects.create(
             formulario=formulario, despliegue=despliegue, orden=orden,
-            solicitado_por=_nombre_usuario(despliegue.despachado_por),
+            solicitado_por=nombre_usuario(despliegue.despachado_por),
             fecha_hora_solicitud=despliegue.fecha_asignacion,
             clase_recurso=unidad.tipo.categoria.nombre,
             tipo_recurso=unidad.tipo.nombre,
@@ -41,12 +39,11 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
             numero_personas=1,
             estado_recurso=estado,
             asignado_a=emergencia.direccion if estado == "disponible" else "",
-            desmovilizado_por=_nombre_usuario(despliegue.despachado_por) if despliegue.fecha_retorno else "",
+            desmovilizado_por=nombre_usuario(despliegue.despachado_por) if despliegue.fecha_retorno else "",
             fecha_hora_desmovilizacion=despliegue.fecha_retorno,
             observaciones=despliegue.observaciones,
         )
     return formulario
-
 
 @transaction.atomic
 def finalizar_sci211(formulario, usuario):
@@ -78,14 +75,13 @@ def finalizar_sci211(formulario, usuario):
     actual.save()
     return actual
 
-
 @transaction.atomic
 def finalizar_sci(formulario, usuario):
     """Bloquea un formulario SCI genérico tras verificar que tenga contenido."""
     actual = FormularioSCI.objects.select_for_update().get(pk=formulario.pk)
     if not actual.es_editable:
         raise ValidationError(f"El formulario SCI-{actual.codigo_sci} ya está finalizado.")
-    if not _tiene_contenido(actual.datos):
+    if not tiene_contenido(actual.datos):
         raise ValidationError("Complete al menos un campo antes de finalizar el formulario.")
     actual.estado = FormularioSCI.Estado.FINALIZADO
     actual.finalizado_por = usuario
@@ -94,8 +90,7 @@ def finalizar_sci(formulario, usuario):
     actual.save()
     return actual
 
-
-def _tiene_contenido(datos):
+def tiene_contenido(datos):
     for valor in (datos or {}).values():
         if isinstance(valor, list):
             if any(any(celda for celda in fila.values()) for fila in valor if isinstance(fila, dict)):
@@ -103,7 +98,6 @@ def _tiene_contenido(datos):
         elif str(valor or "").strip():
             return True
     return False
-
 
 @transaction.atomic
 def desplegar_recursos_del_sci211(formulario, usuario):

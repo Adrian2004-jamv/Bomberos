@@ -27,7 +27,6 @@ _PATRONES = {
     HORA: re.compile(r"^\d{2}:\d{2}(:\d{2})?$"),
 }
 
-
 def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO):
     return {
         "nombre": nombre,
@@ -36,7 +35,6 @@ def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO):
         "recurso_inventario": recurso_inventario,
         "tipo": tipo,
     }
-
 
 ESQUEMAS_SCI = {
     "201": {
@@ -357,19 +355,15 @@ CAMPOS_PERIODO_OPERACIONAL = (
 LIMITE_TEXTO = 5000
 LIMITE_FILAS = 60
 
-
 def obtener_esquema(codigo):
     """Devuelve el esquema del formulario o ``None`` si el código no existe."""
     return ESQUEMAS_SCI.get(codigo)
 
-
 def campos_periodo(esquema):
     return CAMPOS_PERIODO_OPERACIONAL if esquema.get("periodo_operacional") else ()
 
-
-def _limpiar(valor):
+def limpiar(valor):
     return str(valor or "").strip()[:LIMITE_TEXTO]
-
 
 def secciones_con_valores(esquema, datos):
     """Combina el esquema con los datos guardados para renderizar el formulario."""
@@ -377,13 +371,12 @@ def secciones_con_valores(esquema, datos):
     for seccion in esquema["secciones"]:
         item = dict(seccion)
         if seccion["tipo"] == TABLA:
-            item["filas"] = _filas_para_render(seccion, datos.get(seccion["nombre"]))
+            item["filas"] = filas_para_render(seccion, datos.get(seccion["nombre"]))
             item["firma_valor"] = datos.get(f"{seccion['nombre']}__firma", "")
         else:
             item["valor"] = datos.get(seccion["nombre"], "")
         resultado.append(item)
     return resultado
-
 
 def _celda(columna, valor):
     """Arma una celda y decide el control con que se dibuja.
@@ -398,8 +391,7 @@ def _celda(columna, valor):
         tipo = TEXTO
     return {"columna": columna, "valor": valor, "tipo": tipo}
 
-
-def _filas_para_render(seccion, guardadas):
+def filas_para_render(seccion, guardadas):
     columnas = seccion["columnas"]
     guardadas = guardadas if isinstance(guardadas, list) else []
     fijas = seccion.get("filas_fijas")
@@ -421,31 +413,29 @@ def _filas_para_render(seccion, guardadas):
                                  for columna in columnas]})
     return filas
 
-
 def extraer_datos(esquema, post):
     """Traduce un POST del editor a la estructura que se guarda en ``datos``."""
     datos = {}
     for campo in campos_periodo(esquema):
-        datos[campo["nombre"]] = _limpiar(post.get(campo["nombre"]))
+        datos[campo["nombre"]] = limpiar(post.get(campo["nombre"]))
     for seccion in esquema["secciones"]:
         nombre = seccion["nombre"]
         if seccion["tipo"] != TABLA:
-            datos[nombre] = _limpiar(post.get(nombre))
+            datos[nombre] = limpiar(post.get(nombre))
             continue
         filas = []
-        indices = _indices_enviados(post, nombre, seccion)
+        indices = indices_enviados(post, nombre, seccion)
         for indice in indices:
-            fila = {columna["nombre"]: _limpiar(post.get(f"{nombre}-{indice}-{columna['nombre']}"))
+            fila = {columna["nombre"]: limpiar(post.get(f"{nombre}-{indice}-{columna['nombre']}"))
                     for columna in seccion["columnas"]}
             if any(fila.values()):
                 filas.append(fila)
         datos[nombre] = filas
         if seccion.get("firma"):
-            datos[f"{nombre}__firma"] = _limpiar(post.get(f"{nombre}__firma"))
+            datos[f"{nombre}__firma"] = limpiar(post.get(f"{nombre}__firma"))
     return datos
 
-
-def _indices_enviados(post, nombre, seccion):
+def indices_enviados(post, nombre, seccion):
     primera = seccion["columnas"][0]["nombre"]
     prefijo = f"{nombre}-"
     sufijo = f"-{primera}"
@@ -456,7 +446,6 @@ def _indices_enviados(post, nombre, seccion):
             if crudo.isdigit():
                 indices.add(int(crudo))
     return sorted(indices)[:LIMITE_FILAS]
-
 
 def secciones_completadas(esquema, datos):
     """Cuenta cuántas secciones del formulario tienen datos reales.
@@ -479,7 +468,6 @@ def secciones_completadas(esquema, datos):
             for nombre, celda in fila.items() if nombre not in ignoradas
         )
     return llenas, len(esquema["secciones"])
-
 
 # El SCI-211 se captura con su modelo propio, pero el catálogo debe poder mostrar
 # su estructura oficial en blanco igual que la de los demás formularios.
@@ -510,7 +498,6 @@ ESQUEMA_CATALOGO_211 = {
          "filas_minimas": 12},
     ],
 }
-
 
 def obtener_esquema_catalogo(codigo):
     """Como ``obtener_esquema`` pero incluye el SCI-211 para la vista de catálogo."""

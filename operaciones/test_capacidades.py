@@ -5,7 +5,6 @@ from inventario.models import CategoriaRecurso, TipoRecurso
 
 from .models import RequisitoRecursoCapacidad, TipoCapacidadOperativa
 
-
 class RequisitosCapacidadOperativaTests(TestCase):
     @classmethod
     def setUpTestData(cls):

@@ -15,7 +15,6 @@ from emergencias.services_sci import crear_sci211_desde_emergencia
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-
 class BaseOperativoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -78,7 +77,6 @@ class BaseOperativoTests(TestCase):
         self.client.force_login(usuario)
         return self.client.get(reverse("dashboard:principal"))
 
-
 class IndicadoresOperativosTests(BaseOperativoTests):
     def test_cuenta_incidentes_en_curso_y_terminados(self):
         self.crear_emergencia("OP-001")
@@ -127,7 +125,6 @@ class IndicadoresOperativosTests(BaseOperativoTests):
         self.assertEqual(respuesta.context["operativo"]["incidentes_en_curso"], 0)
         self.assertContains(respuesta, "No hay emergencias en curso en su ámbito.")
 
-
 class TableroDeIncidentesTests(BaseOperativoTests):
     def test_muestra_el_incidente_con_sus_unidades_y_su_documentacion(self):
         emergencia = self.crear_emergencia("OP-100")
@@ -163,7 +160,6 @@ class TableroDeIncidentesTests(BaseOperativoTests):
         self.crear_emergencia("OP-AJENO", estacion=self.estacion_ajena)
         respuesta = self.abrir(self.responsable)
         self.assertNotContains(respuesta, "OP-AJENO")
-
 
 class ActividadYAccesosTests(BaseOperativoTests):
     def test_la_actividad_reciente_incluye_incidentes_y_despliegues(self):

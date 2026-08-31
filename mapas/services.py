@@ -6,7 +6,6 @@ from django.utils import timezone
 from emergencias.models import DespliegueUnidad, Emergencia, PosicionUnidad
 from inventario.permissions import estaciones_permitidas
 
-
 SEGUNDOS_RECIENTE = 60
 SEGUNDOS_RETRASO = 300
 MAX_PUNTOS_RECORRIDO = 200
@@ -17,7 +16,6 @@ ESTADOS_EMERGENCIA_ACTIVA = (
 )
 ESTADOS_GPS = {"reciente", "retraso", "desactualizada", "sin_posicion"}
 
-
 def clasificar_antiguedad(fecha_recepcion, ahora=None):
     if fecha_recepcion is None:
         return {"codigo": "sin_posicion", "etiqueta": "Esperando primera posición GPS", "segundos": None}
@@ -27,7 +25,6 @@ def clasificar_antiguedad(fecha_recepcion, ahora=None):
     if segundos <= SEGUNDOS_RETRASO:
         return {"codigo": "retraso", "etiqueta": "Posición con retraso", "segundos": segundos}
     return {"codigo": "desactualizada", "etiqueta": "Sin actualización prolongada", "segundos": segundos}
-
 
 def validar_filtros(parametros):
     filtros = {}
@@ -53,8 +50,7 @@ def validar_filtros(parametros):
         filtros["gps"] = gps
     return filtros
 
-
-def _bases_autorizadas(usuario, filtros):
+def bases_autorizadas(usuario, filtros):
     estaciones = estaciones_permitidas(usuario)
     emergencias = Emergencia.objects.filter(
         estacion_responsable__in=estaciones,
@@ -81,10 +77,9 @@ def _bases_autorizadas(usuario, filtros):
         despliegues = despliegues.filter(estado=filtros["estado"])
     return emergencias, despliegues
 
-
 def construir_geojson(usuario, parametros):
     filtros = validar_filtros(parametros)
-    emergencias, despliegues = _bases_autorizadas(usuario, filtros)
+    emergencias, despliegues = bases_autorizadas(usuario, filtros)
     emergencias = emergencias.annotate(
         unidades_activas=Count(
             "despliegues",
@@ -156,9 +151,8 @@ def construir_geojson(usuario, parametros):
         })
     return {"type": "FeatureCollection", "features": features, "generado_en": ahora.isoformat()}
 
-
 def construir_recorrido(usuario, despliegue_id):
-    _, despliegues = _bases_autorizadas(usuario, {})
+    _, despliegues = bases_autorizadas(usuario, {})
     despliegue = despliegues.filter(pk=despliegue_id).first()
     if despliegue is None:
         return None

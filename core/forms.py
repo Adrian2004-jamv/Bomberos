@@ -7,9 +7,7 @@ estilo y la etiqueta de la opción vacía de cada selector.
 from django import forms
 from django.db.models.fields import BLANK_CHOICE_LABEL
 
-
 ETIQUETA_OPCION_VACIA = "Seleccione una opción"
-
 
 def preparar_campos(campos, clase="form-control"):
     """Aplica la clase de estilo y traduce la opción vacía de los selectores.

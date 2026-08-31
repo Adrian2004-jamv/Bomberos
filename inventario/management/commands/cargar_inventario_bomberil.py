@@ -4,7 +4,6 @@ from django.db import transaction
 from instituciones.models import Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-
 CATEGORIAS = (
     ("VEH", "Vehículos", "Vehículos destinados a respuesta y atención de emergencias."),
     ("EPP", "Equipos de protección personal", "Protección respiratoria, estructural y forestal."),
@@ -51,7 +50,6 @@ OBSERVACION_REFERENCIAL = (
     "Registro inicial basado en denominaciones de contratación pública bomberil ecuatoriana. "
     "La institución debe validar físicamente marca, modelo, serie, año y existencia del bien."
 )
-
 
 class Command(BaseCommand):
     help = "Carga un catálogo bomberil y un inventario inicial verificable para cada estación activa."

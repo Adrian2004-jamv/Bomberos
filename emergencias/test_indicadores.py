@@ -20,7 +20,6 @@ from .models import (DespliegueUnidad, Emergencia, FormularioSCI,
                      FormularioSCI211, RegistroRecursoSCI211)
 from .services import desplegar_unidad
 
-
 class IndicadoresDeEmergenciaTests(TestCase):
     @classmethod
     def setUpTestData(cls):

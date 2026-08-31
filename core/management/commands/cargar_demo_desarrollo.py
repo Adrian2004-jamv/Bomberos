@@ -10,7 +10,6 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 from operaciones.models import RequisitoRecursoCapacidad, TipoCapacidadOperativa
 from operaciones.services import evaluar_capacidad_estacion
 
-
 class Command(BaseCommand):
     help = "Carga datos mínimos identificados como DEMO para recorrer los módulos existentes."
 

@@ -12,7 +12,6 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 from .models import CategoriaRecurso, HistorialEstadoRecurso, Recurso, TipoRecurso
 from .services import actualizar_estado_recurso
 
-
 class ActualizarEstadoRecursoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -83,7 +82,6 @@ class ActualizarEstadoRecursoTests(TestCase):
         self.assertEqual(recurso.pk, self.recurso.pk)
         self.assertIsNone(historial)
         self.assertFalse(HistorialEstadoRecurso.objects.exists())
-
 
 class InterfazInventarioTests(TestCase):
     @classmethod

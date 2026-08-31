@@ -26,7 +26,6 @@ from inventario.services import actualizar_estado_recurso
 from .models import DespliegueUnidad, Emergencia, PosicionUnidad
 from .permissions import estacion_autorizada, puede_gestionar_emergencias
 
-
 TRANSICIONES_VALIDAS = {
     DespliegueUnidad.Estado.ASIGNADA: {
         DespliegueUnidad.Estado.EN_RUTA,
@@ -65,8 +64,7 @@ TRANSICIONES_EMERGENCIA = {
     Emergencia.Estado.CANCELADA: set(),
 }
 
-
-def _validar_usuario(usuario):
+def validar_usuario(usuario):
     Usuario = get_user_model()
     if (
         not isinstance(usuario, Usuario)
@@ -75,7 +73,6 @@ def _validar_usuario(usuario):
         or not puede_gestionar_emergencias(usuario)
     ):
         raise ValidationError("El usuario no está autorizado para gestionar despliegues.")
-
 
 def unidades_desplegables(emergencia, usuario_responsable):
     """Unidades que ``desplegar_unidad`` aceptaría para esta emergencia.
@@ -98,10 +95,9 @@ def unidades_desplegables(emergencia, usuario_responsable):
         .order_by("estacion__nombre", "codigo_interno")
     )
 
-
 @transaction.atomic
 def desplegar_unidad(emergencia, unidad, usuario_responsable, observaciones=""):
-    _validar_usuario(usuario_responsable)
+    validar_usuario(usuario_responsable)
     if not isinstance(emergencia, Emergencia) or not emergencia.pk:
         raise ValidationError("La emergencia no existe.")
     if not isinstance(unidad, Recurso) or not unidad.pk:
@@ -154,10 +150,9 @@ def desplegar_unidad(emergencia, unidad, usuario_responsable, observaciones=""):
         raise ValidationError("La unidad ya fue asignada a otro despliegue activo.") from error
     return despliegue
 
-
 @transaction.atomic
 def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, observaciones=""):
-    _validar_usuario(usuario_responsable)
+    validar_usuario(usuario_responsable)
     if nuevo_estado not in DespliegueUnidad.Estado.values:
         raise ValidationError("El estado de despliegue no es válido.")
     if not isinstance(despliegue, DespliegueUnidad) or not despliegue.pk:
@@ -211,7 +206,6 @@ def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, obs
         )
     return actual
 
-
 def finalizar_despliegue(despliegue, usuario_responsable, observaciones=""):
     return cambiar_estado_despliegue(
         despliegue,
@@ -219,7 +213,6 @@ def finalizar_despliegue(despliegue, usuario_responsable, observaciones=""):
         usuario_responsable,
         observaciones,
     )
-
 
 def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
     return cambiar_estado_despliegue(
@@ -229,7 +222,6 @@ def cancelar_despliegue(despliegue, usuario_responsable, observaciones=""):
         observaciones,
     )
 
-
 @transaction.atomic
 def cambiar_estado_emergencia(emergencia, nuevo_estado, usuario_responsable):
     """Avanza la emergencia por su ciclo operativo y sella el cierre.
@@ -238,7 +230,7 @@ def cambiar_estado_emergencia(emergencia, nuevo_estado, usuario_responsable):
     quedaría marcada como asignada a un incidente terminado y el inventario
     dejaría de reflejar la realidad.
     """
-    _validar_usuario(usuario_responsable)
+    validar_usuario(usuario_responsable)
     if nuevo_estado not in Emergencia.Estado.values:
         raise ValidationError("El estado de la emergencia no es válido.")
     if not isinstance(emergencia, Emergencia) or not emergencia.pk:
@@ -281,7 +273,6 @@ def cambiar_estado_emergencia(emergencia, nuevo_estado, usuario_responsable):
     actual.save(update_fields=campos)
     return actual
 
-
 def transiciones_disponibles(transiciones, estado_actual, opciones):
     """Traduce un mapa de transiciones a pares valor/etiqueta para la interfaz."""
     permitidos = transiciones.get(estado_actual) or set()
@@ -291,8 +282,7 @@ def transiciones_disponibles(transiciones, estado_actual, opciones):
         if valor in permitidos
     ]
 
-
-def _ajustar_a_campo(valor, nombre_campo):
+def ajustar_a_campo(valor, nombre_campo):
     """Ajusta un dato del sensor a los decimales que admite su campo.
 
     El navegador entrega precisión, velocidad, rumbo y altitud con toda la
@@ -313,7 +303,6 @@ def _ajustar_a_campo(valor, nombre_campo):
     decimales = PosicionUnidad._meta.get_field(nombre_campo).decimal_places
     return numero.quantize(Decimal(1).scaleb(-decimales))
 
-
 @transaction.atomic
 def registrar_posicion_unidad(
     despliegue,
@@ -329,7 +318,7 @@ def registrar_posicion_unidad(
     fuente=PosicionUnidad.Fuente.NAVEGADOR,
 ):
     """Valida y conserva una posición dentro del recorrido de un despliegue."""
-    _validar_usuario(usuario_responsable)
+    validar_usuario(usuario_responsable)
     if not isinstance(despliegue, DespliegueUnidad) or not despliegue.pk:
         raise ValidationError("El despliegue no existe.")
     try:
@@ -364,10 +353,10 @@ def registrar_posicion_unidad(
     posicion = PosicionUnidad(
         despliegue=actual,
         ubicacion=Point(longitud_num, latitud_num, srid=4326),
-        precision=_ajustar_a_campo(precision, "precision"),
-        velocidad=_ajustar_a_campo(velocidad, "velocidad"),
-        rumbo=_ajustar_a_campo(rumbo, "rumbo"),
-        altitud=_ajustar_a_campo(altitud, "altitud"),
+        precision=ajustar_a_campo(precision, "precision"),
+        velocidad=ajustar_a_campo(velocidad, "velocidad"),
+        rumbo=ajustar_a_campo(rumbo, "rumbo"),
+        altitud=ajustar_a_campo(altitud, "altitud"),
         fecha_dispositivo=fecha_dispositivo,
         reportado_por=usuario_responsable,
         fuente=fuente,

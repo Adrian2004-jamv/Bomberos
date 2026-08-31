@@ -3,7 +3,6 @@ from django.contrib import admin
 from .models import (DespliegueUnidad, Emergencia, FormularioSCI211,
                      PosicionUnidad, RegistroRecursoSCI211)
 
-
 class DespliegueUnidadInline(admin.TabularInline):
     model = DespliegueUnidad
     extra = 0
@@ -21,7 +20,6 @@ class DespliegueUnidadInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
-
 
 @admin.register(Emergencia)
 class EmergenciaAdmin(admin.ModelAdmin):
@@ -76,7 +74,6 @@ class EmergenciaAdmin(admin.ModelAdmin):
             )
         return self.readonly_fields
 
-
 @admin.register(DespliegueUnidad)
 class DespliegueUnidadAdmin(admin.ModelAdmin):
     list_display = (
@@ -130,7 +127,6 @@ class DespliegueUnidadAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-
 @admin.register(PosicionUnidad)
 class PosicionUnidadAdmin(admin.ModelAdmin):
     list_display = ("despliegue", "unidad", "coordenadas", "precision", "reportado_por", "fecha_recepcion")
@@ -160,7 +156,6 @@ class PosicionUnidadAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-
 class RegistroSCI211Inline(admin.TabularInline):
     model = RegistroRecursoSCI211
     extra = 0
@@ -169,7 +164,6 @@ class RegistroSCI211Inline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
-
 
 @admin.register(FormularioSCI211)
 class FormularioSCI211Admin(admin.ModelAdmin):

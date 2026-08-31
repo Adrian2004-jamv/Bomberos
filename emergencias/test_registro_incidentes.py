@@ -20,7 +20,6 @@ from .esquemas_sci import ESQUEMAS_SCI
 from .forms import TIPOS_EMERGENCIA
 from .models import Emergencia, FormularioSCI, FormularioSCI211
 
-
 class BaseRegistroTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -70,7 +69,6 @@ class BaseRegistroTests(TestCase):
     def codigos(self, respuesta):
         return [emergencia.codigo for emergencia in respuesta.context["emergencias"]]
 
-
 class FiltroPorFaseTests(BaseRegistroTests):
     def setUp(self):
         self.crear("RG-CURSO-1")
@@ -100,7 +98,6 @@ class FiltroPorFaseTests(BaseRegistroTests):
         respuesta = self.listar(fase="inventada")
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(len(self.codigos(respuesta)), 4)
-
 
 class BusquedaTests(BaseRegistroTests):
     def setUp(self):
@@ -143,7 +140,6 @@ class BusquedaTests(BaseRegistroTests):
     def test_los_espacios_sobrantes_no_afectan(self):
         self.assertEqual(self.codigos(self.listar(q="  forestal  ")), ["RG-BUS-001"])
 
-
 class FiltroPorTipoEmergenciaTests(BaseRegistroTests):
     def setUp(self):
         self.crear("RG-TIPO-FORESTAL", tipo="Incendio forestal")
@@ -173,7 +169,6 @@ class FiltroPorTipoEmergenciaTests(BaseRegistroTests):
     def test_el_selector_conserva_el_tipo_elegido(self):
         respuesta = self.listar(tipo="Rescate")
         self.assertContains(respuesta, '<option value="Rescate" selected>')
-
 
 class FiltroPorEtapaSciTests(BaseRegistroTests):
     def setUp(self):
@@ -212,7 +207,6 @@ class FiltroPorEtapaSciTests(BaseRegistroTests):
         self.assertEqual(emergencia.porcentaje_formularios, 100)
         self.assertContains(respuesta, "12/12 formularios")
 
-
 class PaginacionTests(BaseRegistroTests):
     def setUp(self):
         for indice in range(15):
@@ -247,7 +241,6 @@ class PaginacionTests(BaseRegistroTests):
         respuesta = self.listar(q="RG-PAG", fase="terminada")
         self.assertEqual(respuesta.context["querystring_sin_fase"], "q=RG-PAG")
 
-
 class AlcanceYFormularioTests(BaseRegistroTests):
     def test_los_filtros_no_alcanzan_a_otra_institucion(self):
         self.crear("RG-AJENO", estacion=self.estacion_ajena)
@@ -277,7 +270,6 @@ class AlcanceYFormularioTests(BaseRegistroTests):
     def test_el_registro_no_acepta_post(self):
         self.client.force_login(self.usuario)
         self.assertEqual(self.client.post(reverse("emergencias:lista")).status_code, 405)
-
 
 class FiltroPorFechaTests(BaseRegistroTests):
     """Rango de fechas sobre la fecha de reporte, en hora local."""
@@ -358,7 +350,6 @@ class FiltroPorFechaTests(BaseRegistroTests):
         self.assertNotIn("RG-FEC-1", contenido)
         self.assertNotIn("RG-FEC-3", contenido)
 
-
 class MapaRespetaElFiltroTests(BaseRegistroTests):
     """El mapa recibe qué incidentes pasan el filtro para atenuar el resto."""
 
@@ -406,7 +397,6 @@ class MapaRespetaElFiltroTests(BaseRegistroTests):
                                datetime(2026, 3, 10, 12), timezone.get_current_timezone()))
         respuesta = self.listar(desde="2026-03-10", hasta="2026-03-10")
         self.assertNotIn(ajena.pk, self.ids(respuesta))
-
 
 class FormularioDeRegistroTests(BaseRegistroTests):
     """Tipo como lista cerrada y selector de ubicación en el mapa."""
@@ -473,7 +463,6 @@ class FormularioDeRegistroTests(BaseRegistroTests):
         self.assertEqual(respuesta.status_code, 302)
         creada = Emergencia.objects.get(direccion="Vía a Pujilí")
         self.assertIsNone(creada.latitud)
-
 
 class TerminologiaTests(BaseRegistroTests):
     """La interfaz dice «emergencia»; los formularios SCI conservan «incidente»."""

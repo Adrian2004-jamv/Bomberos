@@ -5,7 +5,6 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-
 class Emergencia(models.Model):
     class Prioridad(models.TextChoices):
         BAJA = "baja", "Baja"
@@ -97,7 +96,6 @@ class Emergencia(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.tipo_emergencia}"
 
-
 class DespliegueUnidad(models.Model):
     class Estado(models.TextChoices):
         ASIGNADA = "asignada", "Asignada"
@@ -161,7 +159,6 @@ class DespliegueUnidad(models.Model):
 
     def __str__(self):
         return f"{self.emergencia.codigo} - {self.unidad.codigo_interno} ({self.get_estado_display()})"
-
 
 class PosicionUnidad(models.Model):
     class Fuente(models.TextChoices):
@@ -242,7 +239,6 @@ class PosicionUnidad(models.Model):
     def __str__(self):
         return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"
 
-
 class FormularioSCI211(models.Model):
     """Encabezado único del Registro y Control de Recursos de una emergencia."""
 
@@ -298,7 +294,6 @@ class FormularioSCI211(models.Model):
     def es_editable(self):
         return self.estado == self.Estado.BORRADOR
 
-
 class FormularioSCI(models.Model):
     """Formulario SCI distinto del registro especializado 211.
 
@@ -350,7 +345,6 @@ class FormularioSCI(models.Model):
     @property
     def es_editable(self):
         return self.estado == self.Estado.BORRADOR
-
 
 class RegistroRecursoSCI211(models.Model):
     class EstadoRecurso(models.TextChoices):

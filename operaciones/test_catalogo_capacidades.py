@@ -17,7 +17,6 @@ from .models import (EvaluacionCapacidadEstacion, RequisitoRecursoCapacidad,
                      TipoCapacidadOperativa)
 from .services import evaluar_capacidad_estacion
 
-
 class BaseCapacidadesTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -76,7 +75,6 @@ class BaseCapacidadesTests(TestCase):
         base.update(cambios)
         return base
 
-
 class AccesoTests(BaseCapacidadesTests):
     def test_solo_el_alcance_provincial_edita_el_catalogo(self):
         self.client.force_login(self.institucional)
@@ -99,7 +97,6 @@ class AccesoTests(BaseCapacidadesTests):
         self.assertNotContains(
             self.client.get(reverse("operaciones:lista_capacidades")), "Nueva capacidad"
         )
-
 
 class CreacionTests(BaseCapacidadesTests):
     def test_crea_la_capacidad_con_sus_requisitos(self):
@@ -138,7 +135,6 @@ class CreacionTests(BaseCapacidadesTests):
         }))
         self.assertEqual(respuesta.status_code, 200)
         self.assertFalse(TipoCapacidadOperativa.objects.filter(codigo="RIE-CC").exists())
-
 
 class EdicionTests(BaseCapacidadesTests):
     def setUp(self):

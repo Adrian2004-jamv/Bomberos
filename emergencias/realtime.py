@@ -3,9 +3,7 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-
 logger = logging.getLogger(__name__)
-
 
 def publicar_posicion_gps(posicion):
     """Publica datos mínimos después de confirmar la transacción HTTP."""

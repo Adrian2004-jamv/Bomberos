@@ -5,7 +5,6 @@ from django.urls import reverse
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 
-
 class AutenticacionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -70,7 +69,6 @@ class AutenticacionTests(TestCase):
 
         self.assertEqual(respuesta.status_code, 403)
         self.assertIn("_auth_user_id", cliente_csrf.session)
-
 
 class GestionUsuariosInstitucionalesTests(TestCase):
     @classmethod

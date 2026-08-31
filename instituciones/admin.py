@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import Canton, CuerpoBomberos, Estacion
 
-
 @admin.register(Canton)
 class CantonAdmin(admin.ModelAdmin):
     list_display = ("nombre", "codigo", "activo", "fecha_actualizacion")
@@ -13,7 +12,6 @@ class CantonAdmin(admin.ModelAdmin):
         ("Identificación", {"fields": ("nombre", "codigo", "activo")}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(CuerpoBomberos)
 class CuerpoBomberosAdmin(admin.ModelAdmin):
@@ -27,7 +25,6 @@ class CuerpoBomberosAdmin(admin.ModelAdmin):
         ("Contacto", {"fields": ("direccion", "telefono", "correo", "sitio_web")}),
         ("Auditoría", {"fields": ("fecha_creacion", "fecha_actualizacion")}),
     )
-
 
 @admin.register(Estacion)
 class EstacionAdmin(admin.ModelAdmin):

@@ -18,7 +18,6 @@ from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
@@ -36,11 +35,9 @@ if not DEBUG and SECRET_KEY.startswith("django-insecure-"):
         "Defina DJANGO_SECRET_KEY con un valor propio antes de desplegar."
     )
 
-
 def _lista_de_entorno(nombre):
     """Lee una variable separada por comas y devuelve sus valores sin espacios."""
     return [valor.strip() for valor in os.environ.get(nombre, "").split(",") if valor.strip()]
-
 
 ALLOWED_HOSTS = _lista_de_entorno("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = _lista_de_entorno("DJANGO_CSRF_TRUSTED_ORIGINS")
@@ -56,7 +53,6 @@ if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured(
         "Defina DJANGO_ALLOWED_HOSTS con los dominios que atendera el sitio."
     )
-
 
 # Application definition
 
@@ -154,7 +150,6 @@ LOGIN_URL = "usuarios:login"
 LOGIN_REDIRECT_URL = "emergencias:lista"
 LOGOUT_REDIRECT_URL = "usuarios:login"
 
-
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
@@ -244,7 +239,6 @@ def _libreria_de_wheel(paquete, patrones):
             return encontradas[0]
     return None
 
-
 def _buscar_librerias_qgis():
     """Devuelve (gdal, geos) de la instalación de QGIS más reciente."""
     import re
@@ -273,7 +267,6 @@ def _buscar_librerias_qgis():
                 return gdal, geos
     return None, None
 
-
 def _resolver_libreria(variable, paquete, patrones, respaldo):
     if os.environ.get(variable):
         return os.environ[variable]
@@ -281,7 +274,6 @@ def _resolver_libreria(variable, paquete, patrones, respaldo):
     if empaquetada is not None:
         return str(empaquetada)
     return str(respaldo) if respaldo else None
-
 
 _GDAL_QGIS, _GEOS_QGIS = _buscar_librerias_qgis()
 
@@ -302,7 +294,6 @@ if _GDAL_RESUELTA:
 if _GEOS_RESUELTA:
     GEOS_LIBRARY_PATH = _GEOS_RESUELTA
 
-
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
@@ -321,7 +312,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
@@ -332,7 +322,6 @@ TIME_ZONE = 'America/Guayaquil'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
@@ -363,7 +352,6 @@ STORAGES = {
         ),
     },
 }
-
 
 # Seguridad del transporte. Solo se activa fuera de desarrollo, para no exigir
 # HTTPS en el servidor local.
@@ -403,7 +391,6 @@ MAILERS = {
         ),
     },
 }
-
 
 # Configuracion de los archivos multimedia
 MEDIA_URL = "media/"

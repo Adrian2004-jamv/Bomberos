@@ -4,14 +4,12 @@ from core.forms import preparar_campos
 
 from .models import CuerpoBomberos, Estacion
 
-
 class FormularioInstitucionalMixin:
     """Aplica atributos visuales comunes sin alterar los campos del modelo."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         preparar_campos(self.fields)
-
 
 class CuerpoBomberosForm(FormularioInstitucionalMixin, forms.ModelForm):
     class Meta:
@@ -50,7 +48,6 @@ class CuerpoBomberosForm(FormularioInstitucionalMixin, forms.ModelForm):
             "sitio_web": forms.URLInput(attrs={"placeholder": "https://"}),
             "activo": forms.CheckboxInput(attrs={"class": "form-checkbox"}),
         }
-
 
 class EstacionForm(FormularioInstitucionalMixin, forms.ModelForm):
     class Meta:

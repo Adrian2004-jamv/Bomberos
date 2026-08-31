@@ -5,7 +5,6 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-
 class CategoriaRecurso(models.Model):
     nombre = models.CharField("nombre", max_length=100)
     codigo = models.CharField("código", max_length=20, unique=True)
@@ -20,7 +19,6 @@ class CategoriaRecurso(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
-
 
 class TipoRecurso(models.Model):
     categoria = models.ForeignKey(
@@ -53,7 +51,6 @@ class TipoRecurso(models.Model):
 
     def __str__(self):
         return f"{self.categoria.codigo} / {self.codigo} - {self.nombre}"
-
 
 class Recurso(models.Model):
     class EstadoOperativo(models.TextChoices):
@@ -132,7 +129,6 @@ class Recurso(models.Model):
 
     def __str__(self):
         return f"{self.codigo_interno} - {self.nombre}"
-
 
 class HistorialEstadoRecurso(models.Model):
     recurso = models.ForeignKey(

@@ -1,7 +1,6 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-
 class Canton(models.Model):
     nombre = models.CharField("nombre", max_length=100)
     codigo = models.CharField("código", max_length=10, unique=True)
@@ -16,7 +15,6 @@ class Canton(models.Model):
 
     def __str__(self):
         return self.nombre
-
 
 class CuerpoBomberos(models.Model):
     canton = models.ForeignKey(
@@ -43,7 +41,6 @@ class CuerpoBomberos(models.Model):
 
     def __str__(self):
         return f"{self.sigla} - {self.nombre}"
-
 
 class Estacion(models.Model):
     cuerpo_bomberos = models.ForeignKey(

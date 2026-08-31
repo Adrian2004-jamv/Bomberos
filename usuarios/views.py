@@ -9,13 +9,11 @@ from django.views.decorators.http import require_POST
 from .forms import UsuarioEdicionForm, UsuarioInstitucionalForm
 from .permissions import puede_gestionar_usuarios, usuarios_administrables
 
-
-def _exigir_gestion(usuario):
+def exigir_gestion(usuario):
     if not puede_gestionar_usuarios(usuario):
         raise PermissionDenied
 
-
-def _cuenta_administrable(usuario_gestor, pk):
+def cuenta_administrable(usuario_gestor, pk):
     """Acota la cuenta al ámbito del gestor.
 
     ``usuarios_administrables`` excluye a los superusuarios, de modo que esa
@@ -23,20 +21,16 @@ def _cuenta_administrable(usuario_gestor, pk):
     """
     return get_object_or_404(usuarios_administrables(usuario_gestor), pk=pk)
 
-
 @login_required
 def lista(request):
-    _exigir_gestion(request.user)
-    return render(
-        request,
-        "usuarios/lista.html",
-        {"usuarios_gestionables": usuarios_administrables(request.user)},
-    )
+    exigir_gestion(request.user)
+    contexto = {"usuarios_gestionables": usuarios_administrables(request.user)}
 
+    return render(request, "usuarios/lista.html", contexto)
 
 @login_required
 def crear(request):
-    _exigir_gestion(request.user)
+    exigir_gestion(request.user)
     formulario = UsuarioInstitucionalForm(
         request.POST or None,
         usuario_gestor=request.user,
@@ -49,20 +43,21 @@ def crear(request):
             "Deberá cambiar la clave en su primer ingreso.",
         )
         return redirect("usuarios:lista")
-    return render(request, "usuarios/formulario.html", {
+    contexto = {
         "formulario": formulario,
         "titulo": "Nueva cuenta",
         "encabezado": "Datos del nuevo usuario",
         "descripcion": "La estación y el rol determinan la información que podrá consultar y gestionar.",
         "accion": "Crear cuenta",
         "icono": "ti-user-check",
-    })
+    }
 
+    return render(request, "usuarios/formulario.html", contexto)
 
 @login_required
 def editar(request, pk):
-    _exigir_gestion(request.user)
-    cuenta = _cuenta_administrable(request.user, pk)
+    exigir_gestion(request.user)
+    cuenta = cuenta_administrable(request.user, pk)
     formulario = UsuarioEdicionForm(
         request.POST or None,
         instance=cuenta,
@@ -72,7 +67,7 @@ def editar(request, pk):
         formulario.save()
         messages.success(request, f"La cuenta {cuenta.username} fue actualizada.")
         return redirect("usuarios:lista")
-    return render(request, "usuarios/formulario.html", {
+    contexto = {
         "formulario": formulario,
         "cuenta": cuenta,
         "titulo": f"Editar {cuenta.username}",
@@ -80,8 +75,9 @@ def editar(request, pk):
         "descripcion": "El nombre de usuario no cambia porque es la identidad con la que se ingresa.",
         "accion": "Guardar cambios",
         "icono": "ti-device-floppy",
-    })
+    }
 
+    return render(request, "usuarios/formulario.html", contexto)
 
 @login_required
 @require_POST
@@ -91,8 +87,8 @@ def cambiar_actividad(request, pk):
     No se borra: ``Usuario`` está protegido desde emergencias, despliegues e
     historial de inventario, y esos registros deben conservar a su responsable.
     """
-    _exigir_gestion(request.user)
-    cuenta = _cuenta_administrable(request.user, pk)
+    exigir_gestion(request.user)
+    cuenta = cuenta_administrable(request.user, pk)
     if cuenta.pk == request.user.pk:
         messages.error(request, "No puede desactivar su propia cuenta.")
         return redirect("usuarios:lista")
@@ -102,7 +98,6 @@ def cambiar_actividad(request, pk):
     messages.success(request, f"La cuenta {cuenta.username} fue {estado}.")
     return redirect("usuarios:lista")
 
-
 @login_required
 def restablecer_clave(request, pk):
     """Devuelve el acceso a quien olvidó su clave.
@@ -110,8 +105,8 @@ def restablecer_clave(request, pk):
     La cuenta queda obligada a reemplazarla, porque quien la escribió aquí es
     el operador y no su titular.
     """
-    _exigir_gestion(request.user)
-    cuenta = _cuenta_administrable(request.user, pk)
+    exigir_gestion(request.user)
+    cuenta = cuenta_administrable(request.user, pk)
     if cuenta.pk == request.user.pk:
         messages.info(request, "Para cambiar su propia clave use «Cambiar contraseña».")
         return redirect("usuarios:cambiar_clave")
@@ -126,11 +121,12 @@ def restablecer_clave(request, pk):
             "Deberá cambiarla en su próximo ingreso.",
         )
         return redirect("usuarios:lista")
-    return render(request, "usuarios/restablecer_clave.html", {
+    contexto = {
         "formulario": formulario,
         "cuenta": cuenta,
-    })
+    }
 
+    return render(request, "usuarios/restablecer_clave.html", contexto)
 
 @login_required
 def cambiar_clave(request):
@@ -149,7 +145,9 @@ def cambiar_clave(request):
         update_session_auth_hash(request, usuario)
         messages.success(request, "Su contraseña fue actualizada.")
         return redirect("emergencias:lista")
-    return render(request, "usuarios/cambiar_clave.html", {
+    contexto = {
         "formulario": formulario,
         "obligatorio": obligatorio,
-    })
+    }
+
+    return render(request, "usuarios/cambiar_clave.html", contexto)

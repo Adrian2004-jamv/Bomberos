@@ -19,7 +19,6 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 from .models import DespliegueUnidad, Emergencia, FormularioSCI211
 from .services import desplegar_unidad
 
-
 class BaseExportacionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -77,7 +76,6 @@ class BaseExportacionTests(TestCase):
         self.assertTrue(contenido.startswith("﻿"), "falta la marca de orden de bytes")
         return list(csv.reader(io.StringIO(contenido.lstrip("﻿")), delimiter=";"))
 
-
 class ContenidoTests(BaseExportacionTests):
     def test_la_cabecera_describe_las_columnas(self):
         self.crear("EX-001")
@@ -134,7 +132,6 @@ class ContenidoTests(BaseExportacionTests):
         fila = dict(zip(*self.leer(self.exportar())))
         self.assertEqual(fila["Fecha de cierre"], "")
 
-
 class FiltrosYAlcanceTests(BaseExportacionTests):
     def setUp(self):
         self.crear("EX-CURSO", tipo="Incendio forestal")
@@ -162,7 +159,6 @@ class FiltrosYAlcanceTests(BaseExportacionTests):
             self.codigos(self.exportar(etapa="sin_iniciar")), ["EX-CURSO", "EX-FIN"]
         )
         self.assertEqual(self.codigos(self.exportar(etapa="completa")), [])
-
 
 class PaginacionYAccesoTests(BaseExportacionTests):
     def test_el_archivo_ignora_la_paginacion_del_listado(self):

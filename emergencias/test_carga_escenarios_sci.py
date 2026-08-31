@@ -10,8 +10,7 @@ from inventario.models import Recurso
 
 from emergencias.codigos import PATRON_CODIGO
 from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI, FormularioSCI211
-from emergencias.views import CATALOGO_FORMULARIOS_SCI, _emergencias_permitidas, _preparar_avance_documental
-
+from emergencias.views import CATALOGO_FORMULARIOS_SCI, emergencias_permitidas, preparar_avance_documental
 
 class CargaEscenariosSCITests(TestCase):
     @classmethod
@@ -76,7 +75,7 @@ class CargaEscenariosSCITests(TestCase):
 
     def test_el_avance_visible_es_100_y_33_por_ciento(self):
         self.ejecutar_carga()
-        emergencias = _preparar_avance_documental(list(_emergencias_permitidas(self.usuario)))
+        emergencias = preparar_avance_documental(list(emergencias_permitidas(self.usuario)))
         por_direccion = {emergencia.direccion: emergencia for emergencia in emergencias}
 
         self.assertEqual(len(CATALOGO_FORMULARIOS_SCI), 12)

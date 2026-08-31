@@ -9,8 +9,7 @@ from inventario.models import Recurso
 
 from .models import EvaluacionCapacidadEstacion, TipoCapacidadOperativa
 
-
-def _validar_objetos(estacion, capacidad, usuario_evaluador):
+def validar_objetos(estacion, capacidad, usuario_evaluador):
     if (
         not isinstance(estacion, Estacion)
         or estacion.pk is None
@@ -34,7 +33,6 @@ def _validar_objetos(estacion, capacidad, usuario_evaluador):
         ):
             raise ValidationError("El usuario evaluador no existe.")
 
-
 @transaction.atomic
 def evaluar_capacidad_estacion(
     estacion,
@@ -48,7 +46,7 @@ def evaluar_capacidad_estacion(
     ``min(recursos_encontrados / cantidad_requerida, 1)``. La evaluación se
     persiste como una fotografía histórica y no modifica el inventario.
     """
-    _validar_objetos(estacion, tipo_capacidad, usuario_evaluador)
+    validar_objetos(estacion, tipo_capacidad, usuario_evaluador)
 
     requisitos = list(
         tipo_capacidad.requisitos_recursos.select_related("tipo_recurso").all()

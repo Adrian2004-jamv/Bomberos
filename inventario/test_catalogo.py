@@ -14,7 +14,6 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 
 from .models import CategoriaRecurso, Recurso, TipoRecurso
 
-
 class BaseCatalogoTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -51,7 +50,6 @@ class BaseCatalogoTests(TestCase):
         usuario.groups.add(Group.objects.get(name=grupo))
         return usuario
 
-
 class AccesoAlCatalogoTests(BaseCatalogoTests):
     def test_el_alcance_provincial_entra(self):
         self.client.force_login(self.provincial)
@@ -86,7 +84,6 @@ class AccesoAlCatalogoTests(BaseCatalogoTests):
         self.assertNotContains(
             self.client.get(reverse("inventario:lista")), reverse("inventario:catalogo")
         )
-
 
 class CategoriasTests(BaseCatalogoTests):
     def test_crea_una_categoria_y_normaliza_su_codigo(self):
@@ -128,7 +125,6 @@ class CategoriasTests(BaseCatalogoTests):
         respuesta = self.client.get(reverse("inventario:catalogo"))
         categoria = respuesta.context["categorias"][0]
         self.assertEqual(categoria.tipos_recurso.all()[0].cantidad_recursos, 1)
-
 
 class TiposDeRecursoTests(BaseCatalogoTests):
     def test_crea_un_tipo_marcado_como_unidad_desplegable(self):

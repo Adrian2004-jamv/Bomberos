@@ -17,7 +17,6 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 from .models import DespliegueUnidad, Emergencia, PosicionUnidad
 from .services import registrar_posicion_unidad
 
-
 class PosicionesGPSTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -254,7 +253,6 @@ class PosicionesGPSTests(TestCase):
         self.client.force_login(self.consulta)
         respuesta = self.client.get(reverse("emergencias:transmitir_gps", args=[self.despliegue.pk]))
         self.assertEqual(respuesta.status_code, 403)
-
 
 class PosicionesGPSFueraDeTransaccionTests(TransactionTestCase):
     """Reproduce las condiciones de produccion, no las de TestCase.

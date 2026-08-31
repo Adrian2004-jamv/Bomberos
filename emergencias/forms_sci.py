@@ -10,13 +10,11 @@ from inventario.permissions import recursos_permitidos
 
 from .models import FormularioSCI211, RegistroRecursoSCI211
 
-
 class FormularioSCI211Form(forms.ModelForm):
     class Meta:
         model = FormularioSCI211
         fields = ("punto_registro", "registrador_1", "registrador_2", "registrador_3")
         widgets = {"punto_registro": forms.TextInput(attrs={"autocomplete": "organization"})}
-
 
 class SelectRecursoInventario(forms.Select):
     """Lleva los datos del recurso a cada opción del desplegable.
@@ -40,7 +38,6 @@ class SelectRecursoInventario(forms.Select):
                 "data-desplegable": "1" if recurso.tipo.es_unidad_desplegable else "0",
             })
         return opcion
-
 
 class RegistroRecursoSCI211Form(forms.ModelForm):
     class Meta:
@@ -104,7 +101,6 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
                 if not str(datos.get(nombre) or "").strip():
                     self.add_error(nombre, "Seleccione un recurso verificado o complete este campo.")
         return datos
-
 
 # El formulario vacío que clona «Agregar otro recurso» sale del propio formset,
 # de modo que el guion no construye campos a mano y no se desincroniza si el
