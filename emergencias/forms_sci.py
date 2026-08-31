@@ -1,9 +1,6 @@
-from datetime import timedelta
-
 from django import forms
 from django.forms import inlineformset_factory
 from django.db.models import Q
-from django.utils import timezone
 
 from inventario.models import Recurso
 from inventario.permissions import estaciones_permitidas, recursos_permitidos
@@ -39,6 +36,18 @@ class SelectRecursoInventario(forms.Select):
             })
         return opcion
 
+def etiqueta_de_recurso(recurso):
+    """Nombra el recurso y avisa si su disponibilidad no está confirmada al día.
+
+    La confirmación caduca a las 24 horas. Antes ese vencimiento borraba la
+    unidad de la lista y quien despachaba no entendía por qué su ambulancia no
+    aparecía; ahora se muestra con la advertencia y él decide.
+    """
+    texto = f"{recurso.codigo_interno} - {recurso.nombre} ({recurso.estacion.nombre})"
+    if not recurso.disponibilidad_actualizada:
+        texto += " · disponibilidad sin confirmar hoy"
+    return texto
+
 class RegistroRecursoSCI211Form(forms.ModelForm):
     class Meta:
         model = RegistroRecursoSCI211
@@ -57,13 +66,14 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         super().__init__(*args, **kwargs)
         queryset = Recurso.objects.none()
         if usuario and usuario.is_authenticated:
+            # Se ofrece lo que está operativo y libre. La confirmación de
+            # disponibilidad se advierte junto al nombre, pero no oculta la
+            # unidad: dejar un carro en el patio porque nadie refrescó una
+            # casilla en las últimas 24 horas no es una decisión operativa.
             vigentes = Q(
                 activo=True,
                 estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
                 disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
-                fecha_confirmacion_disponibilidad__gte=(
-                    timezone.now() - timedelta(hours=24)
-                ),
             )
             # Un recurso ya vinculado debe seguir visible para consultar y
             # guardar el registro aunque después haya sido asignado.
@@ -76,8 +86,9 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
             )
         self.fields["recurso_inventario"].queryset = queryset
         self.fields["recurso_inventario"].empty_label = (
-            "Seleccione un recurso disponible y verificado"
+            "Seleccione un recurso del inventario"
         )
+        self.fields["recurso_inventario"].label_from_instance = etiqueta_de_recurso
         self.preparar_responsable(usuario)
         for nombre, marca in (
             ("clase_recurso", "clase"), ("tipo_recurso", "tipo"),

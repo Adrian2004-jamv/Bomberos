@@ -16,7 +16,7 @@ from .esquemas_sci import ESQUEMAS_SCI, HORA, secciones_con_valores
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services import desplegar_unidad
-from .services_sci import finalizar_sci211
+from .services_sci import desplegar_recursos_del_sci211, finalizar_sci211
 
 class SCI211Tests(TestCase):
     @classmethod
@@ -898,8 +898,8 @@ class CuadriculaSCI211Tests(SCI211Tests):
         self.assertContains(respuesta, "__prefix__")
         self.assertContains(respuesta, "emergencias/js/sci211_recursos.js")
 
-class DespachoAlFinalizarTests(SCI211Tests):
-    """Finalizar también despacha: se llega aquí sin pasar por el editor."""
+class ConUnidadDesplegable:
+    """Aporta una unidad despachable sin arrastrar las pruebas de otra clase."""
 
     def crear_unidad_desplegable(self, codigo="AMB-FIN-01"):
         categoria, _ = CategoriaRecurso.objects.get_or_create(
@@ -915,6 +915,10 @@ class DespachoAlFinalizarTests(SCI211Tests):
             disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
             fecha_confirmacion_disponibilidad=timezone.now(),
         )
+
+
+class DespachoAlFinalizarTests(ConUnidadDesplegable, SCI211Tests):
+    """Finalizar también despacha: se llega aquí sin pasar por el editor."""
 
     def test_finalizar_despacha_la_unidad_anotada(self):
         self.finalizar_anteriores("211")
@@ -949,3 +953,73 @@ class DespachoAlFinalizarTests(SCI211Tests):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
         self.assertNotContains(respuesta, "No hay recursos que ofrecer")
+
+
+class InventarioSinConfirmarTests(ConUnidadDesplegable, SCI211Tests):
+    """El inventario recién cargado nace sin confirmar y debe seguir sirviendo."""
+
+    def unidad_sin_confirmar(self, codigo="AMB-NUEVA"):
+        unidad = self.crear_unidad_desplegable(codigo)
+        Recurso.objects.filter(pk=unidad.pk).update(
+            fecha_confirmacion_disponibilidad=None
+        )
+        unidad.refresh_from_db()
+        return unidad
+
+    def test_la_lista_ofrece_la_unidad_aunque_no_este_confirmada(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        unidad = self.unidad_sin_confirmar()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+        campo = respuesta.context["registros"].forms[0].fields["recurso_inventario"]
+        self.assertIn(unidad, campo.queryset)
+
+    def test_la_etiqueta_advierte_que_falta_confirmar(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.unidad_sin_confirmar()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+        self.assertContains(respuesta, "disponibilidad sin confirmar hoy")
+
+    def test_una_unidad_sin_confirmar_se_despacha_igual(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        unidad = self.unidad_sin_confirmar()
+        formulario.registros.create(
+            orden=1, solicitado_por="CI", fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=unidad, clase_recurso="Vehículos",
+            institucion_procedencia="Bomberos", matricula_identificacion=unidad.codigo_interno,
+            numero_personas=2, estado_recurso="disponible",
+        )
+        despachadas, avisos = desplegar_recursos_del_sci211(formulario, self.usuario)
+        self.assertEqual(despachadas, 1)
+        self.assertEqual(avisos, [])
+
+    def test_un_recurso_escrito_a_mano_avisa_que_no_saldra(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        formulario.registros.create(
+            orden=1, solicitado_por="CI", fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            clase_recurso="Vehículos", tipo_recurso="Ambulancia",
+            institucion_procedencia="Bomberos", matricula_identificacion="ESCRITA-A-MANO",
+            numero_personas=2, estado_recurso="disponible",
+        )
+        despachadas, avisos = desplegar_recursos_del_sci211(formulario, self.usuario)
+        self.assertEqual(despachadas, 0)
+        self.assertEqual(len(avisos), 1)
+        self.assertIn("no generan despliegue", avisos[0])
+
+    def test_sin_recursos_a_mano_no_hay_aviso(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        formulario.registros.create(
+            orden=1, solicitado_por="CI", fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=self.crear_unidad_desplegable("AMB-LIMPIA"),
+            clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+            matricula_identificacion="AMB-LIMPIA", numero_personas=2,
+            estado_recurso="disponible",
+        )
+        _, avisos = desplegar_recursos_del_sci211(formulario, self.usuario)
+        self.assertEqual(avisos, [])

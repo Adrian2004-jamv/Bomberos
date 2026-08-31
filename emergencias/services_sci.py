@@ -146,12 +146,27 @@ def desplegar_recursos_del_sci211(formulario, usuario):
                 observaciones=f"Despacho registrado en el {formulario.codigo}.",
             )
         except ValidationError as error:
-            avisos.append(f"{recurso.codigo_interno}: {' '.join(error.messages)}")
+            avisos.append(
+                f"No se pudo despachar {recurso.codigo_interno}: "
+                f"{' '.join(error.messages)}"
+            )
             continue
         registro.despliegue = despliegue
         registro.save(update_fields=["despliegue"])
         sincronizar_responsable(registro, despliegue)
         despachadas += 1
+
+    # Un recurso escrito a mano queda en el papel y no sale nunca. Antes eso
+    # ocurría en silencio y la emergencia aparecía sin unidades sin explicar
+    # por qué; conviene decirlo en el momento de guardar.
+    a_mano = formulario.registros.filter(
+        recurso_inventario__isnull=True, despliegue__isnull=True
+    ).count()
+    if a_mano:
+        avisos.append(
+            f"{a_mano} recurso(s) se anotaron a mano y no generan despliegue. "
+            "Elíjalos de la lista del inventario para que la unidad salga."
+        )
 
     return despachadas, avisos
 

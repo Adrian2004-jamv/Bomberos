@@ -26,7 +26,8 @@ from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
                     FiltroIncidentesForm)
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI, FormularioSCI211
-from .forms_sci import FormularioSCI211Form, RegistroRecursoSCI211FormSet
+from .forms_sci import (FormularioSCI211Form, RegistroRecursoSCI211FormSet,
+                        etiqueta_de_recurso)
 from .permissions import (conduce_el_despliegue, despliegues_asignados,
                           es_chofer, estacion_autorizada, solo_es_chofer,
                           puede_consultar_emergencias,
@@ -751,22 +752,22 @@ def contexto_documento_sci(usuario, emergencia, codigo):
     }
 
 def recursos_disponibles_verificados(usuario):
-    """Inventario utilizable, confirmado durante las últimas 24 horas."""
+    """Inventario utilizable, con aviso si la confirmación no es del día.
+
+    Se ofrece todo lo operativo y libre. La confirmación caduca a las 24 horas,
+    pero eso se advierte en la etiqueta en vez de esconder la unidad.
+    """
     recursos = list(
         recursos_permitidos(usuario).filter(
             activo=True,
             estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
             disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
-            fecha_confirmacion_disponibilidad__gte=timezone.now() - timedelta(hours=24),
         ).select_related("estacion", "tipo", "tipo__categoria").order_by(
             "estacion__nombre", "tipo__categoria__nombre", "nombre"
         )
     )
     for recurso in recursos:
-        recurso.etiqueta_sci = (
-            f"{recurso.codigo_interno} - {recurso.nombre} "
-            f"({recurso.estacion.nombre})"
-        )
+        recurso.etiqueta_sci = etiqueta_de_recurso(recurso)
     return recursos
 
 def normalizar_recursos_sci(esquema, post, recursos):
@@ -905,7 +906,7 @@ def sci211_editar(request, pk):
                 f"Se despachó {despachadas} unidad(es) desde el SCI-211."
             )
         for aviso in avisos:
-            messages.warning(request, f"No se pudo despachar {aviso}")
+            messages.warning(request, aviso)
         if request.POST.get("accion") == "finalizar":
             messages.success(request, "Borrador guardado. Confirme para finalizar.")
             return redirect("emergencias:sci211_finalizar", pk=pk)
@@ -953,7 +954,7 @@ def sci211_finalizar(request, pk):
         # pero nunca salía. El servicio ignora lo ya despachado.
         despachadas, avisos = desplegar_recursos_del_sci211(formulario, request.user)
         for aviso in avisos:
-            messages.warning(request, f"No se pudo despachar {aviso}")
+            messages.warning(request, aviso)
         try:
             finalizar_sci211(formulario, request.user)
         except ValidationError as error:

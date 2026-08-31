@@ -25,7 +25,7 @@
 
     <p class="sci-proposito">{{ esquema.proposito }}</p>
     {% if esquema.aviso %}<p class="sci-aviso">{{ esquema.aviso }}</p>{% endif %}
-    <p class="sci-inventory-notice"><strong>Inventario verificado:</strong> los selectores de recursos muestran únicamente elementos operativos, disponibles y confirmados durante las últimas 24 horas dentro de su ámbito institucional.</p>
+    <p class="sci-inventory-notice"><strong>Inventario en línea:</strong> los selectores muestran los recursos operativos y libres de su ámbito institucional. Los que no tengan la disponibilidad confirmada hoy salen advertidos junto al nombre.</p>
 
     <section class="sci-paper__meta">
       <label>1. Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label>
@@ -62,7 +62,7 @@
                     <input type="hidden" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.fija }}">
                   {% elif celda.columna.recurso_inventario %}
                     <select name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" aria-label="{{ celda.columna.etiqueta }}">
-                      <option value="">Seleccione un recurso verificado</option>
+                      <option value="">Seleccione un recurso del inventario</option>
                       {% for recurso in recursos_disponibles %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}
                     </select>
                     {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
