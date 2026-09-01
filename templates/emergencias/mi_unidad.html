@@ -37,9 +37,10 @@
 
     <div class="unidad-asignada__acciones">
         {% if despliegue.emergencia.latitud and despliegue.emergencia.longitud %}
-        {# Abre la aplicación de mapas del teléfono con la ruta ya trazada.
-           «localize off» es obligatorio: la configuración regional escribe los
-           decimales con coma y la coordenada llegaría ilegible al mapa. #}
+        {% comment %}Abre la aplicación de mapas del teléfono con la ruta ya
+        trazada. «localize off» es obligatorio: la configuración regional
+        escribe los decimales con coma y la coordenada llegaría ilegible al
+        mapa.{% endcomment %}
         {% localize off %}
         <a class="unidad-accion unidad-accion--navegar"
            href="https://www.google.com/maps/dir/?api=1&destination={{ despliegue.emergencia.latitud }},{{ despliegue.emergencia.longitud }}&travelmode=driving"

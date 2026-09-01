@@ -233,3 +233,30 @@ class LimpiarInstitucionesTests(TestCase):
         call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
         call_command("limpiar_instituciones_no_precargadas", "--ejecutar", verbosity=0)
         self.assertEqual(CuerpoBomberos.objects.count(), 1)
+
+
+class ComentariosDePlantillaTests(TestCase):
+    """Un «{# … #}» de varias líneas no es un comentario: se imprime en pantalla.
+
+    Django solo reconoce esa forma dentro de una misma línea. Repartida en
+    varias, el texto sale tal cual junto a los botones. Para explicaciones
+    largas hay que usar «{% comment %}».
+    """
+
+    def test_ninguna_plantilla_parte_un_comentario_en_varias_lineas(self):
+        import re
+
+        patron = re.compile(r"\{#(?:(?!#\}).)*\n", re.S)
+        culpables = []
+        for plantilla in (Path(settings.BASE_DIR) / "templates").rglob("*.html"):
+            texto = plantilla.read_text(encoding="utf-8")
+            for hallazgo in patron.finditer(texto):
+                linea = texto[:hallazgo.start()].count("\n") + 1
+                culpables.append(
+                    f"{plantilla.relative_to(settings.BASE_DIR)}:{linea}"
+                )
+        self.assertEqual(
+            culpables, [],
+            "Comentarios repartidos en varias líneas; use {% comment %}: "
+            + ", ".join(culpables),
+        )

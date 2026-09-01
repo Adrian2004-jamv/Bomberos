@@ -35,8 +35,8 @@
     <div class="gps-actions">
         <button class="gps-button gps-button--start" type="button" data-gps-start>Iniciar transmisión</button>
         <button class="gps-button gps-button--stop" type="button" data-gps-stop disabled>Detener transmisión</button>
-        {# El chofer no puede abrir la ficha de la emergencia: ese enlace le
-           devolvía un 403. Se le regresa a su propia pantalla. #}
+        {% comment %}El chofer no puede abrir la ficha de la emergencia: ese
+        enlace le devolvía un 403. Se le regresa a su propia pantalla.{% endcomment %}
         {% if solo_chofer %}
         <a class="gps-button gps-button--back" href="{% url 'emergencias:mi_unidad' %}">Volver a mi unidad</a>
         {% else %}
