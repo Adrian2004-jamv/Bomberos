@@ -248,6 +248,20 @@
     cursor: pointer;
 }
 
+/* La acción principal de cada pantalla. La clase se usaba en varias
+   plantillas sin que existiera la regla, de modo que «Guardar borrador» o
+   «Despachar unidad» se veían igual que un botón secundario. */
+.button--primary {
+    color: var(--color-white);
+    border-color: var(--color-red-700);
+    background: var(--color-red-700);
+}
+
+.button--primary:hover {
+    border-color: #a20d16;
+    background: #a20d16;
+}
+
 .button--ghost {
     color: var(--color-red-700);
     border-color: #f2c5c9;

@@ -308,7 +308,10 @@ class InterfazInventarioTests(TestCase):
         respuesta = self.client.get(reverse("inventario:lista"))
         self.assertContains(respuesta, 'class="sidebar-user"', html=False)
         self.assertContains(respuesta, "Cerrar sesión")
-        self.assertContains(respuesta, "css/componentes.css?v=4")
+        # Se comprueba que la hoja se enlaza y que lleva marca de versión, no
+        # cuál es: fijar el número obliga a tocar esta prueba cada vez que se
+        # actualiza un estilo, que es precisamente cuando debe seguir pasando.
+        self.assertRegex(respuesta.content.decode(), r"css/componentes\.css\?v=\d+")
         contenido = respuesta.content.decode()
         self.assertLess(contenido.index("Mapa operativo"), contenido.index('class="sidebar-user"'))
 

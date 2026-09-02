@@ -160,11 +160,20 @@
     margin: 0 0 .6rem;
 }
 .dashboard-filtro .field { display: grid; gap: .2rem; }
-.dashboard-filtro label { color: var(--color-slate-600); font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; }
+.dashboard-filtro label { color: var(--color-slate-600); font-size: .68rem; text-transform: uppercase; letter-spacing: .03em; }
+.dashboard-filtro input[type="date"] {
+    width: auto; min-height: 2.55rem; padding: .45rem .6rem;
+    border: 1px solid var(--color-slate-300); border-radius: var(--radius-sm);
+    font-size: .82rem;
+}
+.dashboard-filtro .button { font-size: .8rem; }
 .dashboard-periodo { margin: 0 0 1rem; color: var(--color-slate-600); font-size: .84rem; }
 
 /* Frases sueltas para leer en un parte, no una tabla más. */
 .incident-board__claves {
+    /* Sin esto cae en la primera columna de la rejilla de la tarjeta, igual
+       que le pasaría al resumen de indicadores. */
+    grid-column: 1 / -1;
     margin: .8rem 0 0; padding: .7rem .9rem .7rem 2rem;
     border-left: 4px solid var(--color-navy-900); border-radius: var(--radius-sm);
     background: var(--color-slate-100);

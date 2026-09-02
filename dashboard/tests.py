@@ -1,3 +1,5 @@
+from pathlib import Path
+from django.conf import settings
 from datetime import datetime
 from emergencias.models import Emergencia
 from datetime import timedelta
@@ -356,3 +358,19 @@ class FiltroYPuntosClaveTests(TestCase):
         self.assertContains(respuesta, "incident-board__claves")
         self.assertContains(respuesta, "Todavía sin unidades despachadas.")
         self.assertContains(respuesta, "Documentación SCI: 0 de 12 formularios.")
+
+
+class EstiloDelTableroTests(TestCase):
+    """Las reglas que las plantillas dan por existentes deben existir."""
+
+    def hoja(self, ruta):
+        return (Path(settings.BASE_DIR) / "static" / ruta).read_text(encoding="utf-8")
+
+    def test_el_boton_principal_tiene_su_regla(self):
+        # Se usa en varias plantillas; sin la regla se ve como uno secundario.
+        self.assertIn(".button--primary", self.hoja("css/componentes.css"))
+
+    def test_los_puntos_clave_ocupan_la_fila_entera(self):
+        hoja = self.hoja("dashboard/css/dashboard.css")
+        bloque = hoja[hoja.index(".incident-board__claves"):]
+        self.assertIn("grid-column: 1 / -1", bloque[:400])
