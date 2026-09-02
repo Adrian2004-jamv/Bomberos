@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from django.conf import settings
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
@@ -1195,3 +1197,33 @@ class AccionUnicaDelPanelSCITests(ConUnidadDesplegable, SCI211Tests):
         self.assertNotContains(respuesta, "sci-next-step__cta")
         self.assertNotContains(respuesta, "sci-panel-action--primary")
         self.assertContains(respuesta, "Formularios disponibles para imprimir")
+
+
+class SelectDeOpcionesSCITests(SCI211Tests):
+    """Un desplegable de opciones cortas debe caber en su columna."""
+
+    def editor_207(self):
+        self.finalizar_anteriores("207")
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_editar", args=["207", self.emergencia.pk])
+        )
+
+    def test_el_select_de_sexo_lleva_su_propia_clase(self):
+        respuesta = self.editor_207()
+        self.assertContains(respuesta, 'class="sci-tabla__opcion"')
+
+    def test_la_clase_se_libera_del_ancho_minimo_del_selector_de_recursos(self):
+        hoja = (
+            Path(settings.BASE_DIR)
+            / "static" / "emergencias" / "css" / "sci_editor.css"
+        ).read_text(encoding="utf-8")
+        bloque = hoja[hoja.index("select.sci-tabla__opcion"):]
+        self.assertIn("min-width: 0", bloque[:300])
+
+    def test_el_selector_de_recursos_conserva_su_ancho(self):
+        hoja = (
+            Path(settings.BASE_DIR)
+            / "static" / "emergencias" / "css" / "sci_editor.css"
+        ).read_text(encoding="utf-8")
+        self.assertIn("min-width:10rem", hoja)

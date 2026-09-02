@@ -46,3 +46,15 @@
 .sci-word-sections textarea{overflow-wrap:anywhere;word-break:break-word;resize:vertical}
 /* Los controles de fecha y hora traen su propio ancho minimo. */
 .sci-tabla td input[type="datetime-local"],.sci-tabla td input[type="time"]{min-width:0;font-size:11px}
+
+/* El «min-width» de arriba existe para el desplegable de recursos, cuya
+   etiqueta es larga. Una columna de opciones cortas —el sexo del paciente
+   ocupa el 8 % de la cuadrícula— no lo soporta: el control se desbordaba sobre
+   las columnas vecinas. Estos se ajustan a su celda y se ven como el resto. */
+.sci-tabla td select.sci-tabla__opcion {
+    width: 100%; min-width: 0; padding: 6px;
+    border: 0; background: transparent; font: inherit;
+}
+.sci-tabla td select.sci-tabla__opcion:focus { outline: 2px solid #c70012; outline-offset: -2px; }
+/* La edad, por el mismo motivo. */
+.sci-tabla td input[type="number"] { min-width: 0; }
