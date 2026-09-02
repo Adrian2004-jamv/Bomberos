@@ -233,7 +233,7 @@ class SCI211Tests(TestCase):
         self.assertEqual(registro.matricula_identificacion, "AB-01")
         self.assertEqual(registro.orden, 1)
 
-    def test_guardar_borrador_se_queda_en_la_edicion(self):
+    def test_guardar_borrador_regresa_a_la_ficha_de_la_emergencia(self):
         self.finalizar_anteriores("211")
         formulario = self.crear_formulario(completo=False)
         self.client.force_login(self.usuario)
@@ -242,7 +242,8 @@ class SCI211Tests(TestCase):
             self._datos_edicion(formulario),
         )
         self.assertRedirects(
-            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
+            respuesta,
+            reverse("emergencias:detalle", args=[self.emergencia.pk]) + "#formularios-sci",
         )
         self.assertEqual(formulario.registros.count(), 1)
 
@@ -551,7 +552,8 @@ class SCI211Tests(TestCase):
             "preparado_por": "Luis Herrera",
         })
         self.assertRedirects(
-            respuesta, reverse("emergencias:sci_visualizar", args=["205", self.emergencia.pk])
+            respuesta,
+            reverse("emergencias:detalle", args=[self.emergencia.pk]) + "#formularios-sci",
         )
         formulario = FormularioSCI.objects.get(emergencia=self.emergencia, codigo_sci="205")
         self.assertEqual(formulario.datos["periodo_numero"], "1")

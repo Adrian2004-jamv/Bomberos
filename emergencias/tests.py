@@ -6,12 +6,13 @@ from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError, IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, HistorialEstadoRecurso, Recurso, TipoRecurso
 
-from .models import DespliegueUnidad, Emergencia
+from .models import DespliegueUnidad, Emergencia, FormularioSCI
 from .services import cambiar_estado_despliegue, cancelar_despliegue, desplegar_unidad, finalizar_despliegue
 class EmergenciasYDesplieguesTests(TestCase):
     @classmethod
@@ -395,3 +396,64 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.client.force_login(self.usuario_consulta)
         respuesta = self.client.get(f"/emergencias/{emergencia.pk}/")
         self.assertEqual(respuesta.status_code, 404)
+
+
+class EliminarEmergenciaTests(TestCase):
+    """Borrar sirve para deshacer un registro equivocado, no para borrar historia."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="ELI")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Eliminar", sigla="ELI",
+            ruc="0596000001000", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Central Eliminar", codigo="ELI-C",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.gestor = get_user_model().objects.create_user(
+            username="jefe-eliminar", cedula="1300000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.gestor.groups.add(Group.objects.get(name="Responsable institucional"))
+        cls.observador = get_user_model().objects.create_user(
+            username="consulta-eliminar", cedula="1300000002", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.observador.groups.add(Group.objects.get(name="Operador de consulta"))
+
+    def crear_emergencia(self, codigo="IE-01012026-900"):
+        return Emergencia.objects.create(
+            codigo=codigo, tipo_emergencia="Incendio estructural",
+            direccion="Centro", estacion_responsable=self.estacion,
+            registrado_por=self.gestor,
+        )
+
+    def test_se_borra_una_emergencia_sin_documentacion(self):
+        emergencia = self.crear_emergencia()
+        self.client.force_login(self.gestor)
+        respuesta = self.client.post(reverse("emergencias:eliminar", args=[emergencia.pk]))
+        self.assertRedirects(respuesta, reverse("emergencias:lista"))
+        self.assertFalse(Emergencia.objects.filter(pk=emergencia.pk).exists())
+
+    def test_una_emergencia_con_formulario_sci_no_se_borra_ni_revienta(self):
+        emergencia = self.crear_emergencia("IE-01012026-901")
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="201", datos={},
+            creado_por=self.gestor, modificado_por=self.gestor,
+        )
+        self.client.force_login(self.gestor)
+        respuesta = self.client.post(
+            reverse("emergencias:eliminar", args=[emergencia.pk]), follow=True
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
+        self.assertContains(respuesta, "no puede eliminarse")
+
+    def test_quien_solo_consulta_no_puede_borrar(self):
+        emergencia = self.crear_emergencia("IE-01012026-902")
+        self.client.force_login(self.observador)
+        respuesta = self.client.post(reverse("emergencias:eliminar", args=[emergencia.pk]))
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())

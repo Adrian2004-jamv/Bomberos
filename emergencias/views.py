@@ -9,8 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import (Case, Count, Exists, IntegerField, OuterRef, Q,
-                              Value, When)
+from django.db.models import (Case, Count, Exists, IntegerField, OuterRef,
+                              ProtectedError, Q, Value, When)
 from django.http import Http404, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -453,12 +453,27 @@ def editar(request, pk):
 @login_required
 @require_POST
 def eliminar(request, pk):
-    """Elimina permanentemente un incidente. Solo staff o gestores pueden hacerlo."""
+    """Borra una emergencia que aún no tiene historia. Solo staff o gestores.
+
+    Sirve para deshacer un registro equivocado, no para hacer desaparecer una
+    intervención. Los formularios SCI y los despliegues protegen su emergencia
+    a nivel de base de datos: son documentación oficial y no se destruyen. Si
+    la intervención ya empezó, lo que corresponde es cancelarla.
+    """
     if not (request.user.is_staff or puede_gestionar_emergencias(request.user)):
         raise PermissionDenied
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
     codigo = emergencia.codigo
-    emergencia.delete()
+    try:
+        emergencia.delete()
+    except ProtectedError:
+        messages.error(
+            request,
+            f"La emergencia {codigo} ya tiene formularios SCI o unidades "
+            "despachadas y no puede eliminarse: es documentación de la "
+            "intervención. Cámbiela a cancelada si se registró por error.",
+        )
+        return redirect("emergencias:detalle", pk=pk)
     messages.success(request, f"Emergencia {codigo} eliminada correctamente.")
     return redirect("emergencias:lista")
 
