@@ -119,6 +119,42 @@ def unidades_desplegables(emergencia, usuario_responsable):
     )
 
 @transaction.atomic
+def retirar_emergencias(identificadores):
+    """Borra emergencias con todo lo que cuelga de ellas.
+
+    Los formularios SCI y los despliegues protegen su emergencia con
+    ``PROTECT``, de modo que borrarla exige desmontar esa dependencia en orden:
+    los registros del SCI-211 protegen a su vez el despliegue, así que el
+    formulario se va antes que las unidades. Los registros del 211 caen con su
+    formulario y las posiciones de GPS con su despliegue.
+
+    Las unidades vuelven al inventario antes de borrar su despliegue. Si no, se
+    quedarían marcadas como asignadas a una emergencia que ya no existe y no
+    volverían a ofrecerse nunca.
+
+    Devuelve cuántas unidades quedaron liberadas.
+    """
+    from .models import FormularioSCI, FormularioSCI211
+
+    identificadores = list(identificadores)
+    if not identificadores:
+        return 0
+
+    unidades = DespliegueUnidad.objects.filter(
+        emergencia_id__in=identificadores,
+        estado__in=DespliegueUnidad.ESTADOS_ACTIVOS,
+    ).values_list("unidad_id", flat=True)
+    liberadas = Recurso.objects.filter(
+        pk__in=list(unidades), disponibilidad=Recurso.Disponibilidad.ASIGNADO
+    ).update(disponibilidad=Recurso.Disponibilidad.DISPONIBLE)
+
+    FormularioSCI211.objects.filter(emergencia_id__in=identificadores).delete()
+    FormularioSCI.objects.filter(emergencia_id__in=identificadores).delete()
+    DespliegueUnidad.objects.filter(emergencia_id__in=identificadores).delete()
+    Emergencia.objects.filter(pk__in=identificadores).delete()
+    return liberadas
+
+@transaction.atomic
 def desplegar_unidad(emergencia, unidad, usuario_responsable, observaciones=""):
     validar_usuario(usuario_responsable)
     if not isinstance(emergencia, Emergencia) or not emergencia.pk:

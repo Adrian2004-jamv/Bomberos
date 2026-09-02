@@ -451,6 +451,36 @@ class EliminarEmergenciaTests(TestCase):
         self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
         self.assertContains(respuesta, "no puede eliminarse")
 
+    def test_el_superusuario_arrastra_la_documentacion(self):
+        emergencia = self.crear_emergencia("IE-01012026-903")
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="201", datos={},
+            creado_por=self.gestor, modificado_por=self.gestor,
+        )
+        superusuario = get_user_model().objects.create_superuser(
+            username="raiz-eliminar", cedula="1300000003", password="clave",
+        )
+        self.client.force_login(superusuario)
+        respuesta = self.client.post(
+            reverse("emergencias:eliminar", args=[emergencia.pk]), follow=True
+        )
+        self.assertFalse(Emergencia.objects.filter(pk=emergencia.pk).exists())
+        self.assertEqual(FormularioSCI.objects.filter(emergencia=emergencia).count(), 0)
+        self.assertContains(respuesta, "eliminada con toda su documentación")
+
+    def test_un_gestor_sigue_sin_poder_borrar_documentacion(self):
+        emergencia = self.crear_emergencia("IE-01012026-904")
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="201", datos={},
+            creado_por=self.gestor, modificado_por=self.gestor,
+        )
+        self.client.force_login(self.gestor)
+        respuesta = self.client.post(
+            reverse("emergencias:eliminar", args=[emergencia.pk]), follow=True
+        )
+        self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
+        self.assertContains(respuesta, "no puede eliminarse")
+
     def test_quien_solo_consulta_no_puede_borrar(self):
         emergencia = self.crear_emergencia("IE-01012026-902")
         self.client.force_login(self.observador)

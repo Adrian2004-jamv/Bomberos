@@ -15,12 +15,11 @@ Uso:
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 from django.utils.dateparse import parse_date
 
 from emergencias.models import (DespliegueUnidad, Emergencia, FormularioSCI,
                                 FormularioSCI211, PosicionUnidad)
-from inventario.models import Recurso
+from emergencias.services import retirar_emergencias
 
 
 class Command(BaseCommand):
@@ -127,36 +126,8 @@ class Command(BaseCommand):
             ))
             return
 
-        liberadas = self.retirar(identificadores)
+        liberadas = retirar_emergencias(identificadores)
         self.stdout.write(self.style.SUCCESS(
             f"Retiradas {recuento['emergencias']} emergencia(s). "
             f"{liberadas} unidad(es) volvieron a estar disponibles."
         ))
-
-    @transaction.atomic
-    def retirar(self, identificadores):
-        """Desmonta las dependencias en orden y devuelve las unidades liberadas.
-
-        El orden importa: los registros del SCI-211 protegen su despliegue, así
-        que el formulario se va antes que las unidades. Y las unidades hay que
-        devolverlas al inventario antes de borrar su despliegue: si no, se
-        quedarían marcadas como asignadas a una emergencia que ya no existe y
-        no volverían a ofrecerse nunca.
-        """
-        unidades = list(
-            DespliegueUnidad.objects.filter(
-                emergencia_id__in=identificadores,
-                estado__in=DespliegueUnidad.ESTADOS_ACTIVOS,
-            ).values_list("unidad_id", flat=True)
-        )
-        liberadas = Recurso.objects.filter(
-            pk__in=unidades, disponibilidad=Recurso.Disponibilidad.ASIGNADO
-        ).update(disponibilidad=Recurso.Disponibilidad.DISPONIBLE)
-
-        # Los registros del 211 caen con su formulario; las posiciones, con su
-        # despliegue. Solo hay que ordenar estos cuatro.
-        FormularioSCI211.objects.filter(emergencia_id__in=identificadores).delete()
-        FormularioSCI.objects.filter(emergencia_id__in=identificadores).delete()
-        DespliegueUnidad.objects.filter(emergencia_id__in=identificadores).delete()
-        Emergencia.objects.filter(pk__in=identificadores).delete()
-        return liberadas
