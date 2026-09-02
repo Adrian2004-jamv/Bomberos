@@ -25,21 +25,15 @@
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading">
         <div><p class="eyebrow">Documentación operativa</p><h2>Formularios SCI</h2></div>
+        {% comment %}Cuando hay un formulario siguiente, el botón vive en el
+        aviso de abajo, que además dice cuál es y por qué toca. Aquí solo queda
+        el acceso al SCI-211 para cuando ese aviso no aparece.{% endcomment %}
+        {% if not siguiente_formulario and not sci211_bloqueado %}
         <div class="sci-panel-heading-actions">
-            {% if siguiente_formulario %}
-                {% if siguiente_formulario.codigo == "211" %}
-                    {% if not sci211_bloqueado %}
-                        {% if sci211 and sci211.es_editable %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Continuar SCI-211</a>
-                        {% elif not sci211 and puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="sci-panel-action sci-panel-action--primary" type="submit"><i class="ti ti-file-plus" aria-hidden="true"></i> Llenar SCI-211</button></form>{% endif %}
-                    {% endif %}
-                {% else %}
-                    {% if puede_editar_sci %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci_editar' siguiente_formulario.codigo emergencia.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> {% if siguiente_formulario.clave_estado == 'incomplete' %}Continuar{% else %}Llenar{% endif %} SCI-{{ siguiente_formulario.codigo }}</a>{% endif %}
-                {% endif %}
-            {% else %}
-                {% if not sci211_bloqueado %}{% if sci211 and sci211.es_editable %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Continuar SCI-211</a>
-                {% elif not sci211 and puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="sci-panel-action sci-panel-action--primary" type="submit"><i class="ti ti-file-plus" aria-hidden="true"></i> Abrir formulario oficial SCI-211</button></form>{% endif %}{% endif %}
-            {% endif %}
+            {% if sci211 and sci211.es_editable %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci211_editar' sci211.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Continuar SCI-211</a>
+            {% elif not sci211 and puede_editar_sci %}<form method="post" action="{% url 'emergencias:sci211_crear' emergencia.pk %}">{% csrf_token %}<button class="sci-panel-action sci-panel-action--primary" type="submit"><i class="ti ti-file-plus" aria-hidden="true"></i> Abrir formulario oficial SCI-211</button></form>{% endif %}
         </div>
+        {% endif %}
     </div>
     {% if siguiente_formulario and puede_editar_sci and not siguiente_formulario.bloqueado %}
     <div class="sci-next-step" role="status">

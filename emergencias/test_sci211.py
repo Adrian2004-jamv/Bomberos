@@ -274,7 +274,11 @@ class SCI211Tests(TestCase):
         formulario = self.crear_formulario()
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
-        self.assertContains(respuesta, "Continuar SCI-211")
+        # La acción vive solo en el aviso del paso siguiente: el encabezado
+        # repetía el mismo botón sin decir de qué formulario se trataba.
+        self.assertContains(respuesta, "Siguiente: SCI-211")
+        self.assertContains(respuesta, 'class="sci-next-step__cta"', html=False)
+        self.assertNotContains(respuesta, "Continuar SCI-211")
         self.assertContains(respuesta, "Incompleto o con errores")
         self.assertContains(
             respuesta, 'class="sci-form-tab sci-form-tab--incomplete"', html=False
@@ -1157,3 +1161,37 @@ class TarjetaDeRecursoTests(ConUnidadDesplegable, SCI211Tests):
         self.assertEqual(
             registro.estado_recurso, RegistroRecursoSCI211.EstadoRecurso.DISPONIBLE
         )
+
+
+class AccionUnicaDelPanelSCITests(ConUnidadDesplegable, SCI211Tests):
+    """El botón de llenar vive en un solo sitio: el aviso del paso siguiente."""
+
+    def detalle(self):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
+
+    def test_el_encabezado_no_repite_el_boton_del_paso_siguiente(self):
+        respuesta = self.detalle()
+        self.assertContains(respuesta, "Siguiente: SCI-201")
+        # Un solo llamado a la acción en todo el panel.
+        self.assertEqual(respuesta.content.decode().count("sci-next-step__cta"), 1)
+        self.assertNotContains(respuesta, "sci-panel-action--primary")
+
+    def test_con_todo_finalizado_no_queda_ninguna_accion_de_llenado(self):
+        # El ayudante cierra lo anterior al código indicado, así que el último
+        # de la lista hay que cerrarlo aparte.
+        self.finalizar_anteriores("222")
+        ultimo = FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="222",
+            datos={"preparado": True}, creado_por=self.usuario,
+            modificado_por=self.usuario,
+            estado=FormularioSCI.Estado.FINALIZADO,
+            finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+        )
+        self.assertEqual(ultimo.estado, FormularioSCI.Estado.FINALIZADO)
+        respuesta = self.detalle()
+        # Con los doce cerrados no queda nada que llenar, ni en el aviso ni en
+        # el encabezado: lo que queda es la franja para imprimirlos.
+        self.assertNotContains(respuesta, "sci-next-step__cta")
+        self.assertNotContains(respuesta, "sci-panel-action--primary")
+        self.assertContains(respuesta, "Formularios disponibles para imprimir")
