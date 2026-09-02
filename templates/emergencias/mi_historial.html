@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Historial de recorridos{% endblock %}
+{% block page_title %}Historial de recorridos{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<p class="historial-intro">Emergencias que ya atendió. El recorrido que transmitió durante cada una queda guardado y puede consultarse sobre el mapa.</p>
+
+{% if sin_historial %}
+<section class="panel unidad-vacia">
+    <span aria-hidden="true"><i class="ti ti-route-off"></i></span>
+    <h2>Todavía no tiene recorridos cerrados</h2>
+    <p>Cuando termine una emergencia con su unidad, aparecerá aquí junto al recorrido que registró.</p>
+</section>
+{% else %}
+<section class="panel">
+    <div class="table-responsive"><table>
+        <thead><tr><th>Emergencia</th><th>Unidad</th><th>Cierre</th><th>Tiempos</th><th>Recorrido</th></tr></thead>
+        <tbody>{% for despliegue in despliegues %}<tr>
+            <td>
+                <strong>{{ despliegue.emergencia.codigo }}</strong>
+                <span class="historial-tipo">{{ despliegue.emergencia.tipo_emergencia }}</span>
+            </td>
+            <td>{{ despliegue.unidad.codigo_interno }}</td>
+            <td><span class="deployment-state deployment-state--{{ despliegue.estado }}">{{ despliegue.get_estado_display }}</span></td>
+            <td class="deployment-times">
+                <span>Asignada: {{ despliegue.fecha_asignacion|date:"d/m/Y H:i" }}</span>
+                {% if despliegue.fecha_salida %}<span>Salida: {{ despliegue.fecha_salida|date:"H:i" }}</span>{% endif %}
+                {% if despliegue.fecha_llegada %}<span>En sitio: {{ despliegue.fecha_llegada|date:"H:i" }}</span>{% endif %}
+                {% if despliegue.fecha_retorno %}<span>Cierre: {{ despliegue.fecha_retorno|date:"H:i" }}</span>{% endif %}
+            </td>
+            <td>
+                {% if despliegue.puntos %}
+                <a class="historial-recorrido" href="{% url 'emergencias:mi_recorrido' despliegue.pk %}">
+                    <i class="ti ti-route" aria-hidden="true"></i> Ver {{ despliegue.puntos }} punto{{ despliegue.puntos|pluralize }}
+                </a>
+                {% else %}
+                <span class="historial-sin-recorrido">No transmitió ubicación</span>
+                {% endif %}
+            </td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</section>
+{% endif %}
+{% endblock %}

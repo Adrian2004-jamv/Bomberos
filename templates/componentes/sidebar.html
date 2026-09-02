@@ -17,6 +17,9 @@
         <a class="nav-item{% if request.resolver_match.url_name == 'mi_unidad' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_unidad' %}">
             <i class="ti ti-steering-wheel" aria-hidden="true"></i> Mi unidad
         </a>
+        <a class="nav-item{% if request.resolver_match.url_name == 'mi_historial' or request.resolver_match.url_name == 'mi_recorrido' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_historial' %}">
+            <i class="ti ti-route" aria-hidden="true"></i> Historial
+        </a>
     </nav>
 {% else %}
     <nav class="sidebar__nav">

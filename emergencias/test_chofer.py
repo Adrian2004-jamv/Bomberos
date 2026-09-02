@@ -6,6 +6,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from mapas.services import construir_geojson
+
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
@@ -269,3 +271,190 @@ class RegresoDesdeLaConsolaTests(BaseChoferTests):
         self.client.get(reverse("emergencias:transmitir_gps", args=[despliegue.pk]))
         regreso = self.client.get(reverse("emergencias:mi_unidad"))
         self.assertEqual(regreso.status_code, 200)
+
+# ==========================================
+# MÓDULO: TIEMPOS TOMADOS DEL RECORRIDO
+# ==========================================
+
+class TiemposDesdeElGpsTests(BaseChoferTests):
+    """Salida y llegada las marca la unidad, no quien mira la pantalla."""
+
+    def enviar(self, despliegue, latitud, longitud):
+        return self.client.post(
+            reverse("emergencias:registrar_posicion", args=[despliegue.pk]),
+            data={"latitud": latitud, "longitud": longitud},
+            content_type="application/json",
+        )
+
+    def test_la_primera_posicion_marca_la_salida(self):
+        despliegue = self.desplegar_con_chofer()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.ASIGNADA)
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue, -0.9500, -78.6300)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.EN_RUTA)
+        self.assertIsNotNone(despliegue.fecha_salida)
+        self.assertIsNone(despliegue.fecha_llegada)
+
+    def test_llegar_junto_a_la_direccion_marca_el_arribo(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue, -0.9500, -78.6300)
+        # La emergencia está en -0.933333, -78.616667.
+        self.enviar(despliegue, -0.933400, -78.616700)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.EN_SITIO)
+        self.assertIsNotNone(despliegue.fecha_llegada)
+
+    def test_una_posicion_lejana_no_marca_el_arribo(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue, -0.9500, -78.6300)
+        self.enviar(despliegue, -0.9490, -78.6290)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.EN_RUTA)
+        self.assertIsNone(despliegue.fecha_llegada)
+
+    def test_la_llegada_no_se_reescribe_con_posiciones_posteriores(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue, -0.9500, -78.6300)
+        self.enviar(despliegue, -0.933400, -78.616700)
+        despliegue.refresh_from_db()
+        primera = despliegue.fecha_llegada
+        self.enviar(despliegue, -0.933350, -78.616650)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.fecha_llegada, primera)
+
+    def test_sin_coordenadas_en_la_emergencia_no_se_inventa_el_arribo(self):
+        emergencia = self.crear_emergencia(
+            codigo="IE-01012026-805", latitud=None, longitud=None
+        )
+        despliegue = desplegar_unidad(emergencia, self.crear_unidad("AB-805"), self.jefe)
+        despliegue.responsable_unidad = self.chofer
+        despliegue.save(update_fields=["responsable_unidad"])
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue, -0.9334, -78.6167)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.EN_RUTA)
+        self.assertIsNone(despliegue.fecha_llegada)
+
+# ==========================================
+# MÓDULO: TRANSMISIÓN Y RECORRIDO GUARDADO
+# ==========================================
+
+class TransmisionYRecorridoTests(BaseChoferTests):
+    """Detener el seguimiento retira el icono del mapa, no el recorrido."""
+
+    def enviar(self, despliegue, latitud=-0.9500, longitud=-78.6300):
+        return self.client.post(
+            reverse("emergencias:registrar_posicion", args=[despliegue.pk]),
+            data={"latitud": latitud, "longitud": longitud},
+            content_type="application/json",
+        )
+
+    def test_transmitir_enciende_la_marca(self):
+        despliegue = self.desplegar_con_chofer()
+        self.assertFalse(despliegue.transmitiendo)
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue)
+        despliegue.refresh_from_db()
+        self.assertTrue(despliegue.transmitiendo)
+
+    def test_detener_apaga_la_marca(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue)
+        respuesta = self.client.post(
+            reverse("emergencias:detener_transmision", args=[despliegue.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        despliegue.refresh_from_db()
+        self.assertFalse(despliegue.transmitiendo)
+
+    def unidad_en_el_mapa(self):
+        datos = construir_geojson(self.jefe, {})
+        return next(
+            c for c in datos["features"] if c["properties"]["clase"] == "unidad"
+        )
+
+    def test_la_unidad_detenida_pierde_su_icono_pero_sigue_en_la_lista(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue)
+        self.assertIsNotNone(self.unidad_en_el_mapa()["geometry"])
+
+        self.client.post(reverse("emergencias:detener_transmision", args=[despliegue.pk]))
+        detenida = self.unidad_en_el_mapa()
+        # Sin geometría no se dibuja icono, pero la unidad sigue desplegada.
+        self.assertIsNone(detenida["geometry"])
+        self.assertIsNone(detenida["properties"]["fecha_posicion"])
+
+    def test_el_recorrido_sobrevive_a_la_detencion(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue)
+        self.client.post(reverse("emergencias:detener_transmision", args=[despliegue.pk]))
+        self.assertEqual(despliegue.posiciones.count(), 1)
+        respuesta = self.client.get(reverse("mapas:recorrido", args=[despliegue.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["properties"]["cantidad_puntos"], 1)
+
+    def test_el_recorrido_de_un_despliegue_cerrado_sigue_consultandose(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.enviar(despliegue)
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA
+        )
+        respuesta = self.client.get(reverse("mapas:recorrido", args=[despliegue.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["properties"]["cantidad_puntos"], 1)
+
+    def test_no_se_consulta_el_recorrido_de_otro_chofer(self):
+        despliegue = self.desplegar_con_chofer(chofer=self.otro_chofer)
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("mapas:recorrido", args=[despliegue.pk]))
+        self.assertEqual(respuesta.status_code, 404)
+
+class HistorialDelChoferTests(BaseChoferTests):
+    def cerrar(self, despliegue):
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA
+        )
+
+    def test_el_historial_muestra_lo_ya_cerrado(self):
+        despliegue = self.desplegar_con_chofer()
+        self.cerrar(despliegue)
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:mi_historial"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, despliegue.emergencia.codigo)
+
+    def test_lo_que_sigue_activo_no_esta_en_el_historial(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:mi_historial"))
+        self.assertNotContains(respuesta, despliegue.emergencia.codigo)
+        self.assertContains(respuesta, "Todavía no tiene recorridos cerrados")
+
+    def test_abre_el_recorrido_de_su_despliegue(self):
+        despliegue = self.desplegar_con_chofer()
+        self.cerrar(despliegue)
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:mi_recorrido", args=[despliegue.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, despliegue.unidad.codigo_interno)
+
+    def test_no_abre_el_recorrido_de_otro_chofer(self):
+        despliegue = self.desplegar_con_chofer(chofer=self.otro_chofer)
+        self.cerrar(despliegue)
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:mi_recorrido", args=[despliegue.pk]))
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_quien_no_es_chofer_no_abre_el_historial(self):
+        self.client.force_login(self.jefe)
+        self.assertEqual(
+            self.client.get(reverse("emergencias:mi_historial")).status_code, 403
+        )

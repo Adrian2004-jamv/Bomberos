@@ -66,6 +66,11 @@ class MapaOperativoTests(TestCase):
 
     @staticmethod
     def _posicion(despliegue, usuario, longitud, latitud, segundos=0):
+        # En producción las posiciones llegan por el servicio, que marca el
+        # despliegue como transmitiendo. Aquí se crean a mano, así que la marca
+        # se pone igual: sin ella el mapa la tomaría por una unidad detenida.
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(transmitiendo=True)
+        despliegue.refresh_from_db()
         posicion = PosicionUnidad.objects.create(despliegue=despliegue, ubicacion=Point(longitud, latitud, srid=4326), precision="8.00", velocidad="3.500", reportado_por=usuario)
         if segundos:
             PosicionUnidad.objects.filter(pk=posicion.pk).update(fecha_recepcion=timezone.now() + timedelta(seconds=segundos))

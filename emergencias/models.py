@@ -151,6 +151,10 @@ class DespliegueUnidad(models.Model):
     fecha_llegada = models.DateTimeField("fecha de llegada", null=True, blank=True)
     fecha_retorno = models.DateTimeField("fecha de retorno o finalización", null=True, blank=True)
     observaciones = models.TextField("observaciones", blank=True)
+    # Distingue «la unidad está informando su posición ahora» de «la unidad tuvo
+    # un recorrido». El mapa operativo solo dibuja lo primero; el recorrido se
+    # conserva siempre, porque es la prueba de lo que hizo la unidad.
+    transmitiendo = models.BooleanField("transmitiendo ubicación", default=False)
 
     class Meta:
         verbose_name = "despliegue de unidad"

@@ -31,11 +31,31 @@
     };
     const setMessage = (text, kind = "info") => { ui.message.textContent = text; ui.message.dataset.kind = kind; };
     const setState = (text, state) => { ui.state.lastChild.textContent = text; ui.state.dataset.state = state; };
+    // Avisar al servidor no es opcional: mientras crea que la unidad transmite,
+    // el mapa operativo sigue dibujando el último punto como si fuera actual.
+    // El recorrido no se toca, solo deja de mostrarse en vivo.
+    const avisarDetencion = () => {
+        const url = root.dataset.stopUrl;
+        if (!url) return;
+        // «keepalive» permite que la petición sobreviva al cierre de la pestaña.
+        // No se usa sendBeacon porque no admite cabeceras y Django rechazaría
+        // la petición por falta del testigo CSRF.
+        fetch(url, {
+            method: "POST", credentials: "same-origin", keepalive: true,
+            headers: { "X-CSRFToken": csrfToken() },
+        }).catch(() => {});
+    };
+
     const stop = (message = "Transmisión detenida.", kind = "info") => {
+        const transmitia = watchId !== null;
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
         watchId = null; ui.start.disabled = false; ui.stop.disabled = true;
+        if (transmitia) avisarDetencion();
         setState("Transmisión detenida", kind === "error" ? "error" : "stopped"); setMessage(message, kind);
     };
+
+    // Cerrar la pestaña o bloquear el teléfono también apaga el seguimiento.
+    window.addEventListener("pagehide", () => { if (watchId !== null) stop(); });
     const payloadFrom = (position) => ({
         latitud: position.coords.latitude, longitud: position.coords.longitude,
         precision: position.coords.accuracy, velocidad: position.coords.speed,

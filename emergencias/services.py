@@ -11,6 +11,8 @@ Se conservan además las validaciones de servicio y una restricción única
 parcial en la base de datos.
 """
 
+from math import asin, cos, radians, sin, sqrt
+
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
@@ -49,6 +51,11 @@ TRANSICIONES_VALIDAS = {
     },
     DespliegueUnidad.Estado.RETORNANDO: {DespliegueUnidad.Estado.FINALIZADA},
 }
+
+# Radio dentro del cual se considera que la unidad llegó al lugar. Es holgado a
+# propósito: el GPS de un teléfono en una cabina metálica rara vez baja de unas
+# decenas de metros, y una dirección urbana tampoco es un punto exacto.
+RADIO_LLEGADA_METROS = 150
 
 ESTADOS_TERMINALES_EMERGENCIA = {Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA}
 
@@ -189,6 +196,9 @@ def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, obs
     momento = timezone.now()
     actual.estado = nuevo_estado
     campos = ["estado"]
+    if nuevo_estado not in DespliegueUnidad.ESTADOS_ACTIVOS and actual.transmitiendo:
+        actual.transmitiendo = False
+        campos.append("transmitiendo")
     if nuevo_estado == DespliegueUnidad.Estado.EN_RUTA and not actual.fecha_salida:
         actual.fecha_salida = momento
         campos.append("fecha_salida")
@@ -383,7 +393,90 @@ def registrar_posicion_unidad(
     )
     posicion.full_clean()
     posicion.save()
+    sellar_tiempos_por_recorrido(actual, posicion)
     from .realtime import publicar_posicion_gps
 
     transaction.on_commit(lambda: publicar_posicion_gps(posicion), robust=True)
     return posicion
+
+def sellar_tiempos_por_recorrido(despliegue, posicion):
+    """Marca salida y llegada con lo que informa la propia unidad.
+
+    Antes esos dos instantes dependían de que alguien pulsara «En ruta» y «En
+    sitio» en la ficha, de modo que el tiempo de respuesta medía la diligencia
+    del operador y no la de la unidad. El recorrido ya dice ambas cosas: la
+    primera posición es la salida y la primera que cae junto a la dirección de
+    la emergencia es la llegada.
+
+    Los estados siguen siendo los mismos; lo que cambia es quién los dispara.
+    Si la emergencia no tiene coordenadas no se puede reconocer la llegada, así
+    que el despliegue se queda en ruta y el tiempo sigue sin calcularse.
+    """
+    campos = []
+    if not despliegue.transmitiendo:
+        despliegue.transmitiendo = True
+        campos.append("transmitiendo")
+    if despliegue.estado == DespliegueUnidad.Estado.ASIGNADA:
+        despliegue.estado = DespliegueUnidad.Estado.EN_RUTA
+        campos.append("estado")
+    if not despliegue.fecha_salida:
+        despliegue.fecha_salida = posicion.fecha_recepcion
+        campos.append("fecha_salida")
+
+    destino = punto_de_la_emergencia(despliegue.emergencia)
+    if (
+        destino is not None
+        and not despliegue.fecha_llegada
+        and despliegue.estado == DespliegueUnidad.Estado.EN_RUTA
+        and metros_entre(posicion.ubicacion, destino) <= RADIO_LLEGADA_METROS
+    ):
+        despliegue.estado = DespliegueUnidad.Estado.EN_SITIO
+        despliegue.fecha_llegada = posicion.fecha_recepcion
+        campos.extend(["estado", "fecha_llegada"])
+
+    if campos:
+        despliegue.save(update_fields=sorted(set(campos)))
+    return campos
+
+@transaction.atomic
+def detener_transmision(despliegue, usuario_responsable):
+    """Apaga el seguimiento en vivo sin borrar nada de lo recorrido.
+
+    El icono desaparece del mapa operativo porque la unidad ya no informa dónde
+    está, pero las posiciones quedan guardadas: son el recorrido que hizo
+    durante la emergencia y se consultan después.
+    """
+    validar_usuario(usuario_responsable, permitir_chofer=True)
+    actual = DespliegueUnidad.objects.select_for_update().select_related(
+        "emergencia", "unidad"
+    ).get(pk=despliegue.pk)
+    if not conduce_el_despliegue(usuario_responsable, actual):
+        if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
+            raise ValidationError("El despliegue está fuera del ámbito autorizado.")
+    if actual.transmitiendo:
+        actual.transmitiendo = False
+        actual.save(update_fields=["transmitiendo"])
+    return actual
+
+def metros_entre(uno, otro):
+    """Distancia en metros entre dos puntos geográficos.
+
+    Se calcula con la fórmula del haversine y no con la distancia del plano:
+    en SRID 4326 las coordenadas son grados, y un grado de longitud mide menos
+    cuanto más lejos del ecuador. Cotopaxi está casi sobre él, pero el sistema
+    no tiene por qué quedarse ahí.
+    """
+    radio_terrestre = 6371000
+    lat1, lon1 = radians(uno.y), radians(uno.x)
+    lat2, lon2 = radians(otro.y), radians(otro.x)
+    seno_lat = sin((lat2 - lat1) / 2) ** 2
+    seno_lon = sin((lon2 - lon1) / 2) ** 2
+    return 2 * radio_terrestre * asin(
+        sqrt(seno_lat + cos(lat1) * cos(lat2) * seno_lon)
+    )
+
+def punto_de_la_emergencia(emergencia):
+    """Devuelve la ubicación de la emergencia, o None si no fue registrada."""
+    if emergencia.latitud is None or emergencia.longitud is None:
+        return None
+    return Point(float(emergencia.longitud), float(emergencia.latitud), srid=4326)

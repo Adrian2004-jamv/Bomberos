@@ -77,6 +77,20 @@ def despliegues_asignados(usuario):
         estado__in=DespliegueUnidad.ESTADOS_ACTIVOS,
     ).select_related("unidad", "emergencia", "emergencia__estacion_responsable")
 
+def despliegues_conducidos(usuario):
+    """Todo lo que el usuario condujo, activo o ya cerrado.
+
+    El chofer necesita revisar después lo que hizo: el recorrido queda
+    guardado aunque la emergencia haya terminado.
+    """
+    from .models import DespliegueUnidad
+
+    if not usuario.is_authenticated:
+        return DespliegueUnidad.objects.none()
+    return DespliegueUnidad.objects.filter(
+        responsable_unidad=usuario
+    ).select_related("unidad", "emergencia", "emergencia__estacion_responsable")
+
 def conduce_el_despliegue(usuario, despliegue):
     return bool(
         usuario.is_authenticated

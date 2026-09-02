@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Recorrido de {{ despliegue.unidad.codigo_interno }}{% endblock %}
+{% block page_title %}Recorrido registrado{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">
+<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=2">
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel__heading">
+        <div>
+            <p class="eyebrow">{{ despliegue.emergencia.codigo }} · {{ despliegue.emergencia.tipo_emergencia }}</p>
+            <h2>{{ despliegue.unidad.codigo_interno }} - {{ despliegue.unidad.nombre }}</h2>
+        </div>
+        <a class="button button--ghost" href="{% url 'emergencias:mi_historial' %}">Volver al historial</a>
+    </div>
+
+    <dl class="unidad-asignada__datos">
+        <div><dt>Estado</dt><dd>{{ despliegue.get_estado_display }}</dd></div>
+        <div><dt>Salida</dt><dd>{{ despliegue.fecha_salida|date:"d/m/Y H:i"|default:"Sin registrar" }}</dd></div>
+        <div><dt>En sitio</dt><dd>{{ despliegue.fecha_llegada|date:"d/m/Y H:i"|default:"Sin registrar" }}</dd></div>
+        <div><dt>Puntos registrados</dt><dd>{{ puntos }}</dd></div>
+    </dl>
+
+    {% if puntos %}
+    <div class="recorrido-mapa" data-recorrido data-recorrido-url="{% url 'mapas:recorrido' despliegue.pk %}"></div>
+    <p class="recorrido-aviso" data-recorrido-aviso role="status">Cargando el recorrido…</p>
+    {% else %}
+    <p class="recorrido-aviso">Esta unidad no llegó a transmitir ninguna posición durante la emergencia.</p>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{% if puntos %}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script>
+<script src="{% static 'emergencias/js/mi_recorrido.js' %}?v=1" defer></script>
+{% endif %}
+{% endblock %}

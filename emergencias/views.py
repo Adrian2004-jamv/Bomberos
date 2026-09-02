@@ -29,6 +29,7 @@ from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import (FormularioSCI211Form, RegistroRecursoSCI211FormSet,
                         etiqueta_de_recurso)
 from .permissions import (conduce_el_despliegue, despliegues_asignados,
+                          despliegues_conducidos,
                           es_chofer, estacion_autorizada, solo_es_chofer,
                           puede_consultar_emergencias,
                           puede_consultar_sci, puede_editar_sci,
@@ -39,6 +40,7 @@ from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
+                       detener_transmision,
                        cambiar_estado_emergencia, desplegar_unidad,
                        registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
@@ -1079,6 +1081,20 @@ def error_json(mensaje, estado, codigo):
     return JsonResponse({"error": mensaje, "codigo": codigo}, status=estado)
 
 @require_POST
+def detener_transmision_gps(request, pk):
+    """Apaga el seguimiento en vivo de una unidad y la retira del mapa."""
+    if not request.user.is_authenticated:
+        return error_json("Autenticación requerida.", 401, "no_autenticado")
+    if not (puede_gestionar_emergencias(request.user) or es_chofer(request.user)):
+        return error_json("No tiene autorización sobre esta unidad.", 403, "sin_autorizacion")
+    despliegue = despliegue_alcanzable(request.user, pk)
+    try:
+        detener_transmision(despliegue, request.user)
+    except ValidationError as error:
+        return error_json(" ".join(error.messages), 400, "no_valido")
+    return JsonResponse({"transmitiendo": False})
+
+@require_POST
 def registrar_posicion(request, pk):
     if not request.user.is_authenticated:
         return error_json("Autenticación requerida.", 401, "no_autenticado")
@@ -1161,3 +1177,32 @@ def mi_unidad(request):
     }
 
     return render(request, "emergencias/mi_unidad.html", contexto)
+
+@login_required
+def mi_historial(request):
+    """Recorridos que el chofer ya cerró, para consultarlos después."""
+    if not es_chofer(request.user):
+        raise PermissionDenied
+
+    despliegues = list(
+        despliegues_conducidos(request.user)
+        .exclude(estado__in=DespliegueUnidad.ESTADOS_ACTIVOS)
+        .annotate(puntos=Count("posiciones"))
+        .order_by("-fecha_asignacion", "-pk")[:50]
+    )
+    contexto = {"despliegues": despliegues, "sin_historial": not despliegues}
+
+    return render(request, "emergencias/mi_historial.html", contexto)
+
+@login_required
+def mi_recorrido(request, pk):
+    """Dibuja sobre el mapa el recorrido que esta unidad registró."""
+    if not es_chofer(request.user):
+        raise PermissionDenied
+    despliegue = get_object_or_404(despliegues_conducidos(request.user), pk=pk)
+    contexto = {
+        "despliegue": despliegue,
+        "puntos": despliegue.posiciones.count(),
+    }
+
+    return render(request, "emergencias/mi_recorrido.html", contexto)

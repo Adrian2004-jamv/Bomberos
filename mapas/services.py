@@ -121,6 +121,11 @@ def construir_geojson(usuario, parametros):
         })
     for despliegue in despliegues:
         posicion = posiciones.get(despliegue.ultima_posicion_id)
+        # Una unidad que dejó de transmitir sigue en la lista —está desplegada—
+        # pero sin ubicación: el último punto ya no dice dónde está y pintarlo
+        # haría creer que sigue ahí. El recorrido guardado no se toca.
+        if not despliegue.transmitiendo:
+            posicion = None
         antiguedad = clasificar_antiguedad(posicion.fecha_recepcion if posicion else None, ahora)
         if filtros.get("gps") and antiguedad["codigo"] != filtros["gps"]:
             continue
@@ -151,8 +156,26 @@ def construir_geojson(usuario, parametros):
         })
     return {"type": "FeatureCollection", "features": features, "generado_en": ahora.isoformat()}
 
-def construir_recorrido(usuario, despliegue_id):
-    _, despliegues = bases_autorizadas(usuario, {})
+def despliegues_consultables(usuario):
+    """Despliegues cuyo recorrido puede revisarse, terminados incluidos.
+
+    La capa en vivo del mapa solo muestra unidades activas que están
+    informando su posición. El recorrido es otra cosa: es el registro de lo que
+    hizo la unidad y se consulta después de cerrar la emergencia, que es
+    justamente cuando interesa revisarlo.
+    """
+    return DespliegueUnidad.objects.filter(
+        estacion_procedencia__in=estaciones_permitidas(usuario)
+    ).select_related("emergencia", "unidad")
+
+def construir_recorrido(usuario, despliegue_id, conducidos_por=None):
+    despliegues = despliegues_consultables(usuario)
+    if conducidos_por is not None:
+        # El chofer no tiene alcance sobre la estación, pero sí sobre lo suyo.
+        despliegues = DespliegueUnidad.objects.filter(
+            Q(pk__in=despliegues.values("pk"))
+            | Q(responsable_unidad=conducidos_por)
+        ).select_related("emergencia", "unidad")
     despliegue = despliegues.filter(pk=despliegue_id).first()
     if despliegue is None:
         return None

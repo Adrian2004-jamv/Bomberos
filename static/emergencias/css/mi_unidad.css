@@ -74,3 +74,11 @@
 @media (min-width: 640px) {
     .unidad-asignada__acciones { grid-template-columns: 1fr 1fr; }
 }
+
+/* Historial de recorridos cerrados. */
+.historial-intro { max-width: 46rem; margin: 0 0 1rem; color: var(--color-slate-600); font-size: 0.9rem; }
+.historial-tipo { display: block; color: var(--color-slate-600); font-size: 0.8rem; font-weight: 600; }
+.historial-recorrido { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 750; text-decoration: none; }
+.historial-sin-recorrido { color: var(--color-slate-500); font-size: 0.82rem; }
+.recorrido-mapa { height: 26rem; border-radius: var(--radius-sm); }
+.recorrido-aviso { margin: 0.6rem 0 0; color: var(--color-slate-600); font-size: 0.85rem; }

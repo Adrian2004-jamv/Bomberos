@@ -11,6 +11,7 @@
     data-gps-console
     data-register-url="{% url 'emergencias:registrar_posicion' despliegue.pk %}"
     data-latest-url="{% url 'emergencias:ultima_posicion' despliegue.pk %}"
+    data-stop-url="{% url 'emergencias:detener_transmision' despliegue.pk %}"
 >
     <header class="gps-console__header">
         <div><p class="eyebrow">Seguimiento durante emergencia</p><h2>{{ despliegue.unidad.codigo_interno }}</h2><p>{{ despliegue.emergencia.codigo }} · {{ despliegue.emergencia.tipo_emergencia }}</p></div>
@@ -47,4 +48,4 @@
 </section>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'emergencias/js/gps.js' %}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'emergencias/js/gps.js' %}?v=2" defer></script>{% endblock %}

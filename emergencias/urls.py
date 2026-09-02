@@ -26,7 +26,10 @@ urlpatterns = [
     path("<int:pk>/despachar/", views.despachar, name="despachar"),
     path("despliegues/<int:pk>/estado/", views.actualizar_despliegue, name="despliegue_estado"),
     path("mi-unidad/", views.mi_unidad, name="mi_unidad"),
+    path("mi-unidad/historial/", views.mi_historial, name="mi_historial"),
+    path("mi-unidad/recorridos/<int:pk>/", views.mi_recorrido, name="mi_recorrido"),
     path("despliegues/<int:pk>/gps/", views.transmitir_gps, name="transmitir_gps"),
     path("api/despliegues/<int:pk>/posiciones/", views.registrar_posicion, name="registrar_posicion"),
     path("api/despliegues/<int:pk>/ultima-posicion/", views.ultima_posicion, name="ultima_posicion"),
+    path("api/despliegues/<int:pk>/detener-gps/", views.detener_transmision_gps, name="detener_transmision"),
 ]

@@ -5,7 +5,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
 from emergencias.models import DespliegueUnidad, Emergencia
-from emergencias.permissions import puede_consultar_emergencias
+from emergencias.permissions import es_chofer, puede_consultar_emergencias
 from instituciones.models import CuerpoBomberos
 from inventario.permissions import estaciones_permitidas
 
@@ -77,10 +77,15 @@ def recorrido_despliegue(request, pk):
     if not request.user.is_authenticated:
         return responder_error("Autenticación requerida.", 401)
 
-    if not puede_consultar_emergencias(request.user):
+    # Quien conduce la unidad puede revisar su propio recorrido aunque su perfil
+    # no alcance el resto del mapa.
+    if not (puede_consultar_emergencias(request.user) or es_chofer(request.user)):
         return responder_error("No tiene autorización para consultar el recorrido.", 403)
 
-    recorrido = construir_recorrido(request.user, pk)
+    recorrido = construir_recorrido(
+        request.user, pk,
+        conducidos_por=request.user if es_chofer(request.user) else None,
+    )
 
     if recorrido is None:
         return responder_error("El despliegue no existe o no está autorizado.", 404)
