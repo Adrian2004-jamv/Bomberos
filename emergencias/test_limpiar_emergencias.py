@@ -168,6 +168,32 @@ class RetiradaTests(LimpiarEmergenciasTests):
         self.assertFalse(Emergencia.objects.filter(codigo="IE-CENTRAL-001").exists())
         self.assertTrue(Emergencia.objects.filter(pk=ajena.pk).exists())
 
+    def test_todas_vacia_el_padron_entero(self):
+        self.con_documentacion("IE-TODO-001", "AB-LIM-T1")
+        self.con_documentacion("IE-TODO-002", "AB-LIM-T2")
+        self.crear("IE-TODO-003")
+
+        self.ejecutar("--todas", "--ejecutar")
+
+        self.assertEqual(Emergencia.objects.count(), 0)
+        self.assertEqual(FormularioSCI.objects.count(), 0)
+        self.assertEqual(FormularioSCI211.objects.count(), 0)
+        self.assertEqual(DespliegueUnidad.objects.count(), 0)
+        self.assertEqual(PosicionUnidad.objects.count(), 0)
+
+    def test_vaciar_el_padron_no_toca_el_inventario(self):
+        _, primera = self.con_documentacion("IE-INV-001", "AB-LIM-I1")
+        _, segunda = self.con_documentacion("IE-INV-002", "AB-LIM-I2")
+
+        self.ejecutar("--todas", "--ejecutar")
+
+        for recurso in (primera, segunda):
+            recurso.refresh_from_db()
+            self.assertEqual(
+                recurso.disponibilidad, Recurso.Disponibilidad.DISPONIBLE
+            )
+        self.assertEqual(Recurso.objects.count(), 2)
+
     def test_varios_codigos_a_la_vez(self):
         self.crear("IE-UNO-001")
         self.crear("IE-DOS-001")
