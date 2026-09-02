@@ -66,4 +66,46 @@ def preparar_indicadores(emergencias):
         emergencia.formularios_porcentaje = round(
             completados / TOTAL_FORMULARIOS_SCI * 100
         )
+        emergencia.puntos_clave = puntos_clave(emergencia)
     return emergencias
+
+def puntos_clave(emergencia):
+    """Resume una emergencia en frases sueltas, listas para leerse en voz alta.
+
+    Nace de una necesidad concreta: quien atiende una entrevista o un parte no
+    puede ponerse a interpretar una tabla de indicadores. Cada frase sale de un
+    dato ya calculado; lo que no consta no se menciona, en vez de rellenarse
+    con un cero que se leería como un hecho.
+    """
+    puntos = []
+    if emergencia.sigue_abierta:
+        puntos.append(f"Abierta desde hace {emergencia.duracion}.")
+    else:
+        puntos.append(f"Cerrada tras {emergencia.duracion} de atención.")
+
+    if emergencia.unidades_activas:
+        frase = (
+            f"{emergencia.unidades_activas} unidad"
+            f"{'es' if emergencia.unidades_activas != 1 else ''} en el lugar"
+        )
+        if emergencia.unidades_totales > emergencia.unidades_activas:
+            frase += f", de {emergencia.unidades_totales} movilizadas"
+        puntos.append(frase + ".")
+    elif emergencia.unidades_totales:
+        puntos.append(f"{emergencia.unidades_totales} unidad(es) movilizadas, ninguna activa.")
+    else:
+        puntos.append("Todavía sin unidades despachadas.")
+
+    if emergencia.personal_comprometido:
+        puntos.append(f"{emergencia.personal_comprometido} personas comprometidas.")
+
+    if emergencia.tiempo_respuesta:
+        puntos.append(f"Primera unidad en el lugar a los {emergencia.tiempo_respuesta}.")
+    elif emergencia.unidades_totales:
+        puntos.append("Ninguna unidad ha reportado todavía su llegada.")
+
+    puntos.append(
+        f"Documentación SCI: {emergencia.formularios_completados} de "
+        f"{emergencia.formularios_total} formularios."
+    )
+    return puntos

@@ -14,3 +14,30 @@
 
 /* Las unidades que no pueden salir se ven, pero se distinguen de un vistazo. */
 select[data-recurso-inventario] option:disabled { color: var(--color-slate-400); }
+
+/* Botones de cada recurso. La casilla DELETE del formset sigue existiendo
+   —es la que el servidor lee— pero se maneja desde el botón «Eliminar». */
+.field--hidden { display: none; }
+
+.resource-card__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+.resource-action {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .45rem .85rem; border: 1px solid var(--color-slate-300);
+    border-radius: var(--radius-sm); background: #fff;
+    font-size: .82rem; font-weight: 700; cursor: pointer;
+}
+.resource-action--save { border-color: #1f7a3f; color: #1f7a3f; }
+.resource-action--edit { border-color: var(--color-navy-900); color: var(--color-navy-900); }
+.resource-action--delete { border-color: var(--color-red-700); color: var(--color-red-700); }
+.resource-action:hover { background: var(--color-slate-100); }
+
+.resource-card__summary {
+    margin: .2rem 0 0; padding: .55rem .75rem;
+    border-left: 4px solid #1f7a3f; border-radius: var(--radius-sm);
+    background: var(--color-slate-100);
+    font-size: .85rem; font-weight: 700;
+}
+.resource-card--removed { opacity: .55; }
+.resource-card--removed .resource-card__summary {
+    border-left-color: var(--color-red-700); text-decoration: line-through;
+}

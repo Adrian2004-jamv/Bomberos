@@ -1111,3 +1111,49 @@ class ListaCompletaDeRecursosTests(ConUnidadDesplegable, SCI211Tests):
             instance=registro, usuario=self.usuario,
         )
         self.assertTrue(formulario.is_valid(), formulario.errors)
+
+
+class TarjetaDeRecursoTests(ConUnidadDesplegable, SCI211Tests):
+    """El editor pliega cada recurso y ya no pregunta su disponibilidad."""
+
+    def abrir(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+
+    def test_el_editor_ya_no_pregunta_el_estado_del_recurso(self):
+        respuesta = self.abrir()
+        campos = respuesta.context["registros"].forms[0].fields
+        self.assertNotIn("estado_recurso", campos)
+
+    def test_ofrece_guardar_editar_y_eliminar_por_recurso(self):
+        respuesta = self.abrir()
+        for marca in ("data-resource-save", "data-resource-edit", "data-resource-delete"):
+            self.assertContains(respuesta, marca)
+
+    def test_la_casilla_de_borrado_sigue_existiendo_oculta(self):
+        respuesta = self.abrir()
+        self.assertContains(respuesta, "-DELETE")
+        self.assertContains(respuesta, "field--hidden")
+
+    def test_se_guarda_sin_enviar_el_estado_del_recurso(self):
+        self.finalizar_anteriores("211")
+        contenedor = self.crear_formulario(completo=False)
+        unidad = self.crear_unidad_desplegable("AMB-TARJETA")
+        formulario = RegistroRecursoSCI211Form(
+            data={
+                "recurso_inventario": unidad.pk, "solicitado_por": "CI",
+                "fecha_hora_solicitud": "2026-01-01T10:00", "numero_personas": "2",
+                "asignado_a": "Zona de operaciones",
+            },
+            usuario=self.usuario,
+        )
+        self.assertTrue(formulario.is_valid(), formulario.errors)
+        registro = formulario.save(commit=False)
+        registro.formulario = contenedor
+        registro.orden = 1
+        registro.save()
+        self.assertEqual(
+            registro.estado_recurso, RegistroRecursoSCI211.EstadoRecurso.DISPONIBLE
+        )

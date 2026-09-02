@@ -397,7 +397,14 @@ class RegistroRecursoSCI211(models.Model):
         help_text="Quien va en la unidad. Podrá transmitir su ubicación.",
     )
     numero_personas = models.PositiveSmallIntegerField("número de personas", default=1)
-    estado_recurso = models.CharField(max_length=20, choices=EstadoRecurso.choices)
+    # Se registra por defecto como disponible y ya no se pregunta en el
+    # formulario: una unidad que se anota en el SCI-211 es la que está saliendo
+    # al incidente, de modo que el dato se respondía siempre igual. Los estados
+    # reales del recurso viven en el inventario, que es su fuente.
+    estado_recurso = models.CharField(
+        max_length=20, choices=EstadoRecurso.choices,
+        default=EstadoRecurso.DISPONIBLE,
+    )
     asignado_a = models.CharField(
         "asignado a", max_length=180, blank=True,
         help_text="Ubicación geográfica o asignación actual del recurso.",

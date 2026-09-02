@@ -77,7 +77,7 @@ def etiqueta_de_recurso(recurso):
 class RegistroRecursoSCI211Form(forms.ModelForm):
     class Meta:
         model = RegistroRecursoSCI211
-        exclude = ("formulario", "despliegue", "orden")
+        exclude = ("formulario", "despliegue", "orden", "estado_recurso")
         widgets = {
             "fecha_hora_solicitud": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
             "fecha_hora_arribo": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),

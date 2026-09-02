@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=4">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -36,6 +36,18 @@
         <div class="dashboard-section-title"><span>Atención en marcha</span><h2 id="emergencias-title">Emergencias en curso</h2></div>
         <a href="{% url 'emergencias:lista' %}">Ver todas las emergencias →</a>
     </div>
+    <form class="dashboard-filtro" method="get" role="search">
+        <div class="field"><label for="filtro-desde">Desde</label><input type="date" id="filtro-desde" name="desde" value="{{ filtro_desde|date:'Y-m-d' }}"></div>
+        <div class="field"><label for="filtro-hasta">Hasta</label><input type="date" id="filtro-hasta" name="hasta" value="{{ filtro_hasta|date:'Y-m-d' }}"></div>
+        <button class="button button--primary" type="submit">Filtrar</button>
+        {% if filtro_desde or filtro_hasta %}<a class="button" href="{% url 'dashboard:principal' %}">Quitar filtro</a>{% endif %}
+    </form>
+    <p class="dashboard-periodo" role="status">
+        {% if filtro_desde and filtro_hasta %}Emergencias reportadas entre el {{ filtro_desde|date:"d/m/Y" }} y el {{ filtro_hasta|date:"d/m/Y" }}.
+        {% elif filtro_desde %}Emergencias reportadas desde el {{ filtro_desde|date:"d/m/Y" }}.
+        {% elif filtro_hasta %}Emergencias reportadas hasta el {{ filtro_hasta|date:"d/m/Y" }}.
+        {% else %}Todas las emergencias en curso de su ámbito.{% endif %}
+    </p>
     {% if incidentes_en_curso %}
         <div class="incident-board">
             {% for incidente in incidentes_en_curso %}
@@ -62,10 +74,13 @@
                             <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ incidente.formularios_total }}" aria-valuenow="{{ incidente.formularios_completados }}" aria-label="Avance documental de {{ incidente.codigo }}"><span style="width:{{ incidente.formularios_porcentaje }}%"></span></div>
                         </dd></div>
                     </dl>
+                    <ul class="incident-board__claves" aria-label="Puntos clave de {{ incidente.codigo }}">
+                        {% for punto in incidente.puntos_clave %}<li>{{ punto }}</li>{% endfor %}
+                    </ul>
                 </article>
             {% endfor %}
         </div>
-    {% else %}<div class="dashboard-empty"><span aria-hidden="true"><i class="ti ti-shield-check"></i></span><p>No hay emergencias en curso en su ámbito.</p></div>{% endif %}
+    {% else %}<div class="dashboard-empty"><span aria-hidden="true"><i class="ti ti-shield-check"></i></span><p>{% if filtro_desde or filtro_hasta %}Ninguna emergencia en curso fue reportada en esas fechas.{% else %}No hay emergencias en curso en su ámbito.{% endif %}</p></div>{% endif %}
 </section>
 {% endif %}
 

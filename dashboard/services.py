@@ -1,5 +1,7 @@
 from itertools import chain
 
+from django.utils.dateparse import parse_date
+
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
 from emergencias.indicadores import anotar_indicadores, preparar_indicadores
@@ -61,7 +63,20 @@ def emergencias_del_ambito(estaciones):
 def despliegues_del_ambito(estaciones):
     return DespliegueUnidad.objects.filter(estacion_procedencia__in=estaciones)
 
-def incidentes_en_curso(estaciones, limite=6):
+def rango_de_fechas(parametros):
+    """Interpreta «desde» y «hasta» del formulario, sin romperse con basura.
+
+    Una fecha ilegible se ignora en lugar de devolver un error: el panel es
+    una pantalla de consulta y quedarse en blanco por una letra de más sería
+    peor que mostrar todo.
+    """
+    desde = parse_date(str(parametros.get("desde") or "")) if parametros else None
+    hasta = parse_date(str(parametros.get("hasta") or "")) if parametros else None
+    if desde and hasta and desde > hasta:
+        desde, hasta = hasta, desde
+    return desde, hasta
+
+def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None):
     """Incidentes abiertos, con las unidades que tienen encima y su documentación.
 
     Las unidades y la existencia del SCI-211 se anotan en la misma consulta;
@@ -84,6 +99,10 @@ def incidentes_en_curso(estaciones, limite=6):
         )
         .order_by("-fecha_reporte", "-pk")
     )
+    if desde:
+        consulta = consulta.filter(fecha_reporte__date__gte=desde)
+    if hasta:
+        consulta = consulta.filter(fecha_reporte__date__lte=hasta)
     # El resumen de cada emergencia se anota en la misma consulta; resolverlo
     # por fila costaría varias consultas por tarjeta.
     return preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
@@ -139,7 +158,8 @@ def actividad_operativa(estaciones, limite):
         ),
     )
 
-def construir_dashboard(usuario, limite_actividad=8):
+def construir_dashboard(usuario, limite_actividad=8, parametros=None):
+    filtro_desde, filtro_hasta = rango_de_fechas(parametros)
     estaciones = estaciones_permitidas(usuario)
     recursos = recursos_permitidos(usuario)
     evaluaciones_recientes = evaluaciones_mas_recientes(estaciones)
@@ -227,7 +247,11 @@ def construir_dashboard(usuario, limite_actividad=8):
         "alcance_descripcion": descripcion_alcance(usuario, estaciones),
         "resumen": resumen_recursos,
         "operativo": resumen_operativo(estaciones),
-        "incidentes_en_curso": incidentes_en_curso(estaciones),
+        "incidentes_en_curso": incidentes_en_curso(
+            estaciones, desde=filtro_desde, hasta=filtro_hasta
+        ),
+        "filtro_desde": filtro_desde,
+        "filtro_hasta": filtro_hasta,
         "categorias": categorias,
         "estados_operativos": estados_operativos,
         "evaluaciones_recientes": evaluaciones_recientes[:6],

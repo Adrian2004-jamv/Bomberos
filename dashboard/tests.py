@@ -1,3 +1,5 @@
+from datetime import datetime
+from emergencias.models import Emergencia
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -278,3 +280,79 @@ class DashboardSinDatosTests(TestCase):
             "Todavía no se han realizado evaluaciones de capacidades",
         )
         self.assertContains(respuesta, "No hay actividad reciente disponible")
+
+
+class FiltroYPuntosClaveTests(TestCase):
+    """El panel acota por fechas y resume cada emergencia en frases."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="PCL")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Panel", sigla="PCL",
+            ruc="0596000001200", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Central Panel", codigo="PCL-C",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.usuario = get_user_model().objects.create_user(
+            username="panel-clave", cedula="1500000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.usuario.groups.add(Group.objects.get(name="Responsable institucional"))
+
+    def crear(self, codigo, dia):
+        emergencia = Emergencia.objects.create(
+            codigo=codigo, tipo_emergencia="Incendio estructural",
+            direccion="Centro", estacion_responsable=self.estacion,
+            registrado_por=self.usuario,
+        )
+        Emergencia.objects.filter(pk=emergencia.pk).update(
+            fecha_reporte=timezone.make_aware(datetime(2026, 3, dia, 10, 0))
+        )
+        return emergencia
+
+    def panel(self, consulta=""):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("dashboard:principal") + consulta)
+
+    def tablero(self, respuesta):
+        """Solo el tablero de emergencias: «Actividad reciente» no se filtra."""
+        return {item.codigo for item in respuesta.context["incidentes_en_curso"]}
+
+    def test_sin_filtro_se_ven_todas(self):
+        self.crear("IE-01032026-001", 1)
+        self.crear("IE-10032026-001", 10)
+        self.assertEqual(
+            self.tablero(self.panel()), {"IE-01032026-001", "IE-10032026-001"}
+        )
+
+    def test_el_rango_deja_fuera_lo_anterior(self):
+        self.crear("IE-01032026-001", 1)
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel("?desde=2026-03-05&hasta=2026-03-15")
+        self.assertEqual(self.tablero(respuesta), {"IE-10032026-001"})
+
+    def test_un_rango_al_reves_se_endereza(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel("?desde=2026-03-15&hasta=2026-03-05")
+        self.assertEqual(self.tablero(respuesta), {"IE-10032026-001"})
+
+    def test_una_fecha_ilegible_no_rompe_el_panel(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel("?desde=no-es-fecha")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self.tablero(respuesta), {"IE-10032026-001"})
+
+    def test_el_periodo_filtrado_se_anuncia(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel("?desde=2026-03-05&hasta=2026-03-15")
+        self.assertContains(respuesta, "entre el 05/03/2026 y el 15/03/2026")
+
+    def test_cada_emergencia_trae_sus_puntos_clave(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel()
+        self.assertContains(respuesta, "incident-board__claves")
+        self.assertContains(respuesta, "Todavía sin unidades despachadas.")
+        self.assertContains(respuesta, "Documentación SCI: 0 de 12 formularios.")

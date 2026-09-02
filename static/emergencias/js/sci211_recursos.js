@@ -70,4 +70,75 @@
     contenedor.querySelectorAll("[data-recurso-inventario]").forEach((select) => {
         if (select.value) completarDerivados(select);
     });
+
+    // ---------------------------------------------------------------
+    // Plegado de cada recurso
+    //
+    // «Guardar» no envía nada por su cuenta: la cuadrícula viaja entera
+    // al pulsar «Guardar borrador». Lo que hace es dar por terminada esa
+    // tarjeta y minimizarla, para que con cinco recursos anotados la
+    // pantalla siga siendo legible.
+    // ---------------------------------------------------------------
+
+    const resumirTarjeta = (tarjeta) => {
+        const select = tarjeta.querySelector("[data-recurso-inventario]");
+        const elegido = select && select.selectedIndex > 0
+            ? select.options[select.selectedIndex].textContent.trim()
+            : "";
+        const matricula = tarjeta.querySelector("[data-derivado='matricula']");
+        const escrito = matricula ? matricula.value.trim() : "";
+        return elegido || escrito || "Recurso sin identificar";
+    };
+
+    const plegar = (tarjeta, plegada) => {
+        const campos = tarjeta.querySelector("[data-resource-fields]");
+        const resumen = tarjeta.querySelector("[data-resource-summary]");
+        const guardar = tarjeta.querySelector("[data-resource-save]");
+        const editar = tarjeta.querySelector("[data-resource-edit]");
+        if (!campos || !resumen) return;
+        resumen.textContent = resumirTarjeta(tarjeta);
+        campos.hidden = plegada;
+        resumen.hidden = !plegada;
+        if (guardar) guardar.hidden = plegada;
+        if (editar) editar.hidden = !plegada;
+    };
+
+    const casillaDeBorrado = (tarjeta) =>
+        tarjeta.querySelector("input[type='checkbox'][name$='-DELETE']");
+
+    contenedor.addEventListener("click", (evento) => {
+        const tarjeta = evento.target.closest("[data-resource-card]");
+        if (!tarjeta) return;
+
+        if (evento.target.closest("[data-resource-save]")) {
+            plegar(tarjeta, true);
+            return;
+        }
+        if (evento.target.closest("[data-resource-edit]")) {
+            plegar(tarjeta, false);
+            return;
+        }
+        if (evento.target.closest("[data-resource-delete]")) {
+            const casilla = casillaDeBorrado(tarjeta);
+            if (casilla) casilla.checked = true;
+            // Nunca se quita la tarjeta del documento. Los formularios del
+            // formset van numerados de corrido, y borrar uno del medio dejaría
+            // un hueco: Django leería hasta el hueco y perdería los siguientes.
+            // Una tarjeta nueva se vacía —un formulario en blanco se ignora— y
+            // una ya guardada lleva marcada su casilla DELETE.
+            tarjeta.querySelectorAll("input, select, textarea").forEach((campo) => {
+                if (campo.name.endsWith("-DELETE") || campo.name.endsWith("-id")) return;
+                if (campo.type === "checkbox" || campo.type === "radio") {
+                    campo.checked = false;
+                } else {
+                    campo.value = "";
+                }
+            });
+            tarjeta.classList.add("resource-card--removed");
+            plegar(tarjeta, true);
+            tarjeta.querySelector("[data-resource-summary]").textContent = "Recurso eliminado";
+            tarjeta.querySelectorAll("[data-resource-save], [data-resource-edit], [data-resource-delete]")
+                .forEach((boton) => { boton.hidden = true; });
+        }
+    });
 })();

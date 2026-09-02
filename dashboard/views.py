@@ -6,6 +6,6 @@ from .services import construir_dashboard
 
 @login_required
 def principal(request):
-    contexto = construir_dashboard(request.user)
+    contexto = construir_dashboard(request.user, parametros=request.GET)
     contexto["fecha_actual"] = timezone.localdate()
     return render(request, "dashboard/principal.html", contexto)
