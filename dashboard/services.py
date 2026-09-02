@@ -76,7 +76,44 @@ def rango_de_fechas(parametros):
         desde, hasta = hasta, desde
     return desde, hasta
 
-def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None):
+def emergencias_para_elegir(estaciones):
+    """Las emergencias abiertas del ámbito, para poblar el desplegable."""
+    return list(
+        emergencias_del_ambito(estaciones)
+        .exclude(estado__in=ESTADOS_TERMINADOS)
+        .order_by("-fecha_reporte", "-pk")
+        .values("pk", "codigo", "tipo_emergencia")
+    )
+
+def tipos_para_elegir(estaciones):
+    """Tipos de emergencia presentes ahora mismo, sin repetir."""
+    return sorted(
+        emergencias_del_ambito(estaciones)
+        .exclude(estado__in=ESTADOS_TERMINADOS)
+        .values_list("tipo_emergencia", flat=True)
+        .distinct()
+    )
+
+def emergencia_pedida(parametros):
+    """Devuelve el identificador de la emergencia elegida, o None.
+
+    Un identificador que no sea un número se descarta en silencio, igual que
+    una fecha ilegible: el panel es de consulta y no debe quedarse en blanco
+    porque alguien manipulara la dirección.
+    """
+    if not parametros:
+        return None
+    valor = str(parametros.get("emergencia") or "").strip()
+    return int(valor) if valor.isdigit() else None
+
+def tipo_pedido(parametros):
+    """Devuelve el tipo de emergencia elegido, o cadena vacía si son todos."""
+    if not parametros:
+        return ""
+    return str(parametros.get("tipo") or "").strip()
+
+def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None,
+                        emergencia=None, tipo=""):
     """Incidentes abiertos, con las unidades que tienen encima y su documentación.
 
     Las unidades y la existencia del SCI-211 se anotan en la misma consulta;
@@ -103,6 +140,10 @@ def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None):
         consulta = consulta.filter(fecha_reporte__date__gte=desde)
     if hasta:
         consulta = consulta.filter(fecha_reporte__date__lte=hasta)
+    if emergencia:
+        consulta = consulta.filter(pk=emergencia)
+    if tipo:
+        consulta = consulta.filter(tipo_emergencia=tipo)
     # El resumen de cada emergencia se anota en la misma consulta; resolverlo
     # por fila costaría varias consultas por tarjeta.
     return preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
@@ -160,6 +201,8 @@ def actividad_operativa(estaciones, limite):
 
 def construir_dashboard(usuario, limite_actividad=8, parametros=None):
     filtro_desde, filtro_hasta = rango_de_fechas(parametros)
+    filtro_emergencia = emergencia_pedida(parametros)
+    filtro_tipo = tipo_pedido(parametros)
     estaciones = estaciones_permitidas(usuario)
     recursos = recursos_permitidos(usuario)
     evaluaciones_recientes = evaluaciones_mas_recientes(estaciones)
@@ -248,10 +291,15 @@ def construir_dashboard(usuario, limite_actividad=8, parametros=None):
         "resumen": resumen_recursos,
         "operativo": resumen_operativo(estaciones),
         "incidentes_en_curso": incidentes_en_curso(
-            estaciones, desde=filtro_desde, hasta=filtro_hasta
+            estaciones, desde=filtro_desde, hasta=filtro_hasta,
+            emergencia=filtro_emergencia, tipo=filtro_tipo,
         ),
+        "emergencias_del_filtro": emergencias_para_elegir(estaciones),
+        "tipos_del_filtro": tipos_para_elegir(estaciones),
         "filtro_desde": filtro_desde,
         "filtro_hasta": filtro_hasta,
+        "filtro_emergencia": filtro_emergencia,
+        "filtro_tipo": filtro_tipo,
         "categorias": categorias,
         "estados_operativos": estados_operativos,
         "evaluaciones_recientes": evaluaciones_recientes[:6],

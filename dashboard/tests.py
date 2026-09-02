@@ -374,3 +374,63 @@ class EstiloDelTableroTests(TestCase):
         hoja = self.hoja("dashboard/css/dashboard.css")
         bloque = hoja[hoja.index(".incident-board__claves"):]
         self.assertIn("grid-column: 1 / -1", bloque[:400])
+
+
+class FiltroPorIncidenteTests(FiltroYPuntosClaveTests):
+    """El tablero se acota a una emergencia concreta o a un tipo."""
+
+    def crear_tipo(self, codigo, dia, tipo):
+        emergencia = self.crear(codigo, dia)
+        Emergencia.objects.filter(pk=emergencia.pk).update(tipo_emergencia=tipo)
+        emergencia.refresh_from_db()
+        return emergencia
+
+    def test_se_acota_a_una_sola_emergencia(self):
+        una = self.crear("IE-01032026-001", 1)
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel(f"?emergencia={una.pk}")
+        self.assertEqual(self.tablero(respuesta), {"IE-01032026-001"})
+
+    def test_se_acota_por_tipo(self):
+        self.crear_tipo("IF-01032026-001", 1, "Incendio forestal")
+        self.crear_tipo("AV-10032026-001", 10, "Accidente vehicular")
+        respuesta = self.panel("?tipo=Incendio forestal")
+        self.assertEqual(self.tablero(respuesta), {"IF-01032026-001"})
+
+    def test_un_identificador_absurdo_no_rompe_el_panel(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel("?emergencia=no-es-numero")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self.tablero(respuesta), {"IE-10032026-001"})
+
+    def test_el_desplegable_se_arma_con_lo_del_ambito(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel()
+        codigos = {item["codigo"] for item in respuesta.context["emergencias_del_filtro"]}
+        self.assertEqual(codigos, {"IE-10032026-001"})
+
+    def test_el_desplegable_no_ofrece_emergencias_de_otro_ambito(self):
+        self.crear("IE-10032026-001", 10)
+        otro_canton = Canton.objects.create(nombre="Salcedo", codigo="PCX")
+        otro_cuerpo = CuerpoBomberos.objects.create(
+            canton=otro_canton, nombre="Bomberos Ajenos", sigla="PCX",
+            ruc="0596000001300", direccion="Centro",
+        )
+        otra = Estacion.objects.create(
+            cuerpo_bomberos=otro_cuerpo, nombre="Ajena", codigo="PCX-C",
+            direccion="Centro", latitud="-1.000000", longitud="-78.600000",
+        )
+        Emergencia.objects.create(
+            codigo="IE-99992026-999", tipo_emergencia="Incendio estructural",
+            direccion="Otro sitio", estacion_responsable=otra,
+            registrado_por=self.usuario,
+        )
+        respuesta = self.panel()
+        codigos = {item["codigo"] for item in respuesta.context["emergencias_del_filtro"]}
+        self.assertNotIn("IE-99992026-999", codigos)
+
+    def test_se_explica_de_donde_salen_los_tiempos(self):
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel()
+        self.assertContains(respuesta, "los calcula el sistema solo")
+        self.assertContains(respuesta, "150 m de la dirección")

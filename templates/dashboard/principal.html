@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=6">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=7">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -39,14 +39,30 @@
     <form class="dashboard-filtro" method="get" role="search">
         <div class="field"><label for="filtro-desde">Desde</label><input type="date" id="filtro-desde" name="desde" value="{{ filtro_desde|date:'Y-m-d' }}"></div>
         <div class="field"><label for="filtro-hasta">Hasta</label><input type="date" id="filtro-hasta" name="hasta" value="{{ filtro_hasta|date:'Y-m-d' }}"></div>
+        <div class="field"><label for="filtro-tipo">Tipo</label>
+            <select id="filtro-tipo" name="tipo">
+                <option value="">Todos los tipos</option>
+                {% for tipo in tipos_del_filtro %}<option value="{{ tipo }}"{% if tipo == filtro_tipo %} selected{% endif %}>{{ tipo }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field"><label for="filtro-emergencia">Emergencia</label>
+            <select id="filtro-emergencia" name="emergencia">
+                <option value="">Todas las emergencias</option>
+                {% for item in emergencias_del_filtro %}<option value="{{ item.pk }}"{% if item.pk == filtro_emergencia %} selected{% endif %}>{{ item.codigo }} · {{ item.tipo_emergencia }}</option>{% endfor %}
+            </select>
+        </div>
         <button class="button button--primary" type="submit">Filtrar</button>
-        {% if filtro_desde or filtro_hasta %}<a class="button" href="{% url 'dashboard:principal' %}">Quitar filtro</a>{% endif %}
+        {% if filtro_desde or filtro_hasta or filtro_emergencia or filtro_tipo %}<a class="button" href="{% url 'dashboard:principal' %}">Quitar filtros</a>{% endif %}
     </form>
+    <p class="dashboard-origen-tiempos"><i class="ti ti-satellite" aria-hidden="true"></i> <strong>Transcurrido</strong> y <strong>primera llegada</strong> los calcula el sistema solo: el primero desde la hora de reporte, el segundo desde que la unidad transmitió su posición a menos de 150 m de la dirección. Nadie los escribe a mano.</p>
     <p class="dashboard-periodo" role="status">
         {% if filtro_desde and filtro_hasta %}Emergencias reportadas entre el {{ filtro_desde|date:"d/m/Y" }} y el {{ filtro_hasta|date:"d/m/Y" }}.
         {% elif filtro_desde %}Emergencias reportadas desde el {{ filtro_desde|date:"d/m/Y" }}.
         {% elif filtro_hasta %}Emergencias reportadas hasta el {{ filtro_hasta|date:"d/m/Y" }}.
+        {% elif filtro_emergencia or filtro_tipo %}Emergencias en curso de su ámbito.
         {% else %}Todas las emergencias en curso de su ámbito.{% endif %}
+        {% if filtro_tipo %} Solo de tipo «{{ filtro_tipo }}».{% endif %}
+        {% if filtro_emergencia %} Acotado a una sola emergencia.{% endif %}
     </p>
     {% if incidentes_en_curso %}
         <div class="incident-board">
@@ -69,7 +85,7 @@
                         <div><dt>Unidades</dt><dd>{{ incidente.unidades_activas }}{% if incidente.unidades_totales != incidente.unidades_activas %} <span>de {{ incidente.unidades_totales }}</span>{% endif %}</dd></div>
                         <div><dt>Personal</dt><dd>{{ incidente.personal_comprometido|default:"—" }}</dd></div>
                         <div><dt>Recursos</dt><dd>{{ incidente.recursos_registrados }}</dd></div>
-                        <div><dt>{% if incidente.tiempo_respuesta %}Primera llegada{% else %}Sin arribos{% endif %}</dt><dd>{{ incidente.tiempo_respuesta|default:"—" }}</dd></div>
+                        <div><dt title="Lo calcula el sistema: cuenta desde el reporte hasta que la primera unidad transmitió una posición a menos de 150 metros de la dirección.">{% if incidente.tiempo_respuesta %}Primera llegada{% else %}Sin arribos{% endif %}</dt><dd>{{ incidente.tiempo_respuesta|default:"—" }}</dd></div>
                         <div><dt>Formularios</dt><dd>{{ incidente.formularios_completados }}/{{ incidente.formularios_total }}
                             <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ incidente.formularios_total }}" aria-valuenow="{{ incidente.formularios_completados }}" aria-label="Avance documental de {{ incidente.codigo }}"><span style="width:{{ incidente.formularios_porcentaje }}%"></span></div>
                         </dd></div>
