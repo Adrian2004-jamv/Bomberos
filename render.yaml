@@ -53,6 +53,20 @@ services:
       else
         echo "DJANGO_RETIRAR_INSTITUCIONES no vale 1: se conservan las instituciones anteriores."
       fi
+      if [ -n "${DJANGO_LIMPIAR_EMERGENCIAS_ANTES_DE:-}" ]; then
+        # Retira las emergencias de prueba anteriores a la fecha indicada, con
+        # sus formularios SCI, sus despliegues y sus posiciones de GPS. Las
+        # unidades vuelven al inventario como disponibles; el inventario en si
+        # no se toca.
+        #
+        # La variable lleva la fecha (AAAA-MM-DD) y no un "1" a proposito: sin
+        # corte no hay borrado, de modo que dejarla puesta por descuido no
+        # arrasa con lo que se registre despues. Retirela de Render en cuanto
+        # el despliegue termine.
+        python manage.py limpiar_emergencias           --antes-de "$DJANGO_LIMPIAR_EMERGENCIAS_ANTES_DE" --ejecutar
+      else
+        echo "DJANGO_LIMPIAR_EMERGENCIAS_ANTES_DE sin valor: se conservan las emergencias."
+      fi
       if [ "${DJANGO_CARGAR_ESCENARIOS:-}" = "1" ]; then
         # El escenario exige que la estacion de Latacunga tenga las unidades
         # AB-01 y AMB-01. cargar_datos_cotopaxi no crea la ambulancia, asi que
