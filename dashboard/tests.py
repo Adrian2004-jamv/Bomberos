@@ -430,7 +430,9 @@ class FiltroPorIncidenteTests(FiltroYPuntosClaveTests):
         self.assertNotIn("IE-99992026-999", codigos)
 
     def test_se_explica_de_donde_salen_los_tiempos(self):
+        """La explicación vive en el encabezado, al pasar el ratón: ocupar
+        sitio en pantalla para algo que se lee una vez no compensa."""
         self.crear("IE-10032026-001", 10)
         respuesta = self.panel()
-        self.assertContains(respuesta, "los calcula el sistema solo")
-        self.assertContains(respuesta, "150 m de la dirección")
+        self.assertContains(respuesta, "Lo calcula el sistema")
+        self.assertContains(respuesta, "150 metros de la dirección")

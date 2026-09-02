@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=7">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=8">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -54,7 +54,6 @@
         <button class="button button--primary" type="submit">Filtrar</button>
         {% if filtro_desde or filtro_hasta or filtro_emergencia or filtro_tipo %}<a class="button" href="{% url 'dashboard:principal' %}">Quitar filtros</a>{% endif %}
     </form>
-    <p class="dashboard-origen-tiempos"><i class="ti ti-satellite" aria-hidden="true"></i> <strong>Transcurrido</strong> y <strong>primera llegada</strong> los calcula el sistema solo: el primero desde la hora de reporte, el segundo desde que la unidad transmitió su posición a menos de 150 m de la dirección. Nadie los escribe a mano.</p>
     <p class="dashboard-periodo" role="status">
         {% if filtro_desde and filtro_hasta %}Emergencias reportadas entre el {{ filtro_desde|date:"d/m/Y" }} y el {{ filtro_hasta|date:"d/m/Y" }}.
         {% elif filtro_desde %}Emergencias reportadas desde el {{ filtro_desde|date:"d/m/Y" }}.
