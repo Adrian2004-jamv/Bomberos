@@ -367,7 +367,7 @@ class TransicionesWebTests(BaseDespachoTests):
         self.client.force_login(self.responsable)
         respuesta = self.client.post(
             reverse("emergencias:despliegue_estado", args=[despliegue.pk]),
-            {"estado": DespliegueUnidad.Estado.FINALIZADA},
+            {"estado": DespliegueUnidad.Estado.EN_SITIO},
             follow=True,
         )
         despliegue.refresh_from_db()
@@ -395,7 +395,9 @@ class TransicionesWebTests(BaseDespachoTests):
         self.assertContains(
             respuesta, reverse("emergencias:despliegue_estado", args=[despliegue.pk])
         )
-        self.assertContains(respuesta, 'value="en_ruta"', html=False)
+        self.assertContains(respuesta, 'value="finalizada"', html=False)
+        self.assertNotContains(respuesta, 'value="en_ruta"', html=False)
+        self.assertNotContains(respuesta, 'value="cancelada"', html=False)
         self.assertContains(respuesta, "Registrar unidad en el SCI-211")
 
 class EdicionEmergenciaTests(BaseDespachoTests):

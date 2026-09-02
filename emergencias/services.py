@@ -26,14 +26,20 @@ from inventario.services import actualizar_estado_recurso
 from .models import DespliegueUnidad, Emergencia, PosicionUnidad
 from .permissions import conduce_el_despliegue, es_chofer, estacion_autorizada, puede_gestionar_emergencias
 
+# Finalizar se admite desde cualquier estado activo. La ficha de la emergencia
+# solo ofrece ese botón, y una unidad recién despachada se habría quedado sin
+# forma de cerrarse: ni volvería a estar disponible ni dejaría cerrar la
+# emergencia, que exige que ningún despliegue siga activo.
 TRANSICIONES_VALIDAS = {
     DespliegueUnidad.Estado.ASIGNADA: {
         DespliegueUnidad.Estado.EN_RUTA,
+        DespliegueUnidad.Estado.FINALIZADA,
         DespliegueUnidad.Estado.CANCELADA,
     },
     DespliegueUnidad.Estado.EN_RUTA: {
         DespliegueUnidad.Estado.EN_SITIO,
         DespliegueUnidad.Estado.RETORNANDO,
+        DespliegueUnidad.Estado.FINALIZADA,
         DespliegueUnidad.Estado.CANCELADA,
     },
     DespliegueUnidad.Estado.EN_SITIO: {

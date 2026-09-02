@@ -457,3 +457,95 @@ class EliminarEmergenciaTests(TestCase):
         respuesta = self.client.post(reverse("emergencias:eliminar", args=[emergencia.pk]))
         self.assertEqual(respuesta.status_code, 403)
         self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
+
+
+class AccionesDelDespliegueTests(TestCase):
+    """La ficha solo ofrece cerrar el despliegue y transmitir su ubicación."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="ACC")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Acciones", sigla="ACC",
+            ruc="0596000001100", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Central Acciones", codigo="ACC-C",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.gestor = get_user_model().objects.create_user(
+            username="jefe-acciones", cedula="1400000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.gestor.groups.add(Group.objects.get(name="Responsable institucional"))
+        categoria = CategoriaRecurso.objects.create(codigo="ACCV", nombre="Vehículos")
+        cls.tipo = TipoRecurso.objects.create(
+            categoria=categoria, codigo="ACCA", nombre="Autobomba",
+            es_unidad_desplegable=True,
+        )
+
+    def crear_despliegue(self, codigo="IE-01012026-950", unidad="AB-ACC-01"):
+        emergencia = Emergencia.objects.create(
+            codigo=codigo, tipo_emergencia="Incendio estructural",
+            direccion="Centro", estacion_responsable=self.estacion,
+            registrado_por=self.gestor,
+        )
+        recurso = Recurso.objects.create(
+            estacion=self.estacion, tipo=self.tipo, codigo_interno=unidad,
+            nombre="Autobomba", estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+        return desplegar_unidad(emergencia, recurso, self.gestor)
+
+    def acciones(self, despliegue):
+        self.client.force_login(self.gestor)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[despliegue.emergencia_id])
+        )
+        fila = respuesta.context["despliegues"][0]
+        return [transicion["etiqueta"] for transicion in fila.transiciones]
+
+    def test_solo_se_ofrece_finalizar(self):
+        despliegue = self.crear_despliegue()
+        self.assertEqual(self.acciones(despliegue), ["Finalizada"])
+
+    def test_una_unidad_recien_despachada_ya_se_puede_cerrar(self):
+        despliegue = self.crear_despliegue("IE-01012026-951", "AB-ACC-02")
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.ASIGNADA)
+        self.client.force_login(self.gestor)
+        self.client.post(
+            reverse("emergencias:despliegue_estado", args=[despliegue.pk]),
+            {"estado": DespliegueUnidad.Estado.FINALIZADA},
+        )
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.FINALIZADA)
+
+    def test_cerrar_el_despliegue_libera_la_unidad(self):
+        despliegue = self.crear_despliegue("IE-01012026-952", "AB-ACC-03")
+        self.client.force_login(self.gestor)
+        self.client.post(
+            reverse("emergencias:despliegue_estado", args=[despliegue.pk]),
+            {"estado": DespliegueUnidad.Estado.FINALIZADA},
+        )
+        despliegue.unidad.refresh_from_db()
+        self.assertEqual(
+            despliegue.unidad.disponibilidad, Recurso.Disponibilidad.DISPONIBLE
+        )
+
+    def test_la_emergencia_puede_cerrarse_despues(self):
+        despliegue = self.crear_despliegue("IE-01012026-953", "AB-ACC-04")
+        self.client.force_login(self.gestor)
+        self.client.post(
+            reverse("emergencias:despliegue_estado", args=[despliegue.pk]),
+            {"estado": DespliegueUnidad.Estado.FINALIZADA},
+        )
+        emergencia = despliegue.emergencia
+        for estado in (Emergencia.Estado.EN_ATENCION, Emergencia.Estado.CONTROLADA,
+                       Emergencia.Estado.CERRADA):
+            self.client.post(
+                reverse("emergencias:cambiar_estado", args=[emergencia.pk]),
+                {"estado": estado},
+            )
+        emergencia.refresh_from_db()
+        self.assertEqual(emergencia.estado, Emergencia.Estado.CERRADA)
