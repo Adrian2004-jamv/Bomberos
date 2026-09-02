@@ -21,6 +21,7 @@ urlpatterns = [
     path("<int:emergencia_pk>/formularios-sci/211/crear/", views.sci211_crear, name="sci211_crear"),
     path("<int:pk>/", views.detalle, name="detalle"),
     path("<int:pk>/editar/", views.editar, name="editar"),
+    path("<int:pk>/eliminar/", views.eliminar, name="eliminar"),
     path("<int:pk>/estado/", views.cambiar_estado, name="cambiar_estado"),
     path("<int:pk>/despachar/", views.despachar, name="despachar"),
     path("despliegues/<int:pk>/estado/", views.actualizar_despliegue, name="despliegue_estado"),

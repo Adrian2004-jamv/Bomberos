@@ -3,10 +3,9 @@
     const root = document.querySelector("[data-incident-map]");
     if (!root || typeof L === "undefined") return;
     const status = document.querySelector("[data-incident-map-status]");
-    const map = L.map(root.id, {zoomControl: true}).setView([-0.93, -78.62], 10);
+    const map = L.map(root.id, {zoomControl: true, attributionControl: false}).setView([-0.93, -78.62], 10);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     const layer = L.layerGroup().addTo(map);
     let fitted = false;

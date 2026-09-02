@@ -304,6 +304,7 @@ def lista(request):
             or formulario.errors
         ),
         "puede_crear": puede_gestionar_emergencias(request.user),
+        "puede_eliminar": request.user.is_staff or puede_gestionar_emergencias(request.user),
         "ids_en_filtro_json": json.dumps(ids_en_filtro),
     }
 
@@ -448,6 +449,20 @@ def editar(request, pk):
 
     return render(request, "emergencias/formulario.html", contexto)
 
+
+@login_required
+@require_POST
+def eliminar(request, pk):
+    """Elimina permanentemente un incidente. Solo staff o gestores pueden hacerlo."""
+    if not (request.user.is_staff or puede_gestionar_emergencias(request.user)):
+        raise PermissionDenied
+    emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
+    codigo = emergencia.codigo
+    emergencia.delete()
+    messages.success(request, f"Emergencia {codigo} eliminada correctamente.")
+    return redirect("emergencias:lista")
+
+
 @login_required
 @require_POST
 def cambiar_estado(request, pk):
@@ -584,6 +599,15 @@ def detalle(request, pk):
         "sci211_bloqueado": not formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
         "catalogo_sci": catalogo_sci_estado,
+        "formularios_imprimibles": [
+            item for item in catalogo_sci_estado
+            if item["clave_estado"] == "complete"
+        ],
+        "siguiente_formulario": next(
+            (item for item in catalogo_sci_estado
+             if item["clave_estado"] != "complete" and not item["bloqueado"]),
+            None
+        ),
     }
 
     return render(request, "emergencias/detalle.html", contexto)
@@ -831,7 +855,9 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
             formulario.modificado_por = request.user
             formulario.save()
             messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
-            return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+            return redirect(
+                reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
+            )
     contexto = contexto_documento_sci(request.user, emergencia, codigo)
     contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
     return render(request, "emergencias/sci_editar.html", contexto)
@@ -852,7 +878,9 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk):
             messages.error(request, " ".join(error.messages))
         else:
             messages.success(request, f"Formulario SCI-{codigo} finalizado. Ahora es de solo lectura.")
-    return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+    return redirect(
+        reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
+    )
 
 @login_required
 @require_POST
@@ -911,7 +939,9 @@ def sci211_editar(request, pk):
             messages.success(request, "Borrador guardado. Confirme para finalizar.")
             return redirect("emergencias:sci211_finalizar", pk=pk)
         messages.success(request, "Borrador SCI-211 guardado.")
-        return redirect("emergencias:sci211_editar", pk=pk)
+        return redirect(
+            reverse("emergencias:detalle", args=[formulario.emergencia_id]) + "#formularios-sci"
+        )
     # Si el inventario no ofrece nada, la lista sale con una sola opción vacía y
     # no se entiende por qué. Conviene decirlo antes de que alguien lo busque.
     hay_recursos = registros.forms[0].fields["recurso_inventario"].queryset.exists()
@@ -965,7 +995,9 @@ def sci211_finalizar(request, pk):
                 request, f"Se despachó {despachadas} unidad(es) desde el SCI-211."
             )
         messages.success(request, "Formulario SCI-211 finalizado. Ahora es de solo lectura.")
-        return redirect("emergencias:sci211_detalle", pk=pk)
+        return redirect(
+            reverse("emergencias:detalle", args=[formulario.emergencia_id]) + "#formularios-sci"
+        )
     contexto = {"formulario_sci": formulario}
 
     return render(request, "emergencias/sci211/finalizar.html", contexto)

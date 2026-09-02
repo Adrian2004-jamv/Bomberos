@@ -18,6 +18,8 @@ TEXTAREA = "textarea"
 FECHA_HORA = "fecha_hora"
 HORA = "hora"
 TABLA = "tabla"
+SELECCION = "seleccion"
+NUMERO = "numero"
 
 # Formatos que produce cada control del navegador. Sirven para reconocer un
 # valor guardado antes de que la columna tuviera tipo: si no encaja se muestra
@@ -27,13 +29,14 @@ _PATRONES = {
     HORA: re.compile(r"^\d{2}:\d{2}(:\d{2})?$"),
 }
 
-def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO):
+def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO, opciones=None):
     return {
         "nombre": nombre,
         "etiqueta": etiqueta,
         "ancho": ancho,
         "recurso_inventario": recurso_inventario,
         "tipo": tipo,
+        "opciones": opciones or [],
     }
 
 ESQUEMAS_SCI = {
@@ -233,8 +236,8 @@ ESQUEMAS_SCI = {
             {"numero": 3, "nombre": "responsable_posicion", "etiqueta": "Nombre del responsable de la posición", "tipo": TEXTO},
             {"numero": 4, "nombre": "pacientes", "etiqueta": "Registro de pacientes", "tipo": TABLA,
              "columnas": [_columna("nombre", "4. Nombres y apellidos", "22%"),
-                          _columna("sexo", "5. Sexo", "8%"),
-                          _columna("edad", "6. Edad", "7%"),
+                          _columna("sexo", "5. Sexo", "8%", tipo=SELECCION, opciones=["M", "F", "Otro"]),
+                          _columna("edad", "6. Edad", "7%", tipo=NUMERO),
                           _columna("clasificacion", "7. Clasificación", "13%"),
                           _columna("lugar_traslado", "8. Lugar de traslado", "18%"),
                           _columna("trasladado_por", "9. Trasladado por", "17%"),
@@ -389,6 +392,7 @@ def _celda(columna, valor):
     patron = _PATRONES.get(tipo)
     if patron and valor and not patron.match(str(valor)):
         tipo = TEXTO
+    # Los tipos seleccion y numero nunca se degradan a texto
     return {"columna": columna, "valor": valor, "tipo": tipo}
 
 def filas_para_render(seccion, guardadas):

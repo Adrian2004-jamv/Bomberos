@@ -70,6 +70,13 @@
                     <input type="datetime-local" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
                   {% elif celda.tipo == 'hora' %}
                     <input type="time" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
+                  {% elif celda.tipo == 'seleccion' %}
+                    <select name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" aria-label="{{ celda.columna.etiqueta }}">
+                      <option value="">—</option>
+                      {% for opcion in celda.columna.opciones %}<option value="{{ opcion }}"{% if celda.valor == opcion %} selected{% endif %}>{{ opcion }}</option>{% endfor %}
+                    </select>
+                  {% elif celda.tipo == 'numero' %}
+                    <input type="number" min="0" max="150" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
                   {% else %}
                     <input name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" maxlength="5000">
                   {% endif %}

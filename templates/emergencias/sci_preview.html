@@ -39,8 +39,8 @@ th{background:#eee;font-size:9px}
 
 <nav class="toolbar">
   <button onclick="window.print()">Imprimir</button>
-  {% if not solo_vista and puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar formulario</a>{% endif %}
-  <a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver a Formularios SCI</a>
+  {% if not solo_vista and puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar</a>{% endif %}
+  <button class="ghost" onclick="window.close()">Cerrar</button>
 </nav>
 
 <main class="paper">
