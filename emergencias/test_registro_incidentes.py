@@ -10,7 +10,9 @@ from datetime import datetime
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -484,3 +486,83 @@ class TerminologiaTests(BaseRegistroTests):
         ))
         self.assertContains(respuesta, "Resumen del Incidente".upper())
         self.assertContains(respuesta, "Nombre del incidente")
+
+
+class FormularioEnCursoDelListadoTests(BaseRegistroTests):
+    """La columna documental nombra el formulario que toca, no siempre el 211."""
+
+    def cerrar(self, emergencia, *codigos):
+        for codigo in codigos:
+            if codigo == "211":
+                FormularioSCI211.objects.create(
+                    emergencia=emergencia, codigo=f"SCI-211-{emergencia.pk}",
+                    punto_registro="Puesto de Comando",
+                    registrador_1=self.usuario.username,
+                    creado_por=self.usuario, modificado_por=self.usuario,
+                    estado=FormularioSCI211.Estado.FINALIZADO,
+                    finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+                )
+            else:
+                FormularioSCI.objects.create(
+                    emergencia=emergencia, codigo_sci=codigo,
+                    datos={"preparado": True}, creado_por=self.usuario,
+                    modificado_por=self.usuario,
+                    estado=FormularioSCI.Estado.FINALIZADO,
+                    finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+                )
+
+    def test_sin_nada_hecho_señala_el_primero(self):
+        self.crear("RG-CUR-1")
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-201 pendiente")
+
+    def test_con_el_211_cerrado_señala_el_siguiente(self):
+        emergencia = self.crear("RG-CUR-2")
+        self.cerrar(emergencia, "201", "207", "211")
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-202 pendiente")
+        self.assertNotContains(respuesta, "SCI-211 en borrador")
+
+    def test_un_borrador_se_distingue_de_lo_no_empezado(self):
+        emergencia = self.crear("RG-CUR-3")
+        self.cerrar(emergencia, "201", "207", "211")
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="202", datos={},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-202 en borrador")
+
+    def test_el_titulo_tambien_nombra_el_formulario(self):
+        emergencia = self.crear("RG-CUR-4")
+        self.cerrar(emergencia, "201", "207", "211")
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-202 en curso")
+
+    def test_con_los_doce_cerrados_lo_dice(self):
+        emergencia = self.crear("RG-CUR-5")
+        self.cerrar(emergencia, "201", "207", "211", "202", "203", "204",
+                    "205", "206", "215", "214", "221", "222")
+        respuesta = self.listar()
+        self.assertContains(respuesta, "Documentación completa")
+
+    def contar_consultas(self):
+        with CaptureQueriesContext(connection) as captura:
+            self.listar()
+        return len(captura)
+
+    def test_el_listado_no_consulta_una_vez_por_emergencia(self):
+        """Resolver el formulario en curso por fila costaría dos consultas por
+        emergencia. Se comprueba que el coste no crece con el padrón, sin fijar
+        un número exacto que cambiaría con cualquier retoque de la pantalla."""
+        for numero in range(3):
+            self.cerrar(self.crear(f"RG-CUR-N{numero}"), "201")
+        # La primera petición abre la sesión y arrastra sus propias consultas.
+        self.listar()
+        con_tres = self.contar_consultas()
+
+        for numero in range(3, 9):
+            self.cerrar(self.crear(f"RG-CUR-N{numero}"), "201")
+        con_nueve = self.contar_consultas()
+
+        self.assertEqual(con_tres, con_nueve)
