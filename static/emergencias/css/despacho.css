@@ -54,3 +54,13 @@
     .incident-state-actions { display: grid; }
     .incident-state-actions .sci-panel-action { width: 100%; }
 }
+
+/* Aviso que sustituyó al botón de registrar unidad: informa dónde se despacha
+   sin ofrecer un atajo, porque el despacho pertenece al SCI-211. */
+.deployment-notice {
+    display: flex; gap: .5rem; align-items: flex-start;
+    margin: 0 0 1rem; padding: .65rem .85rem;
+    border-left: 3px solid var(--color-slate-300); border-radius: var(--radius-sm);
+    background: var(--color-slate-100);
+    color: var(--color-slate-600); font-size: .82rem; line-height: 1.45;
+}

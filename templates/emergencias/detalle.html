@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=15"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=15"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -66,9 +66,8 @@
     <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>{% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
-    <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div>
-        {% if puede_gestionar and emergencia.admite_despliegues %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci_editar' '211' emergencia.pk %}"><i class="ti ti-firetruck" aria-hidden="true"></i> Registrar unidad en el SCI-211</a>{% endif %}
-    </div>
+    <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
+    {% if puede_gestionar and emergencia.admite_despliegues %}<p class="deployment-notice"><i class="ti ti-firetruck" aria-hidden="true"></i> Las unidades se despachan desde el formulario SCI-211, en la documentación operativa de arriba. Anotar una unidad allí es la decisión de enviarla.</p>{% endif %}
     {% if despliegues %}<div class="table-responsive"><table>
         <thead><tr><th>Unidad</th><th>Procedencia</th><th>Acciones</th></tr></thead>
         <tbody>{% for despliegue in despliegues %}<tr>
