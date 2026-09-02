@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -14,7 +15,7 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .forms_sci import RegistroRecursoSCI211Form
-from .esquemas_sci import ESQUEMAS_SCI, HORA, secciones_con_valores
+from .esquemas_sci import ESQUEMAS_SCI, HORA, TABLA, TEXTO, secciones_con_valores
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services import desplegar_unidad
@@ -1221,9 +1222,68 @@ class SelectDeOpcionesSCITests(SCI211Tests):
         bloque = hoja[hoja.index("select.sci-tabla__opcion"):]
         self.assertIn("min-width: 0", bloque[:300])
 
-    def test_el_selector_de_recursos_conserva_su_ancho(self):
+    def test_el_selector_de_recursos_se_recorta_en_vez_de_desbordarse(self):
+        """El SCI-202 pone dos columnas de recursos al 12 %: pedir 10rem cada
+        una las sacaba encima de «Asignación / Ubicación»."""
         hoja = (
             Path(settings.BASE_DIR)
             / "static" / "emergencias" / "css" / "sci_editor.css"
         ).read_text(encoding="utf-8")
-        self.assertIn("min-width:10rem", hoja)
+        self.assertNotIn("min-width:10rem", hoja)
+        self.assertIn("text-overflow:ellipsis", hoja)
+
+    def test_el_recurso_elegido_se_lee_entero_al_pasar_el_raton(self):
+        """Recortado con puntos suspensivos, el título es la única forma de
+        leer la etiqueta completa sin abrir el desplegable."""
+        self.finalizar_anteriores("205")
+        etiqueta = "RADIO-SCI-01 - Autobomba verificada (Estación Norte)"
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="205",
+            datos={"canales": [{"sistema": etiqueta, "canal": "Canal 1"}]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["205", self.emergencia.pk])
+        )
+        self.assertContains(respuesta, f'title="{etiqueta}"')
+
+
+class AnchosDeLaCuadriculaSCITests(TestCase):
+    """Ningún control puede exigir más ancho del que su columna declara.
+
+    Las anchuras las fija el formulario oficial y hay columnas del 7 %. Un
+    «min-width» en píxeles o en «rem» las ignora y el control se desborda
+    sobre las vecinas, como ocurrió en el SCI-202 y en el SCI-207.
+    """
+
+    def hoja(self):
+        return (
+            Path(settings.BASE_DIR)
+            / "static" / "emergencias" / "css" / "sci_editor.css"
+        ).read_text(encoding="utf-8")
+
+    def test_ningun_control_de_la_cuadricula_exige_ancho_minimo(self):
+        hoja = self.hoja()
+        anchos = re.findall(r"\.sci-tabla[^{}]*\{[^{}]*?min-width:\s*([^;}]+)", hoja)
+        self.assertTrue(anchos, "Se esperaba al menos una regla de min-width.")
+        for ancho in anchos:
+            self.assertEqual(
+                ancho.strip(), "0",
+                f"La cuadrícula declara min-width: {ancho.strip()}; "
+                "una columna estrecha del formulario oficial no lo soportaría.",
+            )
+
+    def test_las_columnas_estrechas_siguen_existiendo_en_los_esquemas(self):
+        """Si esto deja de encontrarlas, la regla de arriba ya no hace falta."""
+        estrechas = [
+            (codigo, columna["nombre"], columna["ancho"])
+            for codigo, esquema in ESQUEMAS_SCI.items()
+            for seccion in esquema["secciones"]
+            if seccion.get("tipo") == TABLA
+            for columna in seccion["columnas"]
+            if (columna.get("recurso_inventario") or columna.get("tipo") != TEXTO)
+            and columna.get("ancho", "").endswith("%")
+            and float(columna["ancho"][:-1]) < 13
+        ]
+        self.assertTrue(estrechas, "Ya no hay columnas estrechas con control.")

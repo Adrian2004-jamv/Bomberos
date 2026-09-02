@@ -12,7 +12,7 @@
 
 /* Formularios SCI con estructura oficial: tablas repetibles, periodo operacional y firmas. */
 .sci-inventory-notice{margin:.8rem 0;padding:.7rem .85rem;border:1px solid #9bd5bd;border-radius:.5rem;color:#086c4b;background:#eefaf5;font-size:.76rem}
-.sci-tabla select{width:100%;min-width:10rem;padding:.45rem;border:1px solid var(--color-slate-300);border-radius:.35rem;color:var(--color-navy-900);background:#fff;font:inherit}
+.sci-tabla select{width:100%;min-width:0;padding:.45rem;border:1px solid var(--color-slate-300);border-radius:.35rem;color:var(--color-navy-900);background:#fff;font:inherit;text-overflow:ellipsis}
 .sci-resource-empty{display:block;margin-top:.25rem;color:#a45408;font-size:.65rem}
 .sci-proposito{margin:10px 0 0;padding:7px 9px;background:#f3f4f6;border-radius:4px;font-size:12px;font-style:italic;color:#374151}
 .sci-aviso{margin:8px 0 0;padding:7px 9px;border-left:4px solid #d89b00;background:#fff7dd;font-size:12px}
@@ -47,10 +47,12 @@
 /* Los controles de fecha y hora traen su propio ancho minimo. */
 .sci-tabla td input[type="datetime-local"],.sci-tabla td input[type="time"]{min-width:0;font-size:11px}
 
-/* El «min-width» de arriba existe para el desplegable de recursos, cuya
-   etiqueta es larga. Una columna de opciones cortas —el sexo del paciente
-   ocupa el 8 % de la cuadrícula— no lo soporta: el control se desbordaba sobre
-   las columnas vecinas. Estos se ajustan a su celda y se ven como el resto. */
+/* Ningún control de la cuadrícula puede exigir más ancho del que su columna
+   tiene: las anchuras las fija el formulario oficial y hay columnas del 7 %.
+   Antes los desplegables pedían 10rem —pensados para la etiqueta larga de un
+   recurso— y se desbordaban sobre las columnas vecinas en el SCI-202, con dos
+   columnas de recursos seguidas, y en el SCI-207. Ahora se recortan con
+   puntos suspensivos y la etiqueta completa se ve al abrirlos. */
 .sci-tabla td select.sci-tabla__opcion {
     width: 100%; min-width: 0; padding: 6px;
     border: 0; background: transparent; font: inherit;
