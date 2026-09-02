@@ -469,8 +469,12 @@ class TerminologiaTests(BaseRegistroTests):
 
     def test_el_registro_habla_de_emergencias(self):
         respuesta = self.listar()
-        self.assertContains(respuesta, "Registro dinámico de emergencias")
-        self.assertNotContains(respuesta, "Registro dinámico de incidentes")
+        cuerpo = respuesta.content.decode()
+        self.assertIn("Emergencias reportadas", cuerpo)
+        self.assertIn("Tipos de emergencia", cuerpo)
+        # El término oficial del SCI vive en los formularios, no en el registro.
+        self.assertNotIn("incidentes registrados", cuerpo.lower())
+        self.assertNotIn("registro dinámico de incidentes", cuerpo.lower())
 
     def test_los_formularios_sci_conservan_el_termino_oficial(self):
         emergencia = self.crear("RG-TERM-1")

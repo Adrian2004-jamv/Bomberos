@@ -363,7 +363,7 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "Incendio forestal")
         self.assertContains(respuesta, "Accidente vehicular")
         self.assertContains(respuesta, "Unidad operativa")
-        self.assertContains(respuesta, "Registro dinámico de emergencias")
+        self.assertContains(respuesta, 'id="registro-incidentes"', html=False)
         self.assertContains(respuesta, 'data-incident-phase="curso"', html=False)
         self.assertContains(respuesta, 'data-incident-emergency-type', html=False)
         self.assertContains(respuesta, "0/12 formularios")
