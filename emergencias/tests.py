@@ -379,7 +379,9 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "Datos iniciales del incidente")
         self.assertNotContains(respuesta, 'name="codigo"')
         self.assertContains(respuesta, 'href="/emergencias/#registro-incidentes"', html=False)
-        self.assertContains(respuesta, 'aria-current="page"', html=False)
+        self.assertContains(respuesta, "> Volver<", html=False)
+        self.assertNotContains(respuesta, "> Registro<", html=False)
+        self.assertNotContains(respuesta, "> Nuevo<", html=False)
         self.assertContains(respuesta, "Registrar emergencia")
 
     def test_detalle_web_no_expone_emergencias_de_otra_institucion(self):

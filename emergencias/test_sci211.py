@@ -273,9 +273,6 @@ class SCI211Tests(TestCase):
         formulario = self.crear_formulario()
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
-        self.assertContains(respuesta, "SCI-211 - Registro y Control de Recursos")
-        self.assertContains(respuesta, "Borrador")
-        self.assertContains(respuesta, "Actualizado:")
         self.assertContains(respuesta, "Continuar SCI-211")
         self.assertContains(respuesta, "Incompleto o con errores")
         self.assertContains(
@@ -287,9 +284,10 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, "Paso 1: SCI-201")
         finalizar_sci211(formulario, self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
-        self.assertContains(respuesta, "Consultar SCI-211")
-        self.assertContains(respuesta, "Vista imprimible")
-        self.assertContains(respuesta, 'class="sci-panel-action sci-panel-action--primary"', html=False)
+        self.assertNotContains(respuesta, "Consultar SCI-211")
+        self.assertNotContains(respuesta, "Vista imprimible")
+        self.assertContains(respuesta, "Formularios disponibles para imprimir")
+        self.assertContains(respuesta, "SCI-211")
         self.assertContains(respuesta, 'class="sci-form-tabs"', html=False)
         self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--complete"', html=False)
         self.assertContains(respuesta, "Finalizado correctamente")
@@ -565,7 +563,7 @@ class SCI211Tests(TestCase):
         ))
         self.assertContains(impresion, "RADIO-SCI-01 - Autobomba verificada")
         self.assertContains(impresion, "Zona caliente")
-        self.assertContains(impresion, "Editar formulario")
+        self.assertContains(impresion, "Editar")
 
     def test_filas_vacias_no_se_guardan(self):
         self.finalizar_anteriores("215")
