@@ -70,17 +70,10 @@
         {% if puede_gestionar and emergencia.admite_despliegues %}<a class="sci-panel-action sci-panel-action--primary" href="{% url 'emergencias:sci_editar' '211' emergencia.pk %}"><i class="ti ti-firetruck" aria-hidden="true"></i> Registrar unidad en el SCI-211</a>{% endif %}
     </div>
     {% if despliegues %}<div class="table-responsive"><table>
-        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Estado</th><th>Tiempos</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Acciones</th></tr></thead>
         <tbody>{% for despliegue in despliegues %}<tr>
             <td>{{ despliegue.unidad }}</td>
             <td>{{ despliegue.estacion_procedencia }}</td>
-            <td><span class="deployment-state deployment-state--{{ despliegue.estado }}">{{ despliegue.get_estado_display }}</span></td>
-            <td class="deployment-times">
-                <span>Asignada: {{ despliegue.fecha_asignacion|date:"d/m/Y H:i" }}</span>
-                {% if despliegue.fecha_salida %}<span>Salida: {{ despliegue.fecha_salida|date:"H:i" }}</span>{% endif %}
-                {% if despliegue.fecha_llegada %}<span>En sitio: {{ despliegue.fecha_llegada|date:"H:i" }}</span>{% endif %}
-                {% if despliegue.fecha_retorno %}<span>Cierre: {{ despliegue.fecha_retorno|date:"H:i" }}</span>{% endif %}
-            </td>
             <td><div class="deployment-actions">
                 {% for transicion in despliegue.transiciones %}
                 <form method="post" action="{% url 'emergencias:despliegue_estado' despliegue.pk %}">{% csrf_token %}
