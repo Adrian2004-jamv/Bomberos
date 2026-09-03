@@ -1337,3 +1337,47 @@ class DespachoSinEsperarTurnoTests(SCI211Tests):
             if item["codigo"] == "211"
         )
         self.assertFalse(tarjeta["bloqueado"])
+
+
+class DesplegableAgrupadoTests(ConUnidadDesplegable, SCI211Tests):
+    """El inventario se ofrece por encabezados, con las unidades delante."""
+
+    def abrir(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+
+    def test_el_desplegable_trae_encabezados(self):
+        self.crear_unidad_desplegable("AB-GRUPO-01")
+        respuesta = self.abrir()
+        self.assertContains(respuesta, '<optgroup label="Unidades desplegables">')
+
+    def test_las_unidades_van_antes_que_el_resto(self):
+        self.crear_unidad_desplegable("AB-GRUPO-02")
+        cuerpo = self.abrir().content.decode()
+        posicion_unidades = cuerpo.index('label="Unidades desplegables"')
+        # El equipo de radio de la base de pruebas cae en su propia categoría.
+        otros = [
+            cuerpo.index(f'label="{nombre}"')
+            for nombre in ("Comunicaciones SCI",) if f'label="{nombre}"' in cuerpo
+        ]
+        for posicion in otros:
+            self.assertLess(posicion_unidades, posicion)
+
+    def test_la_opcion_conserva_sus_datos_para_el_autocompletado(self):
+        unidad = self.crear_unidad_desplegable("AB-GRUPO-03")
+        respuesta = self.abrir()
+        # Agrupar no puede romper los atributos que rellenan clase y tipo.
+        self.assertContains(respuesta, f'data-matricula="{unidad.codigo_interno}"')
+        self.assertContains(respuesta, 'data-desplegable="1"')
+
+    def test_la_etiqueta_no_cambia_al_agrupar(self):
+        """Es el valor que guardan los formularios SCI genéricos: si cambia,
+        los ya llenos dejan de reconocer su recurso."""
+        unidad = self.crear_unidad_desplegable("AB-GRUPO-04")
+        respuesta = self.abrir()
+        self.assertContains(
+            respuesta,
+            f"{unidad.codigo_interno} - {unidad.nombre} ({self.estacion.nombre})",
+        )

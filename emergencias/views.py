@@ -28,7 +28,7 @@ from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
 from .models import DespliegueUnidad, Emergencia
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import (FormularioSCI211Form, RegistroRecursoSCI211FormSet,
-                        etiqueta_de_recurso)
+                        agrupar_recursos, etiqueta_de_recurso)
 from .permissions import (conduce_el_despliegue, despliegues_asignados,
                           despliegues_conducidos,
                           es_chofer, estacion_autorizada, solo_es_chofer,
@@ -871,6 +871,7 @@ def contexto_documento_sci(usuario, emergencia, codigo):
                            for campo in campos_periodo(esquema)],
         "secciones": secciones_con_valores(esquema, datos),
         "recursos_disponibles": recursos_disponibles_verificados(usuario),
+        "recursos_agrupados": recursos_agrupados_para_sci(usuario),
     }
 
 def recursos_disponibles_verificados(usuario):
@@ -891,6 +892,10 @@ def recursos_disponibles_verificados(usuario):
     for recurso in recursos:
         recurso.etiqueta_sci = etiqueta_de_recurso(recurso)
     return recursos
+
+def recursos_agrupados_para_sci(usuario):
+    """El mismo inventario, repartido en encabezados para el desplegable."""
+    return agrupar_recursos(recursos_disponibles_verificados(usuario))
 
 def normalizar_recursos_sci(esquema, post, recursos):
     """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI."""

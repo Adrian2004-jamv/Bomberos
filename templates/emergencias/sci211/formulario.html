@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar {{ formulario_sci.codigo }}{% endblock %}{% block page_title %}SCI-211 · Borrador{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}?v=7">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}?v=8">{% endblock %}
 {% block content %}<form method="post" class="sci-form" novalidate>{% csrf_token %}
 <section class="panel sci-document"><header class="sci-document__header"><div class="sci-document__code">SCI-211</div><div><p>SISTEMA DE COMANDO DE INCIDENTES</p><h2>REGISTRO Y CONTROL DE RECURSOS</h2></div><div class="sci-document__status">BORRADOR<br>{{ formulario_sci.emergencia.codigo }}</div></header>
 {% if cabecera.non_field_errors %}<div class="form-errors">{{ cabecera.non_field_errors }}</div>{% endif %}<div class="form-grid">{% for field in cabecera %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}</div></section>

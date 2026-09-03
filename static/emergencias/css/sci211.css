@@ -41,3 +41,7 @@ select[data-recurso-inventario] option:disabled { color: var(--color-slate-400);
 .resource-card--removed .resource-card__summary {
     border-left-color: var(--color-red-700); text-decoration: line-through;
 }
+
+/* Los encabezados del desplegable de recursos deben leerse como tales. */
+select[data-recurso-inventario] optgroup { font-weight: 800; color: var(--color-navy-900); }
+select[data-recurso-inventario] optgroup option { font-weight: 400; }

@@ -40,6 +40,29 @@ class SelectRecursoInventario(forms.Select):
             })
         return opcion
 
+GRUPO_UNIDADES = "Unidades desplegables"
+
+def grupo_de_recurso(recurso):
+    """Encabezado bajo el que se lista el recurso.
+
+    Las unidades desplegables van juntas y aparte: son las únicas que al
+    anotarse generan un despliegue, y en una lista plana quedaban enterradas
+    entre radios y equipos de protección.
+    """
+    if recurso.tipo.es_unidad_desplegable:
+        return GRUPO_UNIDADES
+    return recurso.tipo.categoria.nombre
+
+def agrupar_recursos(recursos):
+    """Ordena los recursos por grupo, con las unidades siempre delante."""
+    grupos = {}
+    for recurso in recursos:
+        grupos.setdefault(grupo_de_recurso(recurso), []).append(recurso)
+    encabezados = sorted(
+        grupos, key=lambda nombre: (nombre != GRUPO_UNIDADES, nombre)
+    )
+    return [(nombre, grupos[nombre]) for nombre in encabezados]
+
 def motivo_no_disponible(recurso):
     """Explica por qué una unidad no puede registrarse, o None si sí puede.
 
@@ -66,6 +89,9 @@ def etiqueta_de_recurso(recurso):
     vencimiento borraba la unidad de la lista y quien despachaba no entendía
     por qué su ambulancia no aparecía; ahora se muestra con la nota y decide.
     """
+    # No se retoca a la ligera: los formularios SCI genéricos guardan esta
+    # misma cadena como valor de la celda, de modo que cambiarla dejaría sin
+    # selección los que ya estuvieran llenos.
     texto = f"{recurso.codigo_interno} - {recurso.nombre} ({recurso.estacion.nombre})"
     motivo = motivo_no_disponible(recurso)
     if motivo:
@@ -73,6 +99,20 @@ def etiqueta_de_recurso(recurso):
     if not recurso.disponibilidad_actualizada:
         texto += " · disponibilidad sin confirmar hoy"
     return texto
+
+class RecursosPorGrupo(forms.models.ModelChoiceIterator):
+    """Reparte las opciones en «optgroup» conservando la instancia.
+
+    El widget necesita el objeto de cada opción para escribir sus atributos de
+    datos, así que se apoya en ``self.choice``, que devuelve el valor con la
+    instancia dentro, en lugar de construir pares sueltos.
+    """
+
+    def __iter__(self):
+        if self.field.empty_label is not None:
+            yield ("", self.field.empty_label)
+        for encabezado, recursos in agrupar_recursos(self.queryset):
+            yield (encabezado, [self.choice(recurso) for recurso in recursos])
 
 class RegistroRecursoSCI211Form(forms.ModelForm):
     class Meta:
@@ -105,11 +145,13 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
             ).order_by(
                 "estacion__nombre", "tipo__categoria__nombre", "nombre"
             )
-        self.fields["recurso_inventario"].queryset = queryset
-        self.fields["recurso_inventario"].empty_label = (
-            "Seleccione un recurso del inventario"
-        )
-        self.fields["recurso_inventario"].label_from_instance = etiqueta_de_recurso
+        campo_recurso = self.fields["recurso_inventario"]
+        campo_recurso.label_from_instance = etiqueta_de_recurso
+        # El iterador se fija antes que el queryset: asignar el queryset es lo
+        # que construye las opciones, y hacerlo al reves las dejaria planas.
+        campo_recurso.iterator = RecursosPorGrupo
+        campo_recurso.queryset = queryset
+        campo_recurso.empty_label = "Seleccione un recurso del inventario"
         self.preparar_responsable(usuario)
         for nombre, marca in (
             ("clase_recurso", "clase"), ("tipo_recurso", "tipo"),

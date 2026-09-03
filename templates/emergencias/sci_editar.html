@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=16"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=4">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=16"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=5">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -63,7 +63,7 @@
                   {% elif celda.columna.recurso_inventario %}
                     <select name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" aria-label="{{ celda.columna.etiqueta }}"{% if celda.valor %} title="{{ celda.valor }}"{% endif %}>
                       <option value="">Seleccione un recurso del inventario</option>
-                      {% for recurso in recursos_disponibles %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}
+                      {% for encabezado, recursos in recursos_agrupados %}<optgroup label="{{ encabezado }}">{% for recurso in recursos %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}</optgroup>{% endfor %}
                     </select>
                     {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
                   {% elif celda.tipo == 'fecha_hora' %}

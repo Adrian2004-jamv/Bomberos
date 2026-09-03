@@ -60,3 +60,8 @@
 .sci-tabla td select.sci-tabla__opcion:focus { outline: 2px solid #c70012; outline-offset: -2px; }
 /* La edad, por el mismo motivo. */
 .sci-tabla td input[type="number"] { min-width: 0; }
+
+/* Encabezados del desplegable de recursos: separan las unidades desplegables
+   —las unicas que generan un despliegue— del resto del inventario. */
+.sci-tabla optgroup { font-weight: 800; color: var(--color-navy-900); }
+.sci-tabla optgroup option { font-weight: 400; }
