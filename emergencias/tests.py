@@ -451,7 +451,9 @@ class EliminarEmergenciaTests(TestCase):
         self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
         self.assertContains(respuesta, "no puede eliminarse")
 
-    def test_el_superusuario_arrastra_la_documentacion(self):
+    def test_ni_siquiera_el_superusuario_borra_documentacion_desde_el_listado(self):
+        """El botón no destruye actas. Para vaciar el padrón está el comando
+        «limpiar_emergencias», que exige un criterio explícito y ensaya antes."""
         emergencia = self.crear_emergencia("IE-01012026-903")
         FormularioSCI.objects.create(
             emergencia=emergencia, codigo_sci="201", datos={},
@@ -464,9 +466,8 @@ class EliminarEmergenciaTests(TestCase):
         respuesta = self.client.post(
             reverse("emergencias:eliminar", args=[emergencia.pk]), follow=True
         )
-        self.assertFalse(Emergencia.objects.filter(pk=emergencia.pk).exists())
-        self.assertEqual(FormularioSCI.objects.filter(emergencia=emergencia).count(), 0)
-        self.assertContains(respuesta, "eliminada con toda su documentación")
+        self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
+        self.assertContains(respuesta, "no puede eliminarse")
 
     def test_un_gestor_sigue_sin_poder_borrar_documentacion(self):
         emergencia = self.crear_emergencia("IE-01012026-904")

@@ -41,7 +41,6 @@ from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
                           secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
-                       retirar_emergencias,
                        detener_transmision,
                        cambiar_estado_emergencia, desplegar_unidad,
                        registrar_posicion_unidad, transiciones_disponibles)
@@ -519,18 +518,6 @@ def eliminar(request, pk):
         raise PermissionDenied
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
     codigo = emergencia.codigo
-
-    # El superusuario arrastra consigo la documentación. Es la cuenta que
-    # administra el sistema y la que limpia los padrones de prueba; para el
-    # resto, un formulario SCI finalizado es el acta de la intervención y no se
-    # destruye desde una pantalla de listado.
-    if request.user.is_superuser:
-        liberadas = retirar_emergencias([emergencia.pk])
-        aviso = f"Emergencia {codigo} eliminada con toda su documentación."
-        if liberadas:
-            aviso += f" {liberadas} unidad(es) volvieron a estar disponibles."
-        messages.success(request, aviso)
-        return redirect("emergencias:lista")
 
     try:
         emergencia.delete()
