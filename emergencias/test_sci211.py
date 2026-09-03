@@ -20,7 +20,8 @@ from .esquemas_sci import ESQUEMAS_SCI, HORA, TABLA, TEXTO, secciones_con_valore
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services import desplegar_unidad
-from .services_sci import desplegar_recursos_del_sci211, finalizar_sci211
+from .services_sci import (desplegar_recursos_del_sci211, finalizar_sci,
+                           finalizar_sci211)
 
 class SCI211Tests(TestCase):
     @classmethod
@@ -632,6 +633,11 @@ class SCI211Tests(TestCase):
             "actividades-0-hora": "09:15",
             "actividades-0-evento": "Arribo de la primera unidad",
         })
+        # El SCI-214 es la bitácora del periodo operacional: se cierra cuando
+        # la emergencia termina, igual que el registro de recursos.
+        Emergencia.objects.filter(pk=self.emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA
+        )
         finalizar = reverse("emergencias:sci_finalizar", args=["214", self.emergencia.pk])
         self.client.post(finalizar)
         formulario = FormularioSCI.objects.get(emergencia=self.emergencia, codigo_sci="214")
@@ -1820,3 +1826,72 @@ class ColorDelRegistroAbiertoTests(ConUnidadDesplegable, SCI211Tests):
             if item["codigo"] == "211"
         )
         self.assertEqual(tarjeta["clave_estado"], "incomplete")
+
+
+class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
+    """El SCI-214 es la bitácora del periodo: se cierra con la emergencia."""
+
+    def escribir_214(self, con_contenido=True):
+        return FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="214",
+            datos={"actividades": [{"hora": "10:00", "evento": "Arribo"}]}
+            if con_contenido else {},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+
+    def test_no_se_cierra_con_la_emergencia_en_marcha(self):
+        formulario = self.escribir_214()
+        with self.assertRaises(ValidationError) as capturado:
+            finalizar_sci(formulario, self.usuario)
+        self.assertIn("cuando la emergencia termina", str(capturado.exception))
+
+    def test_se_cierra_una_vez_terminada(self):
+        formulario = self.escribir_214()
+        Emergencia.objects.filter(pk=self.emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA
+        )
+        cerrado = finalizar_sci(formulario, self.usuario)
+        self.assertEqual(cerrado.estado, FormularioSCI.Estado.FINALIZADO)
+
+    def test_en_uso_desbloquea_los_siguientes(self):
+        self.finalizar_anteriores("214")
+        self.escribir_214()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_vacio_no_desbloquea_nada(self):
+        self.finalizar_anteriores("214")
+        self.escribir_214(con_contenido=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk]),
+            follow=True,
+        )
+        self.assertContains(respuesta, "Finalice primero el formulario")
+
+    def test_la_ficha_lo_pinta_como_registro_abierto(self):
+        self.finalizar_anteriores("214")
+        self.escribir_214()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "214"
+        )
+        self.assertEqual(tarjeta["clave_estado"], "open")
+
+    def test_el_207_sigue_cerrandose_cuando_se_quiera(self):
+        """No es continuo a propósito: una emergencia sin víctimas dejaría su
+        registro vacío para siempre, y con él toda la cadena detenida."""
+        formulario = FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="207",
+            datos={"pacientes": [{"nombre": "N. N."}]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        cerrado = finalizar_sci(formulario, self.usuario)
+        self.assertEqual(cerrado.estado, FormularioSCI.Estado.FINALIZADO)

@@ -36,7 +36,8 @@ from .permissions import (conduce_el_despliegue, despliegues_asignados,
                           puede_consultar_sci, puede_editar_sci,
                           puede_gestionar_emergencias)
 from .codigos import generar_codigo_emergencia
-from .esquemas_sci import (ESQUEMAS_SCI, ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO,
+from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
+                          ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO,
                           campos_periodo, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
@@ -46,7 +47,8 @@ from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
                        registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
                           desplegar_recursos_del_sci211, finalizar_sci,
-                          finalizar_sci211, registrar_solicitud_en_sci211)
+                          finalizar_sci211, registrar_solicitud_en_sci211,
+                          tiene_contenido)
 
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
 
@@ -94,31 +96,35 @@ _POSICION_FORMULARIO_SCI = {
 # de acción no se redacta sin saber con qué recursos se cuenta.
 FORMULARIOS_SCI_SIN_REQUISITO = frozenset({"211"})
 
-# Formularios que son bitácoras y no documentos: se escriben durante toda la
-# intervención y solo se cierran cuando la emergencia termina. Añadir uno aquí
-# basta para que deje de exigirse su cierre y para que la ficha lo muestre como
-# registro abierto. El SCI-214 —bitácora cronológica del periodo operacional—
-# es el siguiente candidato natural.
-FORMULARIOS_SCI_CONTINUOS = frozenset({"211"})
+def registro_en_uso(formulario):
+    """Si el registro ya se está escribiendo, sea cuadrícula propia o JSON.
 
-def tiene_contenido(formulario):
-    """Si el registro ya se está usando, sea cuadrícula propia o datos JSON."""
+    El SCI-211 guarda sus filas en un modelo aparte; los demás, en el JSON del
+    formulario. «tiene_contenido» descarta las filas en blanco, de modo que un
+    formulario abierto y vacío no cuenta como empezado.
+    """
+    if formulario is None:
+        return False
     if hasattr(formulario, "registros"):
         return formulario.registros.exists()
-    return bool(formulario.datos)
+    return tiene_contenido(formulario.datos)
 
 def formularios_sci_finalizados(emergencia):
     """Códigos SCI que la emergencia ya tiene cerrados, el 211 incluido."""
-    finalizados = set(
-        emergencia.formularios_sci.filter(
-            estado=FormularioSCI.Estado.FINALIZADO
-        ).values_list("codigo_sci", flat=True)
+    genericos = list(emergencia.formularios_sci.all())
+    finalizados = {
+        formulario.codigo_sci for formulario in genericos
+        if formulario.estado == FormularioSCI.Estado.FINALIZADO
+    }
+    # A una bitácora no se le exige estar cerrada para dejar avanzar: no puede
+    # cerrarse hasta que la emergencia termine. Lo que los formularios
+    # siguientes necesitan es que ya se esté escribiendo.
+    finalizados.update(
+        formulario.codigo_sci for formulario in genericos
+        if formulario.codigo_sci in FORMULARIOS_SCI_CONTINUOS
+        and registro_en_uso(formulario)
     )
     sci211 = getattr(emergencia, "formulario_sci_211", None)
-    # Al SCI-211 no se le exige estar cerrado para dejar avanzar: no puede
-    # cerrarse hasta que la emergencia termine. Lo que los formularios
-    # siguientes necesitan es saber con qué recursos se cuenta, y eso lo
-    # cumple en cuanto tiene alguno anotado.
     if sci211 and (
         sci211.estado == FormularioSCI211.Estado.FINALIZADO
         or ("211" in FORMULARIOS_SCI_CONTINUOS and sci211.registros.exists())
@@ -680,7 +686,7 @@ def detalle(request, pk):
             clave_estado, etiqueta_estado = "pending", "No iniciado"
         elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
             clave_estado, etiqueta_estado = "complete", "Finalizado"
-        elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS and tiene_contenido(formulario):
+        elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS and registro_en_uso(formulario):
             # Un registro en uso no está incompleto: seguirá abierto hasta que
             # la emergencia termine, y el ámbar anuncia algo por corregir.
             clave_estado, etiqueta_estado = "open", "Registro abierto"

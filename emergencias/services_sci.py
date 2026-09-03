@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .esquemas_sci import TABLA
+from .esquemas_sci import FORMULARIOS_SCI_CONTINUOS, TABLA
 from .models import FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 
 def nombre_usuario(usuario):
@@ -92,6 +92,14 @@ def finalizar_sci(formulario, usuario):
         raise ValidationError(f"El formulario SCI-{actual.codigo_sci} ya está finalizado.")
     if not tiene_contenido(actual.datos):
         raise ValidationError("Complete al menos un campo antes de finalizar el formulario.")
+    # Las bitácoras se escriben durante toda la intervención; cerrarlas antes
+    # dejaría fuera del acta lo que ocurriera después.
+    if (actual.codigo_sci in FORMULARIOS_SCI_CONTINUOS
+            and actual.emergencia.admite_despliegues):
+        raise ValidationError(
+            f"El SCI-{actual.codigo_sci} se cierra cuando la emergencia "
+            "termina: hasta entonces siguen ocurriendo cosas que registrar."
+        )
     actual.estado = FormularioSCI.Estado.FINALIZADO
     actual.finalizado_por = usuario
     actual.modificado_por = usuario

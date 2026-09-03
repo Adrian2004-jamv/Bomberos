@@ -32,6 +32,15 @@ _PATRONES = {
 # De qué conjunto se surte una columna de recursos. «Inventario» es todo lo que
 # la institución tiene; «en el lugar» son los que el SCI-211 ya registró en esta
 # emergencia, que es lo único que puede estar en la escena.
+# Formularios que son bitácoras y no documentos: se escriben durante toda la
+# intervención y solo se cierran cuando la emergencia termina. Vive aquí, con
+# el resto de la declaración de los formularios, porque lo consultan tanto las
+# vistas como los servicios y ninguno de los dos debe depender del otro.
+#
+#   211 · Registro y Control de Recursos: las unidades siguen llegando.
+#   214 · Registro de Actividades: es la bitácora cronológica del periodo.
+FORMULARIOS_SCI_CONTINUOS = frozenset({"211", "214"})
+
 ORIGEN_INVENTARIO = "inventario"
 ORIGEN_EN_EL_LUGAR = "en_el_lugar"
 
