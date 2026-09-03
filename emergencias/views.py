@@ -36,9 +36,9 @@ from .permissions import (conduce_el_despliegue, despliegues_asignados,
                           puede_consultar_sci, puede_editar_sci,
                           puede_gestionar_emergencias)
 from .codigos import generar_codigo_emergencia
-from .esquemas_sci import (ESQUEMAS_SCI, campos_periodo, extraer_datos,
-                          obtener_esquema, obtener_esquema_catalogo,
-                          secciones_completadas,
+from .esquemas_sci import (ESQUEMAS_SCI, ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO,
+                          campos_periodo, extraer_datos, obtener_esquema,
+                          obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
                        detener_transmision,
@@ -861,6 +861,7 @@ def contexto_documento_sci(usuario, emergencia, codigo):
         raise Http404
     formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()
     datos = formulario.datos if formulario else {}
+    en_el_lugar = recursos_en_el_lugar(emergencia, usuario)
     return {
         "emergencia": emergencia,
         "esquema": esquema,
@@ -872,6 +873,8 @@ def contexto_documento_sci(usuario, emergencia, codigo):
         "secciones": secciones_con_valores(esquema, datos),
         "recursos_disponibles": recursos_disponibles_verificados(usuario),
         "recursos_agrupados": recursos_agrupados_para_sci(usuario),
+        "recursos_del_lugar": en_el_lugar,
+        "recursos_del_lugar_agrupados": agrupar_recursos(en_el_lugar),
     }
 
 def recursos_disponibles_verificados(usuario):
@@ -893,20 +896,62 @@ def recursos_disponibles_verificados(usuario):
         recurso.etiqueta_sci = etiqueta_de_recurso(recurso)
     return recursos
 
+def recursos_en_el_lugar(emergencia, usuario):
+    """Recursos que el SCI-211 ya registró en esta emergencia.
+
+    Es el único conjunto que puede figurar como «en el lugar»: nada está en la
+    escena si no pasó por el registro de recursos. Ofrecer ahí el inventario
+    entero permitía anotar en el plan de acción un carro que seguía en el
+    patio.
+    """
+    formulario = getattr(emergencia, "formulario_sci_211", None)
+    if formulario is None:
+        return []
+    recursos = [
+        registro.recurso_inventario
+        for registro in formulario.registros.select_related(
+            "recurso_inventario__estacion", "recurso_inventario__estacion__cuerpo_bomberos",
+            "recurso_inventario__tipo", "recurso_inventario__tipo__categoria",
+        ).order_by("orden", "pk")
+        if registro.recurso_inventario_id
+    ]
+    vistos = set()
+    unicos = []
+    for recurso in recursos:
+        if recurso.pk not in vistos:
+            vistos.add(recurso.pk)
+            recurso.etiqueta_sci = etiqueta_de_recurso(recurso)
+            unicos.append(recurso)
+    return unicos
+
 def recursos_agrupados_para_sci(usuario):
     """El mismo inventario, repartido en encabezados para el desplegable."""
     return agrupar_recursos(recursos_disponibles_verificados(usuario))
 
-def normalizar_recursos_sci(esquema, post, recursos):
-    """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI."""
+def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
+    """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI.
+
+    Cada columna se contrasta contra el conjunto del que dice surtirse. Una
+    columna de recursos «en el lugar» que aceptara cualquier identificador del
+    inventario dejaría anotar en el plan de acción un carro que sigue en el
+    patio, por más que el desplegable no lo ofrezca.
+    """
     normalizado = post.copy()
-    permitidos = {str(recurso.pk): recurso.etiqueta_sci for recurso in recursos}
+    conjuntos = {
+        ORIGEN_INVENTARIO: {
+            str(recurso.pk): recurso.etiqueta_sci for recurso in recursos
+        },
+        ORIGEN_EN_EL_LUGAR: {
+            str(recurso.pk): recurso.etiqueta_sci for recurso in en_el_lugar
+        },
+    }
     for seccion in esquema["secciones"]:
         if seccion["tipo"] != "tabla":
             continue
         for columna in seccion["columnas"]:
             if not columna.get("recurso_inventario"):
                 continue
+            permitidos = conjuntos[columna.get("origen", ORIGEN_INVENTARIO)]
             patron = re.compile(
                 rf"^{re.escape(seccion['nombre'])}-\d+-{re.escape(columna['nombre'])}$"
             )
@@ -916,10 +961,15 @@ def normalizar_recursos_sci(esquema, post, recursos):
                     normalizado[clave] = ""
                 elif recurso_id in permitidos:
                     normalizado[clave] = permitidos[recurso_id]
+                elif columna.get("origen") == ORIGEN_EN_EL_LUGAR:
+                    raise ValidationError(
+                        f"«{columna['etiqueta']}» solo admite recursos que el "
+                        "SCI-211 haya registrado en esta emergencia."
+                    )
                 else:
                     raise ValidationError(
-                        "El recurso seleccionado ya no está disponible o su "
-                        "verificación superó las 24 horas."
+                        "El recurso seleccionado ya no pertenece al inventario "
+                        "disponible de su ámbito."
                     )
     return normalizado
 
@@ -949,7 +999,10 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
     if request.method == "POST":
         recursos = recursos_disponibles_verificados(request.user)
         try:
-            post_validado = normalizar_recursos_sci(esquema, request.POST, recursos)
+            post_validado = normalizar_recursos_sci(
+                esquema, request.POST, recursos,
+                recursos_en_el_lugar(emergencia, request.user),
+            )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:

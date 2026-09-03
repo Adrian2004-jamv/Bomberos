@@ -29,7 +29,14 @@ _PATRONES = {
     HORA: re.compile(r"^\d{2}:\d{2}(:\d{2})?$"),
 }
 
-def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO, opciones=None):
+# De qué conjunto se surte una columna de recursos. «Inventario» es todo lo que
+# la institución tiene; «en el lugar» son los que el SCI-211 ya registró en esta
+# emergencia, que es lo único que puede estar en la escena.
+ORIGEN_INVENTARIO = "inventario"
+ORIGEN_EN_EL_LUGAR = "en_el_lugar"
+
+def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO,
+             opciones=None, origen=ORIGEN_INVENTARIO):
     return {
         "nombre": nombre,
         "etiqueta": etiqueta,
@@ -37,6 +44,7 @@ def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO, o
         "recurso_inventario": recurso_inventario,
         "tipo": tipo,
         "opciones": opciones or [],
+        "origen": origen,
     }
 
 ESQUEMAS_SCI = {
@@ -87,7 +95,8 @@ ESQUEMAS_SCI = {
             {"numero": 7, "nombre": "plan", "etiqueta": "Estrategias, tácticas y asignación de recursos", "tipo": TABLA,
              "columnas": [_columna("estrategia", "7. Estrategia(s)"),
                           _columna("tactica", "8. Táctica(s)"),
-                          _columna("recursos_lugar", "9. Recursos en el lugar", "12%", True),
+                          _columna("recursos_lugar", "9. Recursos en el lugar", "12%", True,
+                                   origen=ORIGEN_EN_EL_LUGAR),
                           _columna("recursos_solicitar", "9. Recursos por solicitar", "12%", True),
                           _columna("asignacion", "10. Asignación / Ubicación")],
              "filas_minimas": 6},

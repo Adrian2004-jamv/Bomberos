@@ -14,7 +14,7 @@ from django.utils import timezone
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-from .forms_sci import RegistroRecursoSCI211Form
+from .forms_sci import RegistroRecursoSCI211Form, etiqueta_de_recurso
 from .esquemas_sci import ESQUEMAS_SCI, HORA, TABLA, TEXTO, secciones_con_valores
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
@@ -401,8 +401,10 @@ class SCI211Tests(TestCase):
         ), {
             "plan-0-estrategia": "Controlar incendio",
             "plan-0-tactica": "Ataque directo",
-            "plan-0-recursos_lugar": str(recurso.pk),
-            "plan-0-recursos_solicitar": "",
+            # Va en «por solicitar»: «en el lugar» solo admite lo que el
+            # SCI-211 haya registrado, y esta unidad sigue en la estación.
+            "plan-0-recursos_lugar": "",
+            "plan-0-recursos_solicitar": str(recurso.pk),
             "plan-0-asignacion": "División A",
         })
         self.assertEqual(respuesta.status_code, 302)
@@ -1498,3 +1500,105 @@ class BotonGuardarDelRecursoTests(ConUnidadDesplegable, SCI211Tests):
         ).read_text(encoding="utf-8")
         # «display: inline-flex» vence al atributo hidden si no se contempla.
         self.assertIn(".resource-action[hidden]", hoja)
+
+
+class RecursosEnElLugarDel202Tests(ConUnidadDesplegable, SCI211Tests):
+    """«En el lugar» solo ofrece lo que el SCI-211 registró en la emergencia."""
+
+    def anotar_en_el_211(self, unidad):
+        formulario, _ = FormularioSCI211.objects.get_or_create(
+            emergencia=self.emergencia,
+            defaults={
+                "codigo": f"SCI-211-{self.emergencia.pk}",
+                "punto_registro": "Puesto de Comando",
+                "registrador_1": self.usuario.username,
+                "creado_por": self.usuario, "modificado_por": self.usuario,
+            },
+        )
+        formulario.registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=unidad, clase_recurso="Vehículos",
+            institucion_procedencia="Bomberos",
+            matricula_identificacion=unidad.codigo_interno,
+            numero_personas=2, asignado_a="Zona de operaciones",
+        )
+        return formulario
+
+    def abrir_202(self):
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk])
+        )
+
+    def test_sin_nada_registrado_lo_dice(self):
+        respuesta = self.abrir_202()
+        self.assertEqual(respuesta.context["recursos_del_lugar"], [])
+        self.assertContains(respuesta, "Ningún recurso registrado aún en el SCI-211")
+
+    def test_solo_aparece_lo_anotado_en_el_211(self):
+        en_escena = self.crear_unidad_desplegable("AB-LUGAR-01")
+        self.crear_unidad_desplegable("AB-PATIO-01")
+        self.anotar_en_el_211(en_escena)
+
+        respuesta = self.abrir_202()
+        codigos = {r.codigo_interno for r in respuesta.context["recursos_del_lugar"]}
+        self.assertEqual(codigos, {"AB-LUGAR-01"})
+        # El inventario completo sigue disponible para «por solicitar».
+        del_inventario = {
+            r.codigo_interno for r in respuesta.context["recursos_disponibles"]
+        }
+        self.assertIn("AB-PATIO-01", del_inventario)
+
+    def test_el_servidor_rechaza_uno_que_no_esta_en_la_escena(self):
+        en_escena = self.crear_unidad_desplegable("AB-LUGAR-02")
+        en_patio = self.crear_unidad_desplegable("AB-PATIO-02")
+        self.anotar_en_el_211(en_escena)
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+
+        respuesta = self.client.post(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            {"plan-0-recursos_lugar": str(en_patio.pk), "preparado_por": "CI"},
+            follow=True,
+        )
+        self.assertContains(respuesta, "solo admite recursos que el SCI-211")
+
+    def test_el_servidor_acepta_uno_que_si_esta_en_la_escena(self):
+        en_escena = self.crear_unidad_desplegable("AB-LUGAR-03")
+        self.anotar_en_el_211(en_escena)
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+
+        self.client.post(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            {
+                "plan-0-estrategia": "Controlar el frente",
+                "plan-0-recursos_lugar": str(en_escena.pk),
+                "preparado_por": "CI",
+            },
+        )
+        formulario = FormularioSCI.objects.get(
+            emergencia=self.emergencia, codigo_sci="202"
+        )
+        self.assertEqual(
+            formulario.datos["plan"][0]["recursos_lugar"],
+            etiqueta_de_recurso(en_escena),
+        )
+
+    def test_por_solicitar_sigue_ofreciendo_el_inventario(self):
+        self.crear_unidad_desplegable("AB-PATIO-03")
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            {
+                "plan-0-recursos_solicitar": str(
+                    Recurso.objects.get(codigo_interno="AB-PATIO-03").pk
+                ),
+                "preparado_por": "CI",
+            },
+            follow=True,
+        )
+        self.assertNotContains(respuesta, "solo admite recursos que el SCI-211")

@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=16"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=5">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=16"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=6">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -25,7 +25,7 @@
 
     <p class="sci-proposito">{{ esquema.proposito }}</p>
     {% if esquema.aviso %}<p class="sci-aviso">{{ esquema.aviso }}</p>{% endif %}
-    <p class="sci-inventory-notice"><strong>Inventario en línea:</strong> los selectores muestran los recursos operativos y libres de su ámbito institucional. Los que no tengan la disponibilidad confirmada hoy salen advertidos junto al nombre.</p>
+    <p class="sci-inventory-notice"><strong>Inventario en línea:</strong> los selectores muestran los recursos operativos y libres de su ámbito institucional, advirtiendo los que no tengan la disponibilidad confirmada hoy. Las columnas de recursos <em>en el lugar</em> solo ofrecen los que el SCI-211 ya registró en esta emergencia: nada está en la escena si no pasó por ese registro.</p>
 
     <section class="sci-paper__meta">
       <label>1. Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label>
@@ -62,8 +62,13 @@
                     <input type="hidden" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.fija }}">
                   {% elif celda.columna.recurso_inventario %}
                     <select name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" aria-label="{{ celda.columna.etiqueta }}"{% if celda.valor %} title="{{ celda.valor }}"{% endif %}>
+                      {% if celda.columna.origen == 'en_el_lugar' %}
+                      <option value="">{% if recursos_del_lugar %}Seleccione un recurso ya en la escena{% else %}Ningún recurso registrado aún en el SCI-211{% endif %}</option>
+                      {% for encabezado, recursos in recursos_del_lugar_agrupados %}<optgroup label="{{ encabezado }}">{% for recurso in recursos %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}</optgroup>{% endfor %}
+                      {% else %}
                       <option value="">Seleccione un recurso del inventario</option>
                       {% for encabezado, recursos in recursos_agrupados %}<optgroup label="{{ encabezado }}">{% for recurso in recursos %}<option value="{{ recurso.pk }}"{% if celda.valor == recurso.etiqueta_sci %} selected{% endif %}>{{ recurso.etiqueta_sci }}</option>{% endfor %}</optgroup>{% endfor %}
+                      {% endif %}
                     </select>
                     {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
                   {% elif celda.tipo == 'fecha_hora' %}
