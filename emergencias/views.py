@@ -769,15 +769,27 @@ def detalle(request, pk):
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
         formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
         en_curso = False
-        if formulario is None:
+        if item["codigo"] in FORMULARIOS_SCI_CONTINUOS and formulario is None:
+            # Una bitácora sin abrir sigue siendo una bitácora: se pinta como
+            # tal desde el principio, igual que su hermana ya empezada.
+            clave_estado, etiqueta_estado = "open", "Registro abierto · sin anotaciones"
+        elif formulario is None:
             clave_estado, etiqueta_estado = "pending", "No iniciado"
         elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
             clave_estado, etiqueta_estado = "complete", "Finalizado"
-        elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS and registro_en_uso(formulario):
-            # Un registro en uso no está incompleto: seguirá abierto hasta que
-            # la emergencia termine, y el ámbar anuncia algo por corregir.
-            clave_estado, etiqueta_estado = "open", "Registro abierto"
-            en_curso = True
+        elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS:
+            # El azul describe qué clase de formulario es —una bitácora que
+            # vive toda la emergencia—, no cuánto lleva escrito. El ámbar
+            # anunciaría algo por corregir y el gris, algo que no ha empezado.
+            clave_estado = "open"
+            # Solo deja de señalarse como paso pendiente cuando ya tiene algo
+            # anotado: una bitácora en blanco sí es lo primero que hay que
+            # llenar.
+            en_curso = registro_en_uso(formulario)
+            etiqueta_estado = (
+                "Registro abierto" if en_curso
+                else "Registro abierto · sin anotaciones"
+            )
         else:
             clave_estado, etiqueta_estado = "incomplete", "Incompleto"
         catalogo_sci_estado.append({

@@ -1815,7 +1815,9 @@ class ColorDelRegistroAbiertoTests(ConUnidadDesplegable, SCI211Tests):
         self.assertIn(".sci-form-tab--open{", hoja)
         self.assertIn(".sci-status-dot--open{", hoja)
 
-    def test_un_211_vacio_sigue_marcado_como_incompleto(self):
+    def test_un_211_vacio_ya_se_pinta_como_bitacora_pero_lo_dice(self):
+        """El azul describe qué clase de formulario es, no cuánto lleva
+        escrito; la etiqueta avisa de que todavía no tiene anotaciones."""
         self.finalizar_anteriores("211")
         self.crear_formulario(completo=False)
         self.client.force_login(self.usuario)
@@ -1826,7 +1828,34 @@ class ColorDelRegistroAbiertoTests(ConUnidadDesplegable, SCI211Tests):
             item for item in respuesta.context["catalogo_sci"]
             if item["codigo"] == "211"
         )
-        self.assertEqual(tarjeta["clave_estado"], "incomplete")
+        self.assertEqual(tarjeta["clave_estado"], "open")
+        self.assertEqual(tarjeta["etiqueta_estado"], "Registro abierto · sin anotaciones")
+        # Vacía sigue siendo el paso pendiente: es lo primero que hay que llenar.
+        self.assertFalse(tarjeta["en_curso"])
+
+    def test_el_214_es_azul_desde_antes_de_abrirse(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "214"
+        )
+        self.assertEqual(tarjeta["clave_estado"], "open")
+        self.assertFalse(tarjeta["bloqueado"])
+
+    def test_los_que_no_son_bitacora_no_se_pintan_de_azul(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        claves = {
+            item["codigo"]: item["clave_estado"]
+            for item in respuesta.context["catalogo_sci"]
+        }
+        self.assertEqual(claves["202"], "pending")
+        self.assertEqual(claves["221"], "pending")
 
 
 class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
