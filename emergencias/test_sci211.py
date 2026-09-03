@@ -15,7 +15,8 @@ from django.utils import timezone
 from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
-from .forms_sci import RegistroRecursoSCI211Form, etiqueta_de_recurso
+from .forms_sci import (RegistroRecursoSCI211Form,
+                        RegistroRecursoSCI211FormSet, etiqueta_de_recurso)
 from .esquemas_sci import ESQUEMAS_SCI, HORA, TABLA, TEXTO, secciones_con_valores
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
@@ -2066,3 +2067,76 @@ class PeriodoHeredadoTests(SCI211Tests):
             self.usuario.get_full_name() or self.usuario.username,
         )
         self.assertContains(respuesta, self.usuario.username)
+
+
+class LasSugerenciasNoAflojLanValidacionTests(ConUnidadDesplegable, SCI211Tests):
+    """Poner «initial» no puede volver opcional lo obligatorio.
+
+    Un formset descarta las filas que no cambiaron respecto a su «initial».
+    Al sugerir el solicitante y la hora existía el riesgo de que una fila a
+    medias se diera por vacía y se perdiera sin avisar, o de que un campo
+    obligatorio dejara de exigirse.
+    """
+
+    def enviar(self, extra):
+        datos = {
+            "registros-TOTAL_FORMS": "1", "registros-INITIAL_FORMS": "0",
+            "registros-MIN_NUM_FORMS": "1", "registros-MAX_NUM_FORMS": "1000",
+            "registros-0-id": "",
+        }
+        datos.update(extra)
+        self.finalizar_anteriores("211")
+        return RegistroRecursoSCI211FormSet(
+            datos, instance=self.crear_formulario(completo=False),
+            form_kwargs={"usuario": self.usuario},
+        )
+
+    def test_una_fila_con_solo_lo_sugerido_se_rechaza_no_se_descarta(self):
+        conjunto = self.enviar({
+            "registros-0-solicitado_por": self.usuario.username,
+            "registros-0-fecha_hora_solicitud": "2026-09-03T10:00",
+            "registros-0-numero_personas": "1",
+        })
+        self.assertFalse(conjunto.is_valid())
+        self.assertIn("clase_recurso", conjunto.errors[0])
+        self.assertIn("asignado_a", conjunto.errors[0])
+
+    def test_borrar_lo_sugerido_no_lo_vuelve_opcional(self):
+        conjunto = self.enviar({
+            "registros-0-solicitado_por": "",
+            "registros-0-fecha_hora_solicitud": "",
+            "registros-0-numero_personas": "2",
+            "registros-0-clase_recurso": "Vehículos",
+            "registros-0-institucion_procedencia": "Bomberos",
+            "registros-0-matricula_identificacion": "AB-99",
+            "registros-0-asignado_a": "Zona",
+        })
+        self.assertFalse(conjunto.is_valid())
+        self.assertIn("solicitado_por", conjunto.errors[0])
+        self.assertIn("fecha_hora_solicitud", conjunto.errors[0])
+
+    def test_una_fila_completa_sigue_siendo_valida(self):
+        conjunto = self.enviar({
+            "registros-0-solicitado_por": self.usuario.username,
+            "registros-0-fecha_hora_solicitud": "2026-09-03T10:00",
+            "registros-0-numero_personas": "2",
+            "registros-0-clase_recurso": "Vehículos",
+            "registros-0-institucion_procedencia": "Bomberos",
+            "registros-0-matricula_identificacion": "AB-99",
+            "registros-0-estado_recurso": "disponible",
+            "registros-0-asignado_a": "Zona de operaciones",
+        })
+        self.assertTrue(conjunto.is_valid(), conjunto.errors)
+
+    def test_el_arribo_anterior_a_la_solicitud_sigue_rechazandose(self):
+        conjunto = self.enviar({
+            "registros-0-solicitado_por": "CI",
+            "registros-0-fecha_hora_solicitud": "2026-09-03T10:00",
+            "registros-0-fecha_hora_arribo": "2026-09-03T09:00",
+            "registros-0-numero_personas": "2",
+            "registros-0-clase_recurso": "Vehículos",
+            "registros-0-institucion_procedencia": "Bomberos",
+            "registros-0-matricula_identificacion": "AB-99",
+            "registros-0-asignado_a": "Zona",
+        })
+        self.assertFalse(conjunto.is_valid())
