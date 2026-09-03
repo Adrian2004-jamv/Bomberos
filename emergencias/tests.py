@@ -362,7 +362,10 @@ class EmergenciasYDesplieguesTests(TestCase):
         self.assertContains(respuesta, "Tipos de emergencia")
         self.assertContains(respuesta, "Incendio forestal")
         self.assertContains(respuesta, "Accidente vehicular")
-        self.assertContains(respuesta, "Unidad operativa")
+        # La leyenda ya no rotula «Unidad operativa» a secas: enumera las
+        # unidades dibujadas, y el guion las rellena desde el GeoJSON.
+        self.assertContains(respuesta, "Unidades en escena")
+        self.assertContains(respuesta, "data-map-units")
         self.assertContains(respuesta, 'id="registro-incidentes"', html=False)
         self.assertContains(respuesta, 'data-incident-phase="curso"', html=False)
         self.assertContains(respuesta, 'data-incident-emergency-type', html=False)

@@ -1,3 +1,4 @@
+from emergencias.services import desplegar_unidad
 from pathlib import Path
 from django.conf import settings
 from datetime import datetime
@@ -359,6 +360,13 @@ class FiltroYPuntosClaveTests(TestCase):
         self.assertContains(respuesta, "Todavía sin unidades despachadas.")
         self.assertContains(respuesta, "Documentación SCI: 0 de 12 formularios.")
 
+    def test_el_tablero_ya_no_habla_de_arribos(self):
+        self.crear("IE-10032026-002", 10)
+        respuesta = self.panel()
+        self.assertNotContains(respuesta, "Primera llegada")
+        self.assertNotContains(respuesta, "Sin arribos")
+        self.assertNotContains(respuesta, "reportado todavía su llegada")
+
 
 class EstiloDelTableroTests(TestCase):
     """Las reglas que las plantillas dan por existentes deben existir."""
@@ -429,10 +437,23 @@ class FiltroPorIncidenteTests(FiltroYPuntosClaveTests):
         codigos = {item["codigo"] for item in respuesta.context["emergencias_del_filtro"]}
         self.assertNotIn("IE-99992026-999", codigos)
 
-    def test_se_explica_de_donde_salen_los_tiempos(self):
-        """La explicación vive en el encabezado, al pasar el ratón: ocupar
-        sitio en pantalla para algo que se lee una vez no compensa."""
-        self.crear("IE-10032026-001", 10)
+    def test_el_tablero_dice_que_recursos_salieron(self):
+        """«1 unidad» no sirve en un parte: lo que se pregunta es cuál."""
+        emergencia = self.crear("IE-10032026-003", 10)
+        categoria = CategoriaRecurso.objects.create(codigo="PCLV", nombre="Vehículos")
+        tipo = TipoRecurso.objects.create(
+            categoria=categoria, codigo="PCLA", nombre="Autobomba",
+            es_unidad_desplegable=True,
+        )
+        recurso = Recurso.objects.create(
+            estacion=self.estacion, tipo=tipo, codigo_interno="AB-PANEL-01",
+            nombre="Autobomba", estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+        desplegar_unidad(emergencia, recurso, self.usuario)
+
         respuesta = self.panel()
-        self.assertContains(respuesta, "Lo calcula el sistema")
-        self.assertContains(respuesta, "150 metros de la dirección")
+        self.assertContains(respuesta, "Recursos desplegados")
+        self.assertContains(respuesta, "AB-PANEL-01")
+        self.assertContains(respuesta, self.estacion.nombre)

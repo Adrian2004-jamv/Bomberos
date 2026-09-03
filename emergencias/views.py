@@ -493,6 +493,81 @@ def exportar(request):
     )
     return respuesta
 
+COLUMNAS_RECURSOS = (
+    "Emergencia", "Tipo de emergencia", "Prioridad", "Fecha de reporte",
+    "Estación responsable", "Dirección", "Unidad", "Nombre de la unidad",
+    "Tipo de recurso", "Categoría", "Estación de procedencia",
+    "Estado del despliegue", "Asignada", "Salida", "En sitio", "Cierre",
+    "Responsable de la unidad", "Despachada por", "Posiciones registradas",
+)
+
+def fila_recurso(despliegue):
+    """Una fila por unidad desplegada, no por emergencia.
+
+    El reporte anterior contaba cuántas unidades salieron; este dice cuáles,
+    de dónde, cuándo y quién las conducía, que es lo que se revisa después de
+    una intervención.
+    """
+    def momento(valor):
+        return timezone.localtime(valor).strftime("%d/%m/%Y %H:%M") if valor else ""
+
+    emergencia = despliegue.emergencia
+    conductor = despliegue.responsable_unidad
+    return [
+        emergencia.codigo, emergencia.tipo_emergencia,
+        emergencia.get_prioridad_display(), momento(emergencia.fecha_reporte),
+        emergencia.estacion_responsable.nombre, emergencia.direccion,
+        despliegue.unidad.codigo_interno, despliegue.unidad.nombre,
+        despliegue.unidad.tipo.nombre, despliegue.unidad.tipo.categoria.nombre,
+        despliegue.estacion_procedencia.nombre,
+        despliegue.get_estado_display(),
+        momento(despliegue.fecha_asignacion), momento(despliegue.fecha_salida),
+        momento(despliegue.fecha_llegada), momento(despliegue.fecha_retorno),
+        conductor.get_full_name() or conductor.username if conductor else "",
+        despliegue.despachado_por.get_full_name() or despliegue.despachado_por.username,
+        despliegue.posiciones_registradas,
+    ]
+
+@login_required
+def exportar_recursos(request):
+    """Reporte detallado de los recursos desplegados, con los mismos filtros.
+
+    Comparte la consulta del listado, de modo que el rango de fechas, el tipo
+    y la emergencia que estén aplicados en pantalla se llevan al archivo sin
+    tener que elegirlos otra vez.
+    """
+    if not puede_consultar_emergencias(request.user):
+        raise PermissionDenied
+
+    _, filtros, emergencias = consulta_filtrada(request)
+    emergencias = aplicar_fase(emergencias, filtros.get("fase") or "all")
+    despliegues = DespliegueUnidad.objects.filter(
+        emergencia__in=emergencias.values("pk")
+    ).select_related(
+        "emergencia", "emergencia__estacion_responsable",
+        "unidad", "unidad__tipo", "unidad__tipo__categoria",
+        "estacion_procedencia", "responsable_unidad", "despachado_por",
+    ).annotate(
+        posiciones_registradas=Count("posiciones", distinct=True)
+    ).order_by("emergencia__fecha_reporte", "emergencia_id", "fecha_asignacion")
+
+    escritor = csv.writer(_Eco(), delimiter=";")
+
+    def tramos():
+        # Excel abre el archivo con la codificación del sistema si no encuentra
+        # la marca de orden de bytes, y los acentos llegan rotos.
+        yield "﻿"
+        yield escritor.writerow(COLUMNAS_RECURSOS)
+        for despliegue in despliegues.iterator():
+            yield escritor.writerow(fila_recurso(despliegue))
+
+    momento = timezone.localtime().strftime("%Y%m%d-%H%M")
+    respuesta = StreamingHttpResponse(tramos(), content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = (
+        f'attachment; filename="recursos-desplegados-{momento}.csv"'
+    )
+    return respuesta
+
 # ==========================================
 # MÓDULO: ALTA Y EDICIÓN DE LA EMERGENCIA
 # ==========================================

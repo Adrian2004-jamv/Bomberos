@@ -3,7 +3,7 @@
 
 {% block title %}Mi unidad{% endblock %}
 {% block page_title %}Mi unidad{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=3">{% endblock %}
 
 {% block content %}
 {% if sin_asignacion %}
@@ -36,22 +36,6 @@
     {% endif %}
 
     <div class="unidad-asignada__acciones">
-        {% if despliegue.emergencia.latitud and despliegue.emergencia.longitud %}
-        {% comment %}Abre la aplicación de mapas del teléfono con la ruta ya
-        trazada. «localize off» es obligatorio: la configuración regional
-        escribe los decimales con coma y la coordenada llegaría ilegible al
-        mapa.{% endcomment %}
-        {% localize off %}
-        <a class="unidad-accion unidad-accion--navegar"
-           href="https://www.google.com/maps/dir/?api=1&destination={{ despliegue.emergencia.latitud }},{{ despliegue.emergencia.longitud }}&travelmode=driving"
-           target="_blank" rel="noopener">
-            <i class="ti ti-navigation" aria-hidden="true"></i> Iniciar navegación
-        </a>
-        {% endlocalize %}
-        {% else %}
-        <span class="unidad-sin-coordenadas"><i class="ti ti-map-pin-off" aria-hidden="true"></i> La emergencia no tiene coordenadas registradas</span>
-        {% endif %}
-
         <a class="unidad-accion unidad-accion--gps" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}">
             <i class="ti ti-broadcast" aria-hidden="true"></i> Transmitir mi ubicación
         </a>

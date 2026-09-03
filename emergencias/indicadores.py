@@ -99,10 +99,8 @@ def puntos_clave(emergencia):
     if emergencia.personal_comprometido:
         puntos.append(f"{emergencia.personal_comprometido} personas comprometidas.")
 
-    if emergencia.tiempo_respuesta:
-        puntos.append(f"Primera unidad en el lugar a los {emergencia.tiempo_respuesta}.")
-    elif emergencia.unidades_totales:
-        puntos.append("Ninguna unidad ha reportado todavía su llegada.")
+    # El tiempo de respuesta se sigue calculando y guardando; se retiró de este
+    # resumen a petición del usuario, no porque dejara de medirse.
 
     puntos.append(
         f"Documentación SCI: {emergencia.formularios_completados} de "

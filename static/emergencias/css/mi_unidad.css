@@ -71,9 +71,7 @@
 .unidad-vacia h2 { margin: 0; }
 .unidad-vacia p { max-width: 34rem; margin: 0; color: var(--color-slate-600); }
 
-@media (min-width: 640px) {
-    .unidad-asignada__acciones { grid-template-columns: 1fr 1fr; }
-}
+/* Un solo botón: ya no hay pareja que repartir en dos columnas. */
 
 /* Historial de recorridos cerrados. */
 .historial-intro { max-width: 46rem; margin: 0 0 1rem; color: var(--color-slate-600); font-size: 0.9rem; }

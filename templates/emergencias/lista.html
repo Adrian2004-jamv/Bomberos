@@ -3,7 +3,7 @@
 
 {% block title %}Emergencias reportadas{% endblock %}
 {% block page_title %}Emergencias reportadas{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}?v=5">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/accion.css' %}?v=2"><link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/mapa_incidentes.css' %}?v=6">{% endblock %}
 
 {% block content %}
 <section class="incident-map-panel" aria-label="Mapa operativo de emergencias">
@@ -20,7 +20,7 @@
         <span><i class="incident-legend-icon incident-legend-icon--medical ti ti-ambulance" aria-hidden="true"></i>Emergencia médica</span>
         <hr class="incident-map-legend__divider">
         <strong>Unidades en escena</strong>
-        <span><i class="incident-legend-icon incident-legend-icon--unit ti ti-firetruck" aria-hidden="true"></i>Unidad operativa</span>
+        <ul class="map-units" data-map-units><li class="map-units__empty">Cargando unidades…</li></ul>
     </aside>
 </section>
 <nav class="incident-actions" aria-label="Acciones de emergencias">
@@ -40,7 +40,7 @@
         <label class="incident-document-filter incident-date-filter"><span>{{ form.desde.label }}</span>{{ form.desde }}</label>
         <label class="incident-document-filter incident-date-filter"><span>{{ form.hasta.label }}</span>{{ form.hasta }}</label>
         <button class="incident-filter-submit" type="submit"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
-        <a class="incident-filter-export" href="{% url 'emergencias:exportar' %}{% if querystring %}?{{ querystring }}{% endif %}"><i class="ti ti-file-download" aria-hidden="true"></i> Exportar CSV</a>
+        <a class="incident-filter-export" href="{% url 'emergencias:exportar' %}{% if querystring %}?{{ querystring }}{% endif %}"><i class="ti ti-file-download" aria-hidden="true"></i> Exportar CSV</a><a class="incident-filter-export" href="{% url 'emergencias:exportar_recursos' %}{% if querystring %}?{{ querystring }}{% endif %}"><i class="ti ti-truck" aria-hidden="true"></i> Reporte de recursos</a>
         {% if hay_filtros %}<a class="incident-filter-clear" href="{% url 'emergencias:lista' %}#registro-incidentes"><i class="ti ti-x" aria-hidden="true"></i> Limpiar</a>{% endif %}
         {% if form.errors %}
         <p class="incident-filter-error" role="alert"><i class="ti ti-alert-triangle" aria-hidden="true"></i>
@@ -65,4 +65,4 @@
     {% else %}<div class="empty-state"><p>No existen emergencias registradas en su ámbito autorizado.</p></div>{% endif %}
 </section>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'emergencias/js/mapa_incidentes.js' %}?v=4" defer></script><script src="{% static 'emergencias/js/registro_incidentes.js' %}?v=4" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'emergencias/js/mapa_incidentes.js' %}?v=5" defer></script><script src="{% static 'emergencias/js/registro_incidentes.js' %}?v=4" defer></script>{% endblock %}

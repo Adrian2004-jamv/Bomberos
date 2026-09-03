@@ -122,24 +122,15 @@ class PantallaDelChoferTests(BaseChoferTests):
         self.assertContains(respuesta, despliegue.emergencia.codigo)
         self.assertContains(respuesta, despliegue.unidad.codigo_interno)
 
-    def test_ofrece_iniciar_navegacion_con_las_coordenadas(self):
+    def test_la_pantalla_solo_ofrece_transmitir(self):
+        """La navegación se retiró: el chofer usa su propio mapa, y un enlace
+        a otra aplicación distraía del único botón que el sistema necesita."""
         self.desplegar_con_chofer()
         self.client.force_login(self.chofer)
         respuesta = self.client.get(reverse("emergencias:mi_unidad"))
-        self.assertContains(respuesta, "google.com/maps/dir/")
-        self.assertContains(respuesta, "destination=-0.933333,-78.616667")
-
-    def test_sin_coordenadas_lo_explica_en_vez_de_ofrecer_un_enlace_roto(self):
-        emergencia = self.crear_emergencia(
-            codigo="IE-01012026-801", latitud=None, longitud=None
-        )
-        despliegue = desplegar_unidad(emergencia, self.crear_unidad("AB-SIN"), self.jefe)
-        despliegue.responsable_unidad = self.chofer
-        despliegue.save(update_fields=["responsable_unidad"])
-        self.client.force_login(self.chofer)
-        respuesta = self.client.get(reverse("emergencias:mi_unidad"))
-        self.assertContains(respuesta, "no tiene coordenadas registradas")
+        self.assertContains(respuesta, "Transmitir mi ubicación")
         self.assertNotContains(respuesta, "google.com/maps/dir/")
+        self.assertNotContains(respuesta, "Iniciar navegación")
 
     def test_no_ve_la_unidad_de_otro_chofer(self):
         self.desplegar_con_chofer(chofer=self.otro_chofer)

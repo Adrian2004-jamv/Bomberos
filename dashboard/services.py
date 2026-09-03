@@ -146,7 +146,29 @@ def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None,
         consulta = consulta.filter(tipo_emergencia=tipo)
     # El resumen de cada emergencia se anota en la misma consulta; resolverlo
     # por fila costaría varias consultas por tarjeta.
-    return preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
+    emergencias = preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
+    return adjuntar_unidades(emergencias)
+
+def adjuntar_unidades(emergencias):
+    """Cuelga de cada emergencia las unidades que tiene encima.
+
+    El tablero decía «1 unidad» sin decir cuál. En un parte lo que se pregunta
+    es qué salió, no cuántos salieron. Se resuelve en una consulta para todas
+    las emergencias del tablero.
+    """
+    if not emergencias:
+        return emergencias
+    por_emergencia = {emergencia.pk: [] for emergencia in emergencias}
+    despliegues = DespliegueUnidad.objects.filter(
+        emergencia_id__in=por_emergencia
+    ).select_related(
+        "unidad", "unidad__tipo", "estacion_procedencia"
+    ).order_by("fecha_asignacion", "pk")
+    for despliegue in despliegues:
+        por_emergencia[despliegue.emergencia_id].append(despliegue)
+    for emergencia in emergencias:
+        emergencia.unidades_desplegadas = por_emergencia[emergencia.pk]
+    return emergencias
 
 def resumen_operativo(estaciones):
     emergencias = emergencias_del_ambito(estaciones)

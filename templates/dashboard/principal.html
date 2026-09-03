@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=8">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=9">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -84,11 +84,25 @@
                         <div><dt>Unidades</dt><dd>{{ incidente.unidades_activas }}{% if incidente.unidades_totales != incidente.unidades_activas %} <span>de {{ incidente.unidades_totales }}</span>{% endif %}</dd></div>
                         <div><dt>Personal</dt><dd>{{ incidente.personal_comprometido|default:"—" }}</dd></div>
                         <div><dt>Recursos</dt><dd>{{ incidente.recursos_registrados }}</dd></div>
-                        <div><dt title="Lo calcula el sistema: cuenta desde el reporte hasta que la primera unidad transmitió una posición a menos de 150 metros de la dirección.">{% if incidente.tiempo_respuesta %}Primera llegada{% else %}Sin arribos{% endif %}</dt><dd>{{ incidente.tiempo_respuesta|default:"—" }}</dd></div>
                         <div><dt>Formularios</dt><dd>{{ incidente.formularios_completados }}/{{ incidente.formularios_total }}
                             <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ incidente.formularios_total }}" aria-valuenow="{{ incidente.formularios_completados }}" aria-label="Avance documental de {{ incidente.codigo }}"><span style="width:{{ incidente.formularios_porcentaje }}%"></span></div>
                         </dd></div>
                     </dl>
+                    {% if incidente.unidades_desplegadas %}
+                    <div class="incident-board__unidades">
+                        <p class="eyebrow">Recursos desplegados</p>
+                        <ul>
+                            {% for despliegue in incidente.unidades_desplegadas %}
+                            <li>
+                                <strong>{{ despliegue.unidad.codigo_interno }}</strong>
+                                <span>{{ despliegue.unidad.tipo.nombre }}</span>
+                                <em>{{ despliegue.estacion_procedencia.nombre }}</em>
+                                <span class="deployment-state deployment-state--{{ despliegue.estado }}">{{ despliegue.get_estado_display }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
                     <ul class="incident-board__claves" aria-label="Puntos clave de {{ incidente.codigo }}">
                         {% for punto in incidente.puntos_clave %}<li>{{ punto }}</li>{% endfor %}
                     </ul>

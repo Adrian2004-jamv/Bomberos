@@ -17,3 +17,14 @@
 .incident-map-legend__divider{width:100%;margin:.3rem 0;border:none;border-top:1px solid var(--color-slate-200)}
 
 .leaflet-control-attribution{display:none!important}
+
+/* Listado de unidades visibles dentro de la leyenda. */
+.map-units { display: grid; gap: .3rem; margin: .2rem 0 0; padding: 0; list-style: none; max-height: 11rem; overflow-y: auto; }
+.map-units li { display: flex; align-items: flex-start; gap: .4rem; }
+.map-units span { display: grid; min-width: 0; }
+.map-units strong { font-size: .72rem; }
+.map-units small { color: var(--color-slate-600); font-size: .64rem; overflow-wrap: anywhere; }
+.map-units em { font-style: normal; font-size: .6rem; font-weight: 700; }
+.map-units__live { color: #16845b; }
+.map-units__idle { color: var(--color-slate-500); }
+.map-units__empty { color: var(--color-slate-500); font-size: .66rem; }

@@ -1,3 +1,5 @@
+from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
+from .services import desplegar_unidad
 """Filtros y paginación del registro de incidentes.
 
 Los tres filtros existían en JavaScript sobre las filas ya dibujadas; aquí se
@@ -566,3 +568,78 @@ class FormularioEnCursoDelListadoTests(BaseRegistroTests):
         con_nueve = self.contar_consultas()
 
         self.assertEqual(con_tres, con_nueve)
+
+
+class ReporteDeRecursosTests(BaseRegistroTests):
+    """Un reporte con una fila por unidad desplegada, no por emergencia."""
+
+    def desplegar(self, emergencia, codigo="AB-REP-01"):
+        categoria, _ = CategoriaRecurso.objects.get_or_create(
+            codigo="REPV", defaults={"nombre": "Vehículos"}
+        )
+        tipo, _ = TipoRecurso.objects.get_or_create(
+            categoria=categoria, codigo="REPA",
+            defaults={"nombre": "Autobomba", "es_unidad_desplegable": True},
+        )
+        recurso = Recurso.objects.create(
+            estacion=self.estacion, tipo=tipo, codigo_interno=codigo,
+            nombre="Autobomba de prueba",
+            estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+            disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+            fecha_confirmacion_disponibilidad=timezone.now(),
+        )
+        return desplegar_unidad(emergencia, recurso, self.usuario)
+
+    def descargar(self, consulta=""):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:exportar_recursos") + consulta
+        )
+        return respuesta, b"".join(respuesta.streaming_content).decode("utf-8")
+
+    def test_detalla_cada_unidad_con_su_procedencia(self):
+        emergencia = self.crear("RG-REP-1")
+        self.desplegar(emergencia)
+        _, cuerpo = self.descargar()
+        self.assertIn("AB-REP-01", cuerpo)
+        self.assertIn("Autobomba de prueba", cuerpo)
+        self.assertIn(self.estacion.nombre, cuerpo)
+        self.assertIn("RG-REP-1", cuerpo)
+
+    def test_trae_los_encabezados_del_detalle(self):
+        self.crear("RG-REP-2")
+        _, cuerpo = self.descargar()
+        for encabezado in ("Unidad", "Tipo de recurso", "Estación de procedencia",
+                           "Responsable de la unidad", "Posiciones registradas"):
+            self.assertIn(encabezado, cuerpo)
+
+    def test_una_fila_por_unidad_y_no_por_emergencia(self):
+        emergencia = self.crear("RG-REP-3")
+        self.desplegar(emergencia, "AB-REP-A")
+        self.desplegar(emergencia, "AB-REP-B")
+        _, cuerpo = self.descargar()
+        filas = [linea for linea in cuerpo.splitlines() if "RG-REP-3" in linea]
+        self.assertEqual(len(filas), 2)
+
+    def test_respeta_el_filtro_del_listado(self):
+        dentro = self.crear("RG-REP-4", tipo="Incendio forestal")
+        fuera = self.crear("RG-REP-5", tipo="Rescate")
+        self.desplegar(dentro, "AB-REP-D")
+        self.desplegar(fuera, "AB-REP-F")
+        _, cuerpo = self.descargar("?tipo=Incendio forestal")
+        self.assertIn("AB-REP-D", cuerpo)
+        self.assertNotIn("AB-REP-F", cuerpo)
+
+    def test_se_descarga_como_archivo(self):
+        self.crear("RG-REP-6")
+        respuesta, _ = self.descargar()
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("recursos-desplegados-", respuesta["Content-Disposition"])
+
+    def test_quien_no_consulta_emergencias_no_lo_descarga(self):
+        otro = get_user_model().objects.create_user(
+            username="ajeno-reporte", cedula="1800000001", password="clave",
+        )
+        self.client.force_login(otro)
+        respuesta = self.client.get(reverse("emergencias:exportar_recursos"))
+        self.assertEqual(respuesta.status_code, 403)

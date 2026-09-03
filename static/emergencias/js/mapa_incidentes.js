@@ -43,6 +43,30 @@
         if (p.clase === "emergencia") return `<strong>${escapeHtml(p.codigo)} · ${escapeHtml(p.tipo)}</strong><br>${escapeHtml(p.estado_etiqueta)}<br>${escapeHtml(p.direccion)}<br><a href="${escapeHtml(p.detalle_url)}">Ver registro</a>`;
         return `<strong>${escapeHtml(p.unidad)}</strong><br>Incidente ${escapeHtml(p.emergencia)}<br>${escapeHtml(p.estado_etiqueta)} · ${escapeHtml(p.estacion)}`;
     };
+    const listaUnidades = document.querySelector("[data-map-units]");
+
+    // La leyenda decia «Unidad operativa» y nada mas. Con varias unidades en
+    // escena eso no dice cual esta donde: se enumeran las que hay dibujadas,
+    // con su tipo, su emergencia y si esta transmitiendo.
+    const listarUnidades = (features) => {
+        if (!listaUnidades) return;
+        const unidades = features.filter((f) => f.properties.clase === "unidad");
+        if (!unidades.length) {
+            listaUnidades.innerHTML = '<li class="map-units__empty">Ninguna unidad desplegada.</li>';
+            return;
+        }
+        listaUnidades.innerHTML = unidades.map((feature) => {
+            const p = feature.properties;
+            const transmite = feature.geometry
+                ? '<em class="map-units__live">transmitiendo</em>'
+                : '<em class="map-units__idle">sin ubicación en vivo</em>';
+            return `<li><i class="incident-legend-icon incident-legend-icon--unit ti ti-firetruck" aria-hidden="true"></i>`
+                + `<span><strong>${escapeHtml(p.unidad)}</strong>`
+                + `<small>${escapeHtml(p.tipo_recurso)} · ${escapeHtml(p.emergencia)}</small>`
+                + `${transmite}</span></li>`;
+        }).join("");
+    };
+
     const refresh = async () => {
         status.textContent = "Actualizando mapa…";
         try {
@@ -69,6 +93,7 @@
                 if (activo) bounds.push([latitude, longitude]);
                 totalDibujado += 1;
             });
+            listarUnidades(data.features);
             if (!fitted && bounds.length) { map.fitBounds(bounds, {padding:[35,35],maxZoom:13}); fitted = true; }
             status.dataset.state = "ready";
             status.textContent = hayFiltros
