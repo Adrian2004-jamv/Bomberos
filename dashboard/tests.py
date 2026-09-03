@@ -1,8 +1,10 @@
+from emergencias.indicadores import anotar_indicadores
 from emergencias.services import desplegar_unidad
 from pathlib import Path
 from django.conf import settings
 from datetime import datetime
-from emergencias.models import Emergencia
+from emergencias.models import (DespliegueUnidad, Emergencia, FormularioSCI,
+                                FormularioSCI211)
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -457,3 +459,121 @@ class FiltroPorIncidenteTests(FiltroYPuntosClaveTests):
         self.assertContains(respuesta, "Recursos desplegados")
         self.assertContains(respuesta, "AB-PANEL-01")
         self.assertContains(respuesta, self.estacion.nombre)
+
+
+class PersonalComprometidoTests(TestCase):
+    """El personal no puede multiplicarse por las otras uniones de la consulta."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="PER")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Personal", sigla="PER",
+            ruc="0596000001500", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Central Personal", codigo="PER-C",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.usuario = get_user_model().objects.create_user(
+            username="panel-personal", cedula="1900000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.usuario.groups.add(Group.objects.get(name="Responsable institucional"))
+        categoria = CategoriaRecurso.objects.create(codigo="PERV", nombre="Vehículos")
+        cls.tipo = TipoRecurso.objects.create(
+            categoria=categoria, codigo="PERA", nombre="Autobomba",
+            es_unidad_desplegable=True,
+        )
+
+    def escenario_con_varias_uniones(self):
+        """Dos despliegues, dos registros de personal y tres formularios.
+
+        Es la combinación que disparaba el fallo: la fila se repetía doce veces
+        y el «Sum» contaba cada registro una vez por repetición.
+        """
+        emergencia = Emergencia.objects.create(
+            codigo="IE-01032026-500", tipo_emergencia="Incendio estructural",
+            direccion="Centro", estacion_responsable=self.estacion,
+            registrado_por=self.usuario,
+        )
+        for numero in (1, 2):
+            recurso = Recurso.objects.create(
+                estacion=self.estacion, tipo=self.tipo,
+                codigo_interno=f"AB-PER-0{numero}", nombre="Autobomba",
+                estado_operativo=Recurso.EstadoOperativo.OPERATIVO,
+                disponibilidad=Recurso.Disponibilidad.DISPONIBLE,
+                fecha_confirmacion_disponibilidad=timezone.now(),
+            )
+            desplegar_unidad(emergencia, recurso, self.usuario)
+        for codigo in ("201", "207", "202"):
+            FormularioSCI.objects.create(
+                emergencia=emergencia, codigo_sci=codigo, datos={"a": 1},
+                creado_por=self.usuario, modificado_por=self.usuario,
+            )
+        formulario = FormularioSCI211.objects.create(
+            emergencia=emergencia, codigo=f"SCI-211-{emergencia.pk}",
+            punto_registro="Puesto de Comando", registrador_1="panel",
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        for orden, personas in enumerate((3, 2), start=1):
+            formulario.registros.create(
+                orden=orden, solicitado_por="CI",
+                fecha_hora_solicitud=emergencia.fecha_reporte,
+                clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+                matricula_identificacion=f"AB-PER-0{orden}",
+                numero_personas=personas, asignado_a="Zona de operaciones",
+            )
+        return emergencia
+
+    def test_el_personal_es_la_suma_real_y_no_un_multiplo(self):
+        self.escenario_con_varias_uniones()
+        anotada = anotar_indicadores(Emergencia.objects.all()).get()
+        self.assertEqual(anotada.personal_comprometido, 5)
+
+    def test_las_demas_cifras_no_se_contaminan(self):
+        self.escenario_con_varias_uniones()
+        anotada = anotar_indicadores(Emergencia.objects.all()).get()
+        self.assertEqual(anotada.unidades_totales, 2)
+        self.assertEqual(anotada.recursos_registrados, 2)
+        self.assertEqual(anotada.formularios_genericos, 3)
+
+    def test_sin_sci211_no_inventa_personal(self):
+        Emergencia.objects.create(
+            codigo="IE-01032026-501", tipo_emergencia="Rescate",
+            direccion="Centro", estacion_responsable=self.estacion,
+            registrado_por=self.usuario,
+        )
+        anotada = anotar_indicadores(
+            Emergencia.objects.filter(codigo="IE-01032026-501")
+        ).get()
+        self.assertIsNone(anotada.personal_comprometido)
+
+    def test_el_panel_muestra_la_cifra_correcta(self):
+        self.escenario_con_varias_uniones()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("dashboard:principal"))
+        incidente = respuesta.context["incidentes_en_curso"][0]
+        self.assertEqual(incidente.personal_comprometido, 5)
+        self.assertContains(respuesta, "5 personas comprometidas.")
+
+
+class RedaccionDeLosPuntosClaveTests(PersonalComprometidoTests):
+    """Las frases deben decir lo que los datos dicen, no algo parecido."""
+
+    def test_una_unidad_asignada_no_esta_en_el_lugar(self):
+        self.escenario_con_varias_uniones()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("dashboard:principal"))
+        self.assertContains(respuesta, "ninguna ha llegado todavía")
+        self.assertNotContains(respuesta, "2 unidades en el lugar")
+
+    def test_cuando_llegan_se_cuentan_aparte(self):
+        emergencia = self.escenario_con_varias_uniones()
+        despliegue = DespliegueUnidad.objects.filter(emergencia=emergencia).first()
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(
+            fecha_llegada=timezone.now()
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("dashboard:principal"))
+        self.assertContains(respuesta, "2 unidades movilizadas, 1 en el lugar")

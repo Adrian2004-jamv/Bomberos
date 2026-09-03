@@ -11,10 +11,11 @@ registrado —despliegues y formularios—, así que no hay ningún dato que alg
 deba mantener aparte ni que pueda contradecir a la pantalla que lo alimenta.
 """
 
-from django.db.models import Count, Min, Q, Sum
+from django.db.models import (Count, IntegerField, Min, OuterRef, Q, Subquery,
+                              Sum)
 from django.utils import timezone
 
-from .models import DespliegueUnidad
+from .models import DespliegueUnidad, RegistroRecursoSCI211
 
 TOTAL_FORMULARIOS_SCI = 12
 
@@ -34,11 +35,31 @@ def formato_duracion(diferencia):
     return f"{minutos} min"
 
 def anotar_indicadores(emergencias):
-    """Agrega a la consulta lo que necesita el resumen de cada emergencia."""
+    """Agrega a la consulta lo que necesita el resumen de cada emergencia.
+
+    El personal va en una subconsulta y no en un ``Sum`` sobre la unión. La
+    consulta enlaza a la vez los despliegues, los registros del SCI-211 y los
+    formularios genéricos, de modo que cada fila del resultado se repite tantas
+    veces como combinaciones haya. Un ``Count`` se defiende con ``distinct``,
+    pero un ``Sum`` no admite esa opción: sumaba el mismo registro una vez por
+    combinación y el panel llegó a anunciar cincuenta personas donde había
+    cinco.
+    """
+    personal = RegistroRecursoSCI211.objects.filter(
+        formulario__emergencia_id=OuterRef("pk")
+    ).values("formulario__emergencia_id").annotate(
+        total=Sum("numero_personas")
+    ).values("total")[:1]
+
     return emergencias.annotate(
         unidades_totales=Count("despliegues", distinct=True),
+        unidades_en_sitio=Count(
+            "despliegues",
+            filter=Q(despliegues__fecha_llegada__isnull=False),
+            distinct=True,
+        ),
         primera_llegada=Min("despliegues__fecha_llegada"),
-        personal_comprometido=Sum("formulario_sci_211__registros__numero_personas"),
+        personal_comprometido=Subquery(personal, output_field=IntegerField()),
         recursos_registrados=Count(
             "formulario_sci_211__registros", distinct=True
         ),
@@ -84,12 +105,19 @@ def puntos_clave(emergencia):
         puntos.append(f"Cerrada tras {emergencia.duracion} de atención.")
 
     if emergencia.unidades_activas:
+        # «Activa» incluye asignada y en ruta: decir «en el lugar» anunciaba en
+        # la escena unidades que aún no habían salido de la estación.
         frase = (
             f"{emergencia.unidades_activas} unidad"
-            f"{'es' if emergencia.unidades_activas != 1 else ''} en el lugar"
+            f"{'es' if emergencia.unidades_activas != 1 else ''} movilizada"
+            f"{'s' if emergencia.unidades_activas != 1 else ''}"
         )
+        if emergencia.unidades_en_sitio:
+            frase += f", {emergencia.unidades_en_sitio} en el lugar"
+        else:
+            frase += ", ninguna ha llegado todavía"
         if emergencia.unidades_totales > emergencia.unidades_activas:
-            frase += f", de {emergencia.unidades_totales} movilizadas"
+            frase += f" (de {emergencia.unidades_totales} despachadas en total)"
         puntos.append(frase + ".")
     elif emergencia.unidades_totales:
         puntos.append(f"{emergencia.unidades_totales} unidad(es) movilizadas, ninguna activa.")
