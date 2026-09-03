@@ -1,15 +1,15 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar {{ formulario_sci.codigo }}{% endblock %}{% block page_title %}SCI-211 · Borrador{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}?v=8">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/sci211.css' %}?v=9">{% endblock %}
 {% block content %}<form method="post" class="sci-form" novalidate>{% csrf_token %}
 <section class="panel sci-document"><header class="sci-document__header"><div class="sci-document__code">SCI-211</div><div><p>SISTEMA DE COMANDO DE INCIDENTES</p><h2>REGISTRO Y CONTROL DE RECURSOS</h2></div><div class="sci-document__status">BORRADOR<br>{{ formulario_sci.emergencia.codigo }}</div></header>
 {% if cabecera.non_field_errors %}<div class="form-errors">{{ cabecera.non_field_errors }}</div>{% endif %}<div class="form-grid">{% for field in cabecera %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}</div></section>
 <section class="panel"><div class="panel__heading"><div><p class="eyebrow">Cuadrícula oficial repetible</p><h2>Recursos registrados</h2></div></div><p class="sci-resource-guidance"><strong>Elija el recurso de la lista.</strong> Al seleccionarlo se completan solos su clase, tipo, institución e identificación, y la unidad se despacha al guardar. La lista muestra todo el inventario de su ámbito: las unidades que no pueden salir aparecen en gris con el motivo al lado. Un recurso escrito a mano queda solo en el papel: no genera despliegue ni aparece en el mapa.</p>{% if sin_recursos_disponibles %}<p class="sci-resource-empty-notice" role="alert"><strong>No hay recursos que ofrecer.</strong> Su ámbito no tiene ningún recurso activo en el inventario. Cárguelos en Inventario antes de registrar unidades en este formulario.</p>{% endif %}{{ registros.management_form }}{{ registros.non_form_errors }}
-<div class="resource-cards" data-resource-cards>{% for form in registros %}<fieldset class="resource-card" data-resource-card><legend>Recurso <span data-resource-number>{{ forloop.counter }}</span></legend>{{ form.id }}{% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+<div class="resource-cards" data-resource-cards{% if plegar_guardados %} data-plegar-guardados{% endif %}>{% for form in registros %}<fieldset class="resource-card" data-resource-card><legend>Recurso <span data-resource-number>{{ forloop.counter }}</span></legend>{{ form.id }}{% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
 <p class="resource-card__summary" data-resource-summary hidden></p>
 <div class="official-resource-grid" data-resource-fields>{% for field in form.visible_fields %}<div class="field official-field official-field--{{ field.name }}{% if field.name == 'DELETE' %} field--hidden{% endif %}{% if field.name == 'observaciones' %} field--wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
 <div class="resource-card__actions">
-    <button type="button" class="resource-action resource-action--save" data-resource-save><i class="ti ti-check" aria-hidden="true"></i> Guardar</button>
+    <button type="submit" name="accion" value="guardar_recurso" class="resource-action resource-action--save" data-resource-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar</button>
     <button type="button" class="resource-action resource-action--edit" data-resource-edit hidden><i class="ti ti-pencil" aria-hidden="true"></i> Editar</button>
     <button type="button" class="resource-action resource-action--delete" data-resource-delete><i class="ti ti-trash" aria-hidden="true"></i> Eliminar</button>
 </div></fieldset>{% endfor %}</div>
@@ -18,9 +18,9 @@
 <p class="resource-card__summary" data-resource-summary hidden></p>
 <div class="official-resource-grid" data-resource-fields>{% for field in registros.empty_form.visible_fields %}<div class="field official-field official-field--{{ field.name }}{% if field.name == 'DELETE' %} field--hidden{% endif %}{% if field.name == 'observaciones' %} field--wide{% endif %}"><label>{{ field.label }}</label>{{ field }}</div>{% endfor %}</div>
 <div class="resource-card__actions">
-    <button type="button" class="resource-action resource-action--save" data-resource-save><i class="ti ti-check" aria-hidden="true"></i> Guardar</button>
+    <button type="submit" name="accion" value="guardar_recurso" class="resource-action resource-action--save" data-resource-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar</button>
     <button type="button" class="resource-action resource-action--edit" data-resource-edit hidden><i class="ti ti-pencil" aria-hidden="true"></i> Editar</button>
     <button type="button" class="resource-action resource-action--delete" data-resource-delete><i class="ti ti-trash" aria-hidden="true"></i> Eliminar</button>
 </div></fieldset></template></section>
 <div class="action-bar"><a class="button" href="{% url 'emergencias:sci211_detalle' formulario_sci.pk %}">Cancelar</a><button class="button button--primary" type="submit">Guardar borrador</button><button class="button" type="submit" name="accion" value="finalizar">Finalizar…</button></div></form>{% endblock %}
-{% block extra_js %}<script src="{% static 'emergencias/js/sci211_recursos.js' %}?v=2"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'emergencias/js/sci211_recursos.js' %}?v=3"></script>{% endblock %}

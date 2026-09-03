@@ -1038,9 +1038,19 @@ def sci211_editar(request, pk):
             )
         for aviso in avisos:
             messages.warning(request, aviso)
-        if request.POST.get("accion") == "finalizar":
+        accion = request.POST.get("accion")
+        if accion == "finalizar":
             messages.success(request, "Borrador guardado. Confirme para finalizar.")
             return redirect("emergencias:sci211_finalizar", pk=pk)
+        if accion == "guardar_recurso":
+            # El botón de cada tarjeta guarda de verdad y devuelve al editor con
+            # lo ya anotado plegado, para seguir añadiendo recursos. Antes solo
+            # minimizaba la tarjeta: quien lo pulsaba y cerraba la pestaña
+            # perdía el recurso creyendo haberlo guardado.
+            messages.success(request, "Recurso guardado en el SCI-211.")
+            return redirect(
+                reverse("emergencias:sci211_editar", args=[pk]) + "?plegar=1"
+            )
         messages.success(request, "Borrador SCI-211 guardado.")
         return redirect(
             reverse("emergencias:detalle", args=[formulario.emergencia_id]) + "#formularios-sci"
@@ -1051,6 +1061,7 @@ def sci211_editar(request, pk):
     contexto = {
         "formulario_sci": formulario, "cabecera": cabecera, "registros": registros,
         "sin_recursos_disponibles": not hay_recursos,
+        "plegar_guardados": request.GET.get("plegar") == "1",
     }
 
     return render(request, "emergencias/sci211/formulario.html", contexto)

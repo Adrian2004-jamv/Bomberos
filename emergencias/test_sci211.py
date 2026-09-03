@@ -1423,3 +1423,78 @@ class ImprimibleDel211Tests(SCI211Tests):
         self.assertNotContains(
             respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
         )
+
+
+class BotonGuardarDelRecursoTests(ConUnidadDesplegable, SCI211Tests):
+    """El botón de cada tarjeta guarda de verdad, no solo minimiza."""
+
+    def datos_con_recurso(self, formulario, unidad, accion):
+        datos = self._datos_edicion(formulario)
+        datos["registros-0-recurso_inventario"] = str(unidad.pk)
+        datos["accion"] = accion
+        return datos
+
+    def test_el_boton_de_la_tarjeta_persiste_el_recurso(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        unidad = self.crear_unidad_desplegable("AB-GUARDA-01")
+        self.client.force_login(self.usuario)
+
+        self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            self.datos_con_recurso(formulario, unidad, "guardar_recurso"),
+        )
+        registro = formulario.registros.first()
+        self.assertIsNotNone(registro)
+        self.assertEqual(registro.recurso_inventario, unidad)
+
+    def test_guardar_un_recurso_devuelve_al_editor_y_no_a_la_ficha(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        unidad = self.crear_unidad_desplegable("AB-GUARDA-02")
+        self.client.force_login(self.usuario)
+
+        respuesta = self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            self.datos_con_recurso(formulario, unidad, "guardar_recurso"),
+        )
+        self.assertRedirects(
+            respuesta,
+            reverse("emergencias:sci211_editar", args=[formulario.pk]) + "?plegar=1",
+        )
+
+    def test_al_volver_se_pide_plegar_lo_ya_anotado(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]) + "?plegar=1"
+        )
+        self.assertContains(respuesta, "data-plegar-guardados")
+
+    def test_sin_ese_parametro_las_tarjetas_salen_abiertas(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
+        self.assertNotContains(respuesta, "data-plegar-guardados")
+
+    def test_el_boton_envia_el_formulario(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
+        # Si vuelve a ser «type=button» deja de guardar y solo minimiza.
+        self.assertContains(respuesta, 'type="submit" name="accion" value="guardar_recurso"')
+
+    def test_el_boton_de_editar_puede_ocultarse(self):
+        hoja = (
+            Path(settings.BASE_DIR)
+            / "static" / "emergencias" / "css" / "sci211.css"
+        ).read_text(encoding="utf-8")
+        # «display: inline-flex» vence al atributo hidden si no se contempla.
+        self.assertIn(".resource-action[hidden]", hoja)

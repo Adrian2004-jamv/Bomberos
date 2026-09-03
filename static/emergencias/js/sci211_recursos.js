@@ -106,14 +106,19 @@
     const casillaDeBorrado = (tarjeta) =>
         tarjeta.querySelector("input[type='checkbox'][name$='-DELETE']");
 
+    // Al volver de guardar, lo ya anotado se muestra plegado: la pantalla queda
+    // lista para el siguiente recurso en vez de repetir seis campos llenos.
+    if (contenedor.hasAttribute("data-plegar-guardados")) {
+        contenedor.querySelectorAll("[data-resource-card]").forEach((tarjeta) => {
+            const select = tarjeta.querySelector("[data-recurso-inventario]");
+            if (select && select.value) plegar(tarjeta, true);
+        });
+    }
+
     contenedor.addEventListener("click", (evento) => {
         const tarjeta = evento.target.closest("[data-resource-card]");
         if (!tarjeta) return;
 
-        if (evento.target.closest("[data-resource-save]")) {
-            plegar(tarjeta, true);
-            return;
-        }
         if (evento.target.closest("[data-resource-edit]")) {
             plegar(tarjeta, false);
             return;
