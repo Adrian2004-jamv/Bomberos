@@ -55,6 +55,15 @@ def finalizar_sci211(formulario, usuario):
     registros = list(actual.registros.all())
     if not registros:
         raise ValidationError("Debe registrar al menos un recurso antes de finalizar.")
+    # El SCI-211 es la bitácora de control de recursos del incidente, no un
+    # documento que se redacta una vez: mientras la emergencia siga abierta
+    # pueden llegar más unidades y hay que poder anotarlas. Cerrarlo antes
+    # dejaría fuera del acta todo lo que llegara después.
+    if actual.emergencia.admite_despliegues:
+        raise ValidationError(
+            "El SCI-211 se cierra cuando la emergencia termina: hasta entonces "
+            "siguen llegando recursos que deben quedar registrados."
+        )
     actual.full_clean()
     for registro in registros:
         registro.full_clean()
@@ -100,6 +109,57 @@ def tiene_contenido(datos):
     return False
 
 @transaction.atomic
+@transaction.atomic
+def registrar_solicitud_en_sci211(emergencia, recursos, usuario):
+    """Anota en el SCI-211 los recursos que el plan de acción pidió.
+
+    Solicitar una unidad en el SCI-202 es pedirla; el SCI-211 es donde consta
+    que se pidió, cuándo y a quién. Sin este paso había que copiar a mano en un
+    formulario lo que ya se había escrito en el otro, y en una emergencia eso
+    se olvida.
+
+    No duplica: un recurso ya anotado se deja como está. Devuelve cuántas filas
+    nuevas se crearon.
+    """
+    if not recursos:
+        return 0
+
+    formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+    if formulario is None:
+        formulario = crear_sci211_desde_emergencia(emergencia, usuario)
+    if not formulario.es_editable:
+        return 0
+
+    ya_anotados = set(
+        formulario.registros.filter(recurso_inventario__isnull=False)
+        .values_list("recurso_inventario_id", flat=True)
+    )
+    orden = formulario.registros.count()
+    creadas = 0
+    for recurso in recursos:
+        if recurso.pk in ya_anotados:
+            continue
+        orden += 1
+        RegistroRecursoSCI211.objects.create(
+            formulario=formulario, orden=orden,
+            solicitado_por=nombre_usuario(usuario),
+            fecha_hora_solicitud=timezone.now(),
+            recurso_inventario=recurso,
+            clase_recurso=recurso.tipo.categoria.nombre,
+            tipo_recurso=recurso.tipo.nombre,
+            institucion_procedencia=recurso.estacion.cuerpo_bomberos.nombre,
+            matricula_identificacion=recurso.codigo_interno,
+            numero_personas=1,
+            asignado_a=f"Solicitado en el {formulario.codigo.replace('211', '202')}",
+        )
+        ya_anotados.add(recurso.pk)
+        creadas += 1
+
+    if creadas:
+        formulario.modificado_por = usuario
+        formulario.save(update_fields=["modificado_por"])
+    return creadas
+
 def desplegar_recursos_del_sci211(formulario, usuario):
     """Despacha las unidades que el SCI-211 registra y aún no están desplegadas.
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from django.conf import settings
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
 from django.template.loader import render_to_string
@@ -98,6 +99,17 @@ class SCI211Tests(TestCase):
             fecha_confirmacion_disponibilidad=timezone.now(),
         )
 
+    def cerrar_el_211(self, formulario):
+        """Cierra el SCI-211 como se cierra en la realidad: con la emergencia
+        terminada. Antes bastaba con pedirlo, pero el registro de recursos
+        sigue abierto mientras puedan llegar unidades."""
+        Emergencia.objects.filter(pk=self.emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA
+        )
+        self.emergencia.refresh_from_db()
+        formulario.refresh_from_db()
+        return finalizar_sci211(formulario, self.usuario)
+
     def finalizar_anteriores(self, codigo_objetivo):
         """Prepara el flujo previo cuando una prueba se enfoca en un paso posterior."""
         orden = ["201", "207", "211", "202", "203", "204", "205", "206",
@@ -114,12 +126,18 @@ class SCI211Tests(TestCase):
                         "modificado_por": self.usuario,
                     },
                 )
-                formulario.estado = FormularioSCI211.Estado.FINALIZADO
-                formulario.finalizado_por = self.usuario
-                formulario.fecha_finalizacion = timezone.now()
-                formulario.save(update_fields=(
-                    "estado", "finalizado_por", "fecha_finalizacion"
-                ))
+                # El SCI-211 no se finaliza con la emergencia abierta: para la
+                # cadena basta con que tenga recursos anotados, que es el
+                # estado real en el que estará durante toda la intervención.
+                if not formulario.registros.exists():
+                    formulario.registros.create(
+                        orden=1, solicitado_por="Comandante de Incidente",
+                        fecha_hora_solicitud=self.emergencia.fecha_reporte,
+                        clase_recurso="Vehículos", tipo_recurso="Autobomba",
+                        institucion_procedencia="Cuerpo de Bomberos",
+                        matricula_identificacion="PREVIO-01",
+                        numero_personas=1, asignado_a="Zona de operaciones",
+                    )
             else:
                 formulario, _ = FormularioSCI.objects.get_or_create(
                     emergencia=self.emergencia, codigo_sci=codigo,
@@ -164,7 +182,7 @@ class SCI211Tests(TestCase):
 
     def test_finalizacion_congela_datos_e_impide_edicion(self):
         self.finalizar_anteriores("211")
-        formulario = finalizar_sci211(self.crear_formulario(), self.usuario)
+        formulario = self.cerrar_el_211(self.crear_formulario())
         self.assertEqual(formulario.estado, FormularioSCI211.Estado.FINALIZADO)
         self.assertEqual(formulario.institucion_emitida, self.cuerpo.nombre)
         self.assertEqual(formulario.incidente_nombre_emitido, self.emergencia.tipo_emergencia)
@@ -278,8 +296,10 @@ class SCI211Tests(TestCase):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
         # La acción vive solo en el aviso del paso siguiente: el encabezado
-        # repetía el mismo botón sin decir de qué formulario se trataba.
-        self.assertContains(respuesta, "Siguiente: SCI-211")
+        # repetía el mismo botón sin decir de qué formulario se trataba. Con el
+        # 211 ya en uso, el paso que se anuncia es el que sigue.
+        self.assertContains(respuesta, "Registro abierto")
+        self.assertContains(respuesta, "Siguiente: SCI-202")
         self.assertContains(respuesta, 'class="sci-next-step__cta"', html=False)
         self.assertNotContains(respuesta, "Continuar SCI-211")
         self.assertContains(respuesta, "Incompleto o con errores")
@@ -290,7 +310,7 @@ class SCI211Tests(TestCase):
             respuesta, 'class="sci-form-tab sci-form-tab--locked"', html=False
         )
         self.assertContains(respuesta, "Paso 1: SCI-201")
-        finalizar_sci211(formulario, self.usuario)
+        self.cerrar_el_211(formulario)
         respuesta = self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
         self.assertNotContains(respuesta, "Consultar SCI-211")
         self.assertNotContains(respuesta, "Vista imprimible")
@@ -1199,10 +1219,11 @@ class AccionUnicaDelPanelSCITests(ConUnidadDesplegable, SCI211Tests):
         )
         self.assertEqual(ultimo.estado, FormularioSCI.Estado.FINALIZADO)
         respuesta = self.detalle()
-        # Con los doce cerrados no queda nada que llenar, ni en el aviso ni en
-        # el encabezado: lo que queda es la franja para imprimirlos.
+        # Con los once genéricos cerrados no queda nada que anunciar: el
+        # SCI-211 sigue abierto —lo estará hasta que la emergencia termine—
+        # pero un registro en uso no es un paso pendiente.
         self.assertNotContains(respuesta, "sci-next-step__cta")
-        self.assertNotContains(respuesta, "sci-panel-action--primary")
+        self.assertContains(respuesta, "Registro abierto")
         self.assertContains(respuesta, "Formularios disponibles para imprimir")
 
 
@@ -1404,7 +1425,7 @@ class ImprimibleDel211Tests(SCI211Tests):
 
     def test_un_formulario_finalizado_no_lo_ofrece(self):
         formulario = self.crear_formulario()
-        finalizar_sci211(formulario, self.usuario)
+        self.cerrar_el_211(formulario)
         respuesta = self.imprimir(formulario)
         self.assertNotContains(
             respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
@@ -1602,3 +1623,143 @@ class RecursosEnElLugarDel202Tests(ConUnidadDesplegable, SCI211Tests):
             follow=True,
         )
         self.assertNotContains(respuesta, "solo admite recursos que el SCI-211")
+
+
+class RegistroAbiertoDuranteLaEmergenciaTests(ConUnidadDesplegable, SCI211Tests):
+    """El SCI-211 es una bitácora: vive mientras la emergencia esté abierta."""
+
+    def test_no_se_cierra_con_la_emergencia_en_marcha(self):
+        formulario = self.crear_formulario()
+        with self.assertRaises(ValidationError) as capturado:
+            finalizar_sci211(formulario, self.usuario)
+        self.assertIn("cuando la emergencia termina", str(capturado.exception))
+        formulario.refresh_from_db()
+        self.assertTrue(formulario.es_editable)
+
+    def test_se_cierra_una_vez_terminada(self):
+        formulario = self.crear_formulario()
+        cerrado = self.cerrar_el_211(formulario)
+        self.assertEqual(cerrado.estado, FormularioSCI211.Estado.FINALIZADO)
+
+    def test_con_recursos_anotados_desbloquea_los_siguientes(self):
+        """Sin esto, exigirle estar cerrado dejaría el 202 bloqueado para
+        siempre: el 211 no puede cerrarse hasta que la emergencia termine."""
+        self.finalizar_anteriores("211")
+        self.crear_formulario(completo=False).registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=self.crear_unidad_desplegable("AB-BITACORA-01"),
+            clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+            matricula_identificacion="AB-BITACORA-01", numero_personas=2,
+            asignado_a="Zona de operaciones",
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_un_211_vacio_no_desbloquea_nada(self):
+        self.finalizar_anteriores("211")
+        self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            follow=True,
+        )
+        self.assertContains(respuesta, "Finalice primero el formulario")
+
+    def test_la_ficha_lo_llama_registro_abierto(self):
+        self.finalizar_anteriores("211")
+        self.crear_formulario(completo=False).registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=self.crear_unidad_desplegable("AB-BITACORA-02"),
+            clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+            matricula_identificacion="AB-BITACORA-02", numero_personas=2,
+            asignado_a="Zona de operaciones",
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        self.assertContains(respuesta, "Registro abierto")
+
+class SolicitudDel202AlSCI211Tests(ConUnidadDesplegable, SCI211Tests):
+    """Lo que el plan de acción solicita queda anotado en el registro."""
+
+    def guardar_202(self, unidad):
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+        return self.client.post(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            {
+                "plan-0-estrategia": "Reforzar el ataque",
+                "plan-0-recursos_solicitar": str(unidad.pk),
+                "preparado_por": "Comandante de Incidente",
+            },
+            follow=True,
+        )
+
+    def test_el_recurso_solicitado_aparece_en_el_211(self):
+        unidad = self.crear_unidad_desplegable("AMB-PEDIDA-01")
+        self.guardar_202(unidad)
+        formulario = FormularioSCI211.objects.get(emergencia=self.emergencia)
+        self.assertTrue(
+            formulario.registros.filter(recurso_inventario=unidad).exists()
+        )
+
+    def test_queda_constancia_de_quien_y_cuando_lo_pidio(self):
+        unidad = self.crear_unidad_desplegable("AMB-PEDIDA-02")
+        self.guardar_202(unidad)
+        registro = FormularioSCI211.objects.get(
+            emergencia=self.emergencia
+        ).registros.get(recurso_inventario=unidad)
+        self.assertEqual(registro.solicitado_por, self.usuario.username)
+        self.assertIsNotNone(registro.fecha_hora_solicitud)
+
+    def test_la_unidad_solicitada_se_despacha(self):
+        unidad = self.crear_unidad_desplegable("AMB-PEDIDA-03")
+        self.guardar_202(unidad)
+        self.assertTrue(
+            DespliegueUnidad.objects.filter(
+                emergencia=self.emergencia, unidad=unidad
+            ).exists()
+        )
+
+    def test_no_se_duplica_al_volver_a_guardar(self):
+        unidad = self.crear_unidad_desplegable("AMB-PEDIDA-04")
+        self.guardar_202(unidad)
+        self.guardar_202(unidad)
+        formulario = FormularioSCI211.objects.get(emergencia=self.emergencia)
+        self.assertEqual(
+            formulario.registros.filter(recurso_inventario=unidad).count(), 1
+        )
+
+    def test_lo_anotado_como_en_el_lugar_no_se_vuelve_a_solicitar(self):
+        """«En el lugar» ya está en la escena: trasladarlo seria pedir otra vez
+        lo que ya llegó."""
+        unidad = self.crear_unidad_desplegable("AMB-PEDIDA-05")
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        formulario.registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=unidad, clase_recurso="Vehículos",
+            institucion_procedencia="Bomberos",
+            matricula_identificacion=unidad.codigo_interno,
+            numero_personas=2, asignado_a="Zona de operaciones",
+        )
+        self.finalizar_anteriores("202")
+        self.client.force_login(self.usuario)
+        self.client.post(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            {
+                "plan-0-estrategia": "Sostener el ataque",
+                "plan-0-recursos_lugar": str(unidad.pk),
+                "preparado_por": "CI",
+            },
+        )
+        self.assertEqual(
+            formulario.registros.filter(recurso_inventario=unidad).count(), 1
+        )

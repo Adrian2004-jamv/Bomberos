@@ -46,7 +46,7 @@ from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
                        registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
                           desplegar_recursos_del_sci211, finalizar_sci,
-                          finalizar_sci211)
+                          finalizar_sci211, registrar_solicitud_en_sci211)
 
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
 
@@ -102,7 +102,14 @@ def formularios_sci_finalizados(emergencia):
         ).values_list("codigo_sci", flat=True)
     )
     sci211 = getattr(emergencia, "formulario_sci_211", None)
-    if sci211 and sci211.estado == FormularioSCI211.Estado.FINALIZADO:
+    # Al SCI-211 no se le exige estar cerrado para dejar avanzar: no puede
+    # cerrarse hasta que la emergencia termine. Lo que los formularios
+    # siguientes necesitan es saber con qué recursos se cuenta, y eso lo
+    # cumple en cuanto tiene alguno anotado.
+    if sci211 and (
+        sci211.estado == FormularioSCI211.Estado.FINALIZADO
+        or sci211.registros.exists()
+    ):
         finalizados.add("211")
     return finalizados
 
@@ -655,10 +662,16 @@ def detalle(request, pk):
     finalizados = formularios_sci_finalizados(emergencia)
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
         formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
+        en_curso = False
         if formulario is None:
             clave_estado, etiqueta_estado = "pending", "No iniciado"
         elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
             clave_estado, etiqueta_estado = "complete", "Finalizado"
+        elif item["codigo"] == "211" and formulario.registros.exists():
+            # Un 211 con recursos anotados no está incompleto: está en uso, y
+            # seguirá abierto hasta que la emergencia termine.
+            clave_estado, etiqueta_estado = "incomplete", "Registro abierto"
+            en_curso = True
         else:
             clave_estado, etiqueta_estado = "incomplete", "Incompleto"
         catalogo_sci_estado.append({
@@ -668,6 +681,7 @@ def detalle(request, pk):
             "etiqueta_estado": etiqueta_estado,
             "etapa_orden": ETAPA_FORMULARIO_SCI[item["codigo"]],
             "bloqueado": not desbloqueado_con(item["codigo"], finalizados),
+            "en_curso": en_curso,
         })
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
@@ -701,9 +715,13 @@ def detalle(request, pk):
             item for item in catalogo_sci_estado
             if item["clave_estado"] == "complete"
         ],
+        # Un registro ya en uso no es «el paso siguiente»: seguirá abierto toda
+        # la emergencia, y anunciarlo dejaría el aviso clavado en el SCI-211
+        # sin señalar nunca lo que de verdad falta por llenar.
         "siguiente_formulario": next(
             (item for item in catalogo_sci_estado
-             if item["clave_estado"] != "complete" and not item["bloqueado"]),
+             if item["clave_estado"] != "complete"
+             and not item["bloqueado"] and not item["en_curso"]),
             None
         ),
     }
@@ -928,6 +946,52 @@ def recursos_agrupados_para_sci(usuario):
     """El mismo inventario, repartido en encabezados para el desplegable."""
     return agrupar_recursos(recursos_disponibles_verificados(usuario))
 
+def recursos_solicitados_en(esquema, post_validado, recursos):
+    """Recursos que el formulario dejó anotados como «por solicitar»."""
+    por_etiqueta = {recurso.etiqueta_sci: recurso for recurso in recursos}
+    solicitados = {}
+    for seccion in esquema["secciones"]:
+        if seccion["tipo"] != "tabla":
+            continue
+        for columna in seccion["columnas"]:
+            if not columna.get("recurso_inventario"):
+                continue
+            if columna.get("origen", ORIGEN_INVENTARIO) != ORIGEN_INVENTARIO:
+                continue
+            patron = re.compile(
+                rf"^{re.escape(seccion['nombre'])}-\d+-{re.escape(columna['nombre'])}$"
+            )
+            for clave, valor in post_validado.items():
+                if patron.fullmatch(clave) and valor in por_etiqueta:
+                    recurso = por_etiqueta[valor]
+                    solicitados[recurso.pk] = recurso
+    return list(solicitados.values())
+
+def trasladar_solicitudes_al_sci211(request, emergencia, codigo, esquema, post_validado, recursos):
+    """Lleva al SCI-211 lo que el plan de acción acaba de solicitar.
+
+    Solo del SCI-202: es el formulario donde se piden recursos. Anotarlos allí
+    y no en el registro obligaba a copiarlos a mano de un formulario al otro.
+    """
+    if codigo != "202":
+        return
+    solicitados = recursos_solicitados_en(esquema, post_validado, recursos)
+    creadas = registrar_solicitud_en_sci211(emergencia, solicitados, request.user)
+    if not creadas:
+        return
+    messages.success(
+        request,
+        f"{creadas} recurso(s) solicitado(s) quedaron anotados en el SCI-211.",
+    )
+    formulario_211 = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+    if formulario_211 is None:
+        return
+    despachadas, avisos = desplegar_recursos_del_sci211(formulario_211, request.user)
+    if despachadas:
+        messages.success(request, f"Se despachó {despachadas} unidad(es).")
+    for aviso in avisos:
+        messages.warning(request, aviso)
+
 def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
     """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI.
 
@@ -1011,6 +1075,9 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
             formulario.modificado_por = request.user
             formulario.save()
             messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
+            trasladar_solicitudes_al_sci211(
+                request, emergencia, codigo, esquema, post_validado, recursos
+            )
             return redirect(
                 reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
             )
