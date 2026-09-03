@@ -21,6 +21,7 @@ from .esquemas_sci import ESQUEMAS_SCI, HORA, TABLA, TEXTO, secciones_con_valore
 from .models import DespliegueUnidad
 from .models import Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 from .services import desplegar_unidad
+from .views import FORMULARIOS_SCI_CONTINUOS, ORDEN_FORMULARIOS_SCI
 from .services_sci import (desplegar_recursos_del_sci211, finalizar_sci,
                            finalizar_sci211)
 
@@ -1668,15 +1669,16 @@ class RegistroAbiertoDuranteLaEmergenciaTests(ConUnidadDesplegable, SCI211Tests)
         )
         self.assertEqual(respuesta.status_code, 200)
 
-    def test_un_211_vacio_no_desbloquea_nada(self):
+    def test_un_211_vacio_tampoco_detiene_al_202(self):
+        """Una bitácora no puede cerrarse durante la emergencia, así que
+        exigirle algo para dejar pasar era pedir lo imposible."""
         self.finalizar_anteriores("211")
         self.crear_formulario(completo=False)
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
-            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
-            follow=True,
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk])
         )
-        self.assertContains(respuesta, "Finalice primero el formulario")
+        self.assertEqual(respuesta.status_code, 200)
 
     def test_la_ficha_lo_llama_registro_abierto(self):
         self.finalizar_anteriores("211")
@@ -1893,15 +1895,24 @@ class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
         )
         self.assertEqual(respuesta.status_code, 200)
 
-    def test_vacio_no_desbloquea_nada(self):
+    def test_vacio_tampoco_detiene_al_221(self):
+        """La desmovilización se verifica mientras la bitácora sigue
+        recibiendo anotaciones, no después de cerrarla."""
         self.finalizar_anteriores("214")
         self.escribir_214(con_contenido=False)
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
-            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk]),
-            follow=True,
+            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk])
         )
-        self.assertContains(respuesta, "Finalice primero el formulario")
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_sin_abrir_siquiera_el_214_el_221_esta_accesible(self):
+        self.finalizar_anteriores("214")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
 
     def test_la_ficha_lo_pinta_como_registro_abierto(self):
         self.finalizar_anteriores("214")
@@ -1961,16 +1972,33 @@ class BitacorasSinEsperarTurnoTests(SCI211Tests):
                 msg_prefix=f"El SCI-{codigo} no debería abrirse todavía",
             )
 
-    def test_el_221_sigue_necesitando_al_214(self):
-        """Eximir a la bitácora de esperar turno no la exime de ser requisito
-        de las que vienen detrás."""
-        self.finalizar_anteriores("214")
+    def test_ningun_formulario_queda_esperando_a_una_bitacora(self):
+        """Ninguna instrucción de la pantalla puede ser imposible de cumplir:
+        una bitácora no se finaliza hasta que la emergencia termina."""
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
-            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk]),
-            follow=True,
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
-        self.assertContains(respuesta, "Finalice primero el formulario")
+        estados = {
+            tarjeta["codigo"]: tarjeta["clave_estado"]
+            for tarjeta in respuesta.context["catalogo_sci"]
+        }
+        for tarjeta in respuesta.context["catalogo_sci"]:
+            if not tarjeta["bloqueado"]:
+                continue
+            # Un formulario espera a todos los anteriores, no solo al de al
+            # lado. Lo que no puede pasar es que lo único pendiente sea una
+            # bitácora: eso dejaría al usuario sin nada que pueda terminar.
+            posicion = ORDEN_FORMULARIOS_SCI.index(tarjeta["codigo"])
+            pendientes = [
+                codigo for codigo in ORDEN_FORMULARIOS_SCI[:posicion]
+                if estados[codigo] != "complete"
+            ]
+            self.assertTrue(
+                [c for c in pendientes if c not in FORMULARIOS_SCI_CONTINUOS],
+                f"El SCI-{tarjeta['codigo']} solo espera bitácoras: "
+                f"{pendientes}. Nadie puede desbloquearlo.",
+            )
 
 
 class MenosTecleoTests(ConUnidadDesplegable, SCI211Tests):

@@ -100,26 +100,23 @@ def registro_en_uso(formulario):
     return tiene_contenido(formulario.datos)
 
 def formularios_sci_finalizados(emergencia):
-    """Códigos SCI que la emergencia ya tiene cerrados, el 211 incluido."""
+    """Códigos SCI que ya no detienen a los siguientes.
+
+    Son los finalizados y, siempre, las bitácoras: por definición no se cierran
+    hasta que la emergencia termina.
+    """
     genericos = list(emergencia.formularios_sci.all())
     finalizados = {
         formulario.codigo_sci for formulario in genericos
         if formulario.estado == FormularioSCI.Estado.FINALIZADO
     }
-    # A una bitácora no se le exige estar cerrada para dejar avanzar: no puede
-    # cerrarse hasta que la emergencia termine. Lo que los formularios
-    # siguientes necesitan es que ya se esté escribiendo.
-    finalizados.update(
-        formulario.codigo_sci for formulario in genericos
-        if formulario.codigo_sci in FORMULARIOS_SCI_CONTINUOS
-        and registro_en_uso(formulario)
-    )
-    sci211 = getattr(emergencia, "formulario_sci_211", None)
-    if sci211 and (
-        sci211.estado == FormularioSCI211.Estado.FINALIZADO
-        or ("211" in FORMULARIOS_SCI_CONTINUOS and sci211.registros.exists())
-    ):
-        finalizados.add("211")
+    # Una bitácora nunca detiene a las que vienen detrás. No puede cerrarse
+    # hasta que la emergencia termine, de modo que exigir su cierre —o siquiera
+    # que tenga algo escrito— dejaba al SCI-221 con un candado y el mensaje
+    # «finalice el paso anterior», que es una instrucción imposible: el sistema
+    # prohíbe finalizarlo. Y la desmovilización se verifica mientras la
+    # bitácora sigue recibiendo anotaciones, no después.
+    finalizados.update(FORMULARIOS_SCI_CONTINUOS)
     return finalizados
 
 def desbloqueado_con(codigo, finalizados):
