@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=18"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=6">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=18"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=1"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=7">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -37,7 +37,7 @@
     {% if campos_periodo %}
     <section class="sci-periodo">
       {% for campo in campos_periodo %}
-      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}</span>
+      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}{% if campo.heredado %} <em class="sci-heredado" title="Tomado de otro formulario de esta emergencia. Cámbielo si este periodo es distinto.">tomado de otro formulario</em>{% endif %}</span>
         <input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}">
       </label>
       {% endfor %}
@@ -114,7 +114,7 @@
     </section>
 
     <footer class="sci-paper__footer">
-      <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:'' }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
+      <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
       <div><strong>Posición:</strong>{{ esquema.preparado_por }}</div>
       <div><strong>Fecha:</strong>{% now "d/m/Y H:i" %}</div>
     </footer>
@@ -128,7 +128,7 @@
   {% endif %}
 </div>
 {% endblock %}
-{% block extra_js %}
+{% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>
 <script>
 document.querySelectorAll(".sci-tabla").forEach((tabla) => {
     const cuerpo = tabla.querySelector("tbody");

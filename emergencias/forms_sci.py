@@ -1,6 +1,7 @@
 from django import forms
-from django.forms import inlineformset_factory
 from django.db.models import Q
+from django.forms import inlineformset_factory
+from django.utils import timezone
 
 from inventario.models import Recurso
 from inventario.permissions import estaciones_permitidas, recursos_permitidos
@@ -153,6 +154,7 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         campo_recurso.queryset = queryset
         campo_recurso.empty_label = "Seleccione un recurso del inventario"
         self.preparar_responsable(usuario)
+        self.sugerir_lo_repetitivo(usuario)
         for nombre, marca in (
             ("clase_recurso", "clase"), ("tipo_recurso", "tipo"),
             ("institucion_procedencia", "institucion"),
@@ -160,6 +162,23 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
         ):
             self.fields[nombre].required = False
             self.fields[nombre].widget.attrs["data-derivado"] = marca
+
+    def sugerir_lo_repetitivo(self, usuario):
+        """Rellena de antemano lo que se responde siempre igual.
+
+        Quien está anotando el recurso es quien lo solicita, y el momento es
+        ahora: son los dos datos que se repiten en cada fila de la cuadrícula.
+        Solo se sugieren en filas nuevas; una fila ya guardada conserva lo suyo.
+        """
+        if self.instance and self.instance.pk:
+            return
+        if usuario and usuario.is_authenticated:
+            self.fields["solicitado_por"].initial = (
+                usuario.get_full_name() or usuario.username
+            )
+        self.fields["fecha_hora_solicitud"].initial = timezone.localtime().replace(
+            second=0, microsecond=0
+        )
 
     def preparar_responsable(self, usuario):
         """Ofrece los choferes de la institución para ponerlos al volante.

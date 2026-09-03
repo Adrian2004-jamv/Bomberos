@@ -1970,3 +1970,99 @@ class BitacorasSinEsperarTurnoTests(SCI211Tests):
             follow=True,
         )
         self.assertContains(respuesta, "Finalice primero el formulario")
+
+
+class MenosTecleoTests(ConUnidadDesplegable, SCI211Tests):
+    """Lo que se responde siempre igual viene hecho, pero se puede cambiar."""
+
+    def test_el_solicitante_viene_con_el_nombre_de_quien_registra(self):
+        formulario = RegistroRecursoSCI211Form(usuario=self.usuario)
+        self.assertEqual(
+            formulario.fields["solicitado_por"].initial,
+            self.usuario.get_full_name() or self.usuario.username,
+        )
+
+    def test_la_hora_de_solicitud_viene_puesta(self):
+        formulario = RegistroRecursoSCI211Form(usuario=self.usuario)
+        self.assertIsNotNone(formulario.fields["fecha_hora_solicitud"].initial)
+
+    def test_una_fila_ya_guardada_conserva_lo_suyo(self):
+        self.finalizar_anteriores("211")
+        contenedor = self.crear_formulario(completo=False)
+        registro = contenedor.registros.create(
+            orden=1, solicitado_por="Comandante anterior",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+            matricula_identificacion="AB-VIEJA", numero_personas=1,
+            asignado_a="Zona de operaciones",
+        )
+        formulario = RegistroRecursoSCI211Form(instance=registro, usuario=self.usuario)
+        self.assertIsNone(formulario.fields["solicitado_por"].initial)
+        self.assertEqual(formulario["solicitado_por"].value(), "Comandante anterior")
+
+    def test_los_campos_de_fecha_llevan_el_boton_de_ahora(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario()
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse("emergencias:sci211_editar", args=[formulario.pk]))
+        self.assertContains(respuesta, "emergencias/js/ahora.js")
+
+class PeriodoHeredadoTests(SCI211Tests):
+    """El periodo operacional se escribe una vez y se ofrece en los demás."""
+
+    def escribir_periodo_en_el_202(self):
+        self.finalizar_anteriores("202")
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="202",
+            datos={
+                "periodo_numero": "1",
+                "periodo_inicio": "2026-09-03T08:00",
+                "periodo_fin": "2026-09-03T12:00",
+            },
+            creado_por=self.usuario, modificado_por=self.usuario,
+            estado=FormularioSCI.Estado.FINALIZADO,
+            finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+        )
+
+    def abrir(self, codigo):
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk])
+        )
+
+    def test_el_203_lo_recibe_del_202(self):
+        self.escribir_periodo_en_el_202()
+        campos = {c["nombre"]: c for c in self.abrir("203").context["campos_periodo"]}
+        self.assertEqual(campos["periodo_numero"]["valor"], "1")
+        self.assertEqual(campos["periodo_inicio"]["valor"], "2026-09-03T08:00")
+        self.assertTrue(campos["periodo_numero"]["heredado"])
+
+    def test_se_avisa_de_que_viene_de_otro_formulario(self):
+        self.escribir_periodo_en_el_202()
+        self.assertContains(self.abrir("203"), "tomado de otro formulario")
+
+    def test_lo_propio_manda_sobre_lo_heredado(self):
+        self.escribir_periodo_en_el_202()
+        FormularioSCI.objects.create(
+            emergencia=self.emergencia, codigo_sci="203",
+            datos={"periodo_numero": "2"},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        campos = {c["nombre"]: c for c in self.abrir("203").context["campos_periodo"]}
+        self.assertEqual(campos["periodo_numero"]["valor"], "2")
+        self.assertFalse(campos["periodo_numero"]["heredado"])
+
+    def test_sin_nada_escrito_no_se_inventa_periodo(self):
+        self.finalizar_anteriores("202")
+        campos = {c["nombre"]: c for c in self.abrir("202").context["campos_periodo"]}
+        self.assertEqual(campos["periodo_numero"]["valor"], "")
+        self.assertFalse(campos["periodo_numero"]["heredado"])
+
+    def test_la_firma_viene_con_el_nombre_de_quien_entra(self):
+        self.finalizar_anteriores("202")
+        respuesta = self.abrir("202")
+        self.assertEqual(
+            respuesta.context["preparado_por_sugerido"],
+            self.usuario.get_full_name() or self.usuario.username,
+        )
+        self.assertContains(respuesta, self.usuario.username)

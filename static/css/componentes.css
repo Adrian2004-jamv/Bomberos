@@ -462,3 +462,15 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Botón «Ahora» de los campos de fecha y hora. Se pone al lado del campo,
+   nunca encima, para que no tape lo escrito en pantallas estrechas. */
+.campo-con-ahora { display: inline-flex; align-items: center; gap: .25rem; max-width: 100%; }
+.campo-con-ahora > input { min-width: 0; }
+.campo-ahora {
+    flex: none; padding: .2rem .45rem;
+    border: 1px solid var(--color-slate-300); border-radius: var(--radius-sm);
+    color: var(--color-navy-900); background: #fff;
+    font-size: .68rem; font-weight: 800; line-height: 1.4; cursor: pointer;
+}
+.campo-ahora:hover { color: #fff; border-color: var(--color-navy-900); background: var(--color-navy-900); }

@@ -987,6 +987,27 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
     contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
     return render(request, "emergencias/sci_preview.html", contexto)
 
+def periodo_heredado(emergencia, codigo):
+    """Lo que ya se escribió del periodo operacional en otro formulario.
+
+    Nueve de los doce formularios piden el mismo periodo: su número, su inicio
+    y su fin. Escribirlo veintisiete veces no aporta nada y se presta a que las
+    copias no coincidan, que es peor que no tenerlo. Se toma del formulario más
+    reciente que lo tenga, y el usuario puede cambiarlo si este periodo es otro.
+    """
+    heredado = {}
+    otros = FormularioSCI.objects.filter(
+        emergencia=emergencia
+    ).exclude(codigo_sci=codigo).order_by("-fecha_actualizacion", "-pk")
+    for formulario in otros:
+        for nombre in ("periodo_numero", "periodo_inicio", "periodo_fin"):
+            valor = (formulario.datos or {}).get(nombre)
+            if valor and nombre not in heredado:
+                heredado[nombre] = valor
+        if len(heredado) == 3:
+            break
+    return heredado
+
 def contexto_documento_sci(usuario, emergencia, codigo):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
@@ -998,18 +1019,30 @@ def contexto_documento_sci(usuario, emergencia, codigo):
     formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()
     datos = formulario.datos if formulario else {}
     en_el_lugar = recursos_en_el_lugar(emergencia, usuario)
+    heredado = periodo_heredado(emergencia, codigo)
     return {
         "emergencia": emergencia,
         "esquema": esquema,
         "codigo": codigo,
         "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": formulario,
-        "campos_periodo": [dict(campo, valor=datos.get(campo["nombre"], ""))
-                           for campo in campos_periodo(esquema)],
+        # Un campo vacío se ofrece con lo que ya se escribió en otro formulario
+        # de esta emergencia; uno con valor propio no se toca.
+        "campos_periodo": [
+            dict(campo,
+                 valor=datos.get(campo["nombre"])
+                 or heredado.get(campo["nombre"], ""),
+                 heredado=not datos.get(campo["nombre"])
+                 and bool(heredado.get(campo["nombre"])))
+            for campo in campos_periodo(esquema)
+        ],
         "secciones": secciones_con_valores(esquema, datos),
         "recursos_disponibles": recursos_disponibles_verificados(usuario),
         "recursos_agrupados": recursos_agrupados_para_sci(usuario),
         "recursos_del_lugar": en_el_lugar,
+        # El nombre de quien firma se ofrece hecho: lo escribía en cada uno de
+        # los doce formularios.
+        "preparado_por_sugerido": usuario.get_full_name() or usuario.username,
         "recursos_del_lugar_agrupados": agrupar_recursos(en_el_lugar),
     }
 

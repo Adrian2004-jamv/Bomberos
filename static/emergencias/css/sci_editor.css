@@ -65,3 +65,11 @@
    —las unicas que generan un despliegue— del resto del inventario. */
 .sci-tabla optgroup { font-weight: 800; color: var(--color-navy-900); }
 .sci-tabla optgroup option { font-weight: 400; }
+
+/* Marca de que un dato viene de otro formulario y puede cambiarse. */
+.sci-heredado {
+    margin-left: .3rem; padding: .05rem .3rem; border-radius: 999px;
+    color: #1d3f9e; background: #e8eefc;
+    font-size: .58rem; font-style: normal; font-weight: 800;
+    text-transform: none; letter-spacing: 0;
+}

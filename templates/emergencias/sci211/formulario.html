@@ -23,4 +23,4 @@
     <button type="button" class="resource-action resource-action--delete" data-resource-delete><i class="ti ti-trash" aria-hidden="true"></i> Eliminar</button>
 </div></fieldset></template></section>
 <div class="action-bar"><a class="button" href="{% url 'emergencias:sci211_detalle' formulario_sci.pk %}">Cancelar</a><button class="button button--primary" type="submit">Guardar borrador</button><button class="button" type="submit" name="accion" value="finalizar">Finalizar…</button></div></form>{% endblock %}
-{% block extra_js %}<script src="{% static 'emergencias/js/sci211_recursos.js' %}?v=3"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script><script src="{% static 'emergencias/js/sci211_recursos.js' %}?v=3"></script>{% endblock %}
