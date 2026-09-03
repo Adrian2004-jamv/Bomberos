@@ -338,14 +338,16 @@ class SCI211Tests(TestCase):
             respuesta, reverse("emergencias:sci211_imprimir", args=[formulario.pk])
         )
 
-    def test_solo_el_primer_formulario_esta_desbloqueado_al_comenzar(self):
+    def test_al_comenzar_solo_estan_abiertos_el_primero_y_el_211(self):
+        """El 211 no espera turno: anotar en él una unidad es despacharla, y el
+        carro sale antes de que nadie redacte el resumen del incidente."""
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
             reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
         catalogo = respuesta.context["catalogo_sci"]
-        self.assertFalse(catalogo[0]["bloqueado"])
-        self.assertTrue(all(item["bloqueado"] for item in catalogo[1:]))
+        abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
+        self.assertEqual(abiertos, {"201", "211"})
         self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--locked"')
         self.assertNotContains(
             respuesta,
@@ -375,8 +377,10 @@ class SCI211Tests(TestCase):
             reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
         catalogo = respuesta.context["catalogo_sci"]
-        self.assertFalse(catalogo[1]["bloqueado"])
-        self.assertTrue(catalogo[2]["bloqueado"])
+        abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
+        # El 201 ya cerrado sigue siendo accesible, el 207 se abre detrás de él
+        # y el 211 nunca esperó. El 202 sigue aguardando al 207 y al 211.
+        self.assertEqual(abiertos, {"201", "207", "211"})
 
     def test_editor_generico_solo_ofrece_inventario_verificado_del_ambito(self):
         self.finalizar_anteriores("202")
@@ -1287,3 +1291,49 @@ class AnchosDeLaCuadriculaSCITests(TestCase):
             and float(columna["ancho"][:-1]) < 13
         ]
         self.assertTrue(estrechas, "Ya no hay columnas estrechas con control.")
+
+
+class DespachoSinEsperarTurnoTests(SCI211Tests):
+    """El SCI-211 se abre desde el primer momento; los demás conservan su orden."""
+
+    def test_se_entra_al_211_sin_haber_llenado_nada(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(
+            reverse("emergencias:sci211_crear", args=[self.emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(
+            FormularioSCI211.objects.filter(emergencia=self.emergencia).exists()
+        )
+
+    def test_el_202_sigue_esperando_a_los_anteriores(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            follow=True,
+        )
+        self.assertContains(respuesta, "Finalice primero el formulario")
+
+    def test_cerrar_el_211_solo_no_abre_el_202(self):
+        formulario = self.crear_formulario()
+        FormularioSCI211.objects.filter(pk=formulario.pk).update(
+            estado=FormularioSCI211.Estado.FINALIZADO,
+            finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
+            follow=True,
+        )
+        self.assertContains(respuesta, "Finalice primero el formulario")
+
+    def test_el_211_no_muestra_candado_en_la_ficha(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "211"
+        )
+        self.assertFalse(tarjeta["bloqueado"])

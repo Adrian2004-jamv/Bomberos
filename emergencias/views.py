@@ -84,22 +84,47 @@ _POSICION_FORMULARIO_SCI = {
     codigo: posicion for posicion, codigo in enumerate(ORDEN_FORMULARIOS_SCI)
 }
 
-def formulario_sci_desbloqueado(emergencia, codigo):
-    """Solo permite avanzar cuando todos los formularios anteriores finalizaron."""
-    if codigo not in _POSICION_FORMULARIO_SCI:
-        return False
-    anteriores = ORDEN_FORMULARIOS_SCI[:_POSICION_FORMULARIO_SCI[codigo]]
-    if not anteriores:
-        return True
-    genericos_finalizados = set(
+# El SCI-211 es el único que no espera turno. Anotar una unidad en él es la
+# decisión de enviarla, y en una emergencia el carro sale antes de que nadie
+# haya redactado el resumen del incidente ni el registro de pacientes. Exigirle
+# dos formularios previos ponía el papeleo por delante de la respuesta.
+#
+# Conserva su lugar en el orden recomendado, que sigue guiando la
+# documentación, y sigue siendo requisito para los que vienen después: el plan
+# de acción no se redacta sin saber con qué recursos se cuenta.
+FORMULARIOS_SCI_SIN_REQUISITO = frozenset({"211"})
+
+def formularios_sci_finalizados(emergencia):
+    """Códigos SCI que la emergencia ya tiene cerrados, el 211 incluido."""
+    finalizados = set(
         emergencia.formularios_sci.filter(
             estado=FormularioSCI.Estado.FINALIZADO
         ).values_list("codigo_sci", flat=True)
     )
     sci211 = getattr(emergencia, "formulario_sci_211", None)
     if sci211 and sci211.estado == FormularioSCI211.Estado.FINALIZADO:
-        genericos_finalizados.add("211")
-    return all(anterior in genericos_finalizados for anterior in anteriores)
+        finalizados.add("211")
+    return finalizados
+
+def desbloqueado_con(codigo, finalizados):
+    """Regla de desbloqueo, sin tocar la base.
+
+    La comparten la pantalla que dibuja el candado y la vista que decide si
+    deja entrar. Cuando cada una tenía la suya, una tarjeta podía mostrarse
+    cerrada mientras el formulario ya era accesible.
+    """
+    if codigo not in _POSICION_FORMULARIO_SCI:
+        return False
+    if codigo in FORMULARIOS_SCI_SIN_REQUISITO:
+        return True
+    anteriores = ORDEN_FORMULARIOS_SCI[:_POSICION_FORMULARIO_SCI[codigo]]
+    return all(anterior in finalizados for anterior in anteriores)
+
+def formulario_sci_desbloqueado(emergencia, codigo):
+    """Solo permite avanzar cuando todos los formularios anteriores finalizaron."""
+    if codigo not in _POSICION_FORMULARIO_SCI:
+        return False
+    return desbloqueado_con(codigo, formularios_sci_finalizados(emergencia))
 
 def redirigir_si_sci_bloqueado(request, emergencia, codigo):
     if codigo not in _POSICION_FORMULARIO_SCI:
@@ -627,7 +652,7 @@ def detalle(request, pk):
         for formulario in emergencia.formularios_sci.all()
     }
     catalogo_sci_estado = []
-    anteriores_finalizados = True
+    finalizados = formularios_sci_finalizados(emergencia)
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
         formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
         if formulario is None:
@@ -642,11 +667,8 @@ def detalle(request, pk):
             "clave_estado": clave_estado,
             "etiqueta_estado": etiqueta_estado,
             "etapa_orden": ETAPA_FORMULARIO_SCI[item["codigo"]],
-            "bloqueado": not anteriores_finalizados,
+            "bloqueado": not desbloqueado_con(item["codigo"], finalizados),
         })
-        anteriores_finalizados = (
-            anteriores_finalizados and clave_estado == "complete"
-        )
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
         "unidad", "estacion_procedencia", "despachado_por"
