@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=16"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -54,7 +54,7 @@
     <div class="sci-status-legend" aria-label="Estados de los formularios">
         <span><i class="sci-status-dot sci-status-dot--complete" aria-hidden="true"></i>Finalizado correctamente</span>
         <span><i class="sci-status-dot sci-status-dot--incomplete" aria-hidden="true"></i>Incompleto o con errores</span>
-        <span><i class="sci-status-dot sci-status-dot--pending" aria-hidden="true"></i>No iniciado</span>
+        <span><i class="sci-status-dot sci-status-dot--open" aria-hidden="true"></i>Registro abierto durante la emergencia</span><span><i class="sci-status-dot sci-status-dot--pending" aria-hidden="true"></i>No iniciado</span>
     </div>
     <p class="sci-order-help"><i class="ti ti-list-numbers" aria-hidden="true"></i> Orden recomendado según las fases de planificación operativa del SCI.</p>
     <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>{% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>

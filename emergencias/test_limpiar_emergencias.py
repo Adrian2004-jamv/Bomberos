@@ -202,3 +202,33 @@ class RetiradaTests(LimpiarEmergenciasTests):
         self.assertEqual(
             list(Emergencia.objects.values_list("codigo", flat=True)), ["IE-TRES-001"]
         )
+
+
+class ReaperturaDeSCI211Tests(TestCase):
+    """La migración devuelve a borrador los 211 cerrados antes de tiempo."""
+
+    def test_la_migracion_esta_declarada(self):
+        from django.db.migrations.loader import MigrationLoader
+
+        loader = MigrationLoader(None, ignore_no_migrations=True)
+        nombres = {
+            nombre for aplicacion, nombre in loader.graph.nodes
+            if aplicacion == "emergencias"
+        }
+        self.assertIn("0013_reabrir_sci211_de_emergencias_en_curso", nombres)
+
+    def test_solo_alcanza_a_las_emergencias_en_curso(self):
+        """Se comprueba sobre la consulta que usa la migración: un 211 de una
+        emergencia ya cerrada esta finalizado como debe y no se toca."""
+        from emergencias.models import FormularioSCI211
+
+        alcanzados = FormularioSCI211.objects.filter(
+            estado=FormularioSCI211.Estado.FINALIZADO
+        ).exclude(
+            emergencia__estado__in=(
+                Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA
+            )
+        )
+        # La migración ya corrió sobre la base de pruebas: no debe quedar
+        # ninguno cerrado con su emergencia abierta.
+        self.assertEqual(alcanzados.count(), 0)

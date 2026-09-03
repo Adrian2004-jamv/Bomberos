@@ -3,7 +3,7 @@
 const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
 // Subir este numero descarta todo lo guardado por la version anterior: el
 // detector de «activate» borra las caches cuyo nombre no coincide con esta.
-const STATIC_CACHE = `${CACHE_PREFIX}static-v6`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v7`;
 const OFFLINE_URL = "/sin-conexion/";
 const SAFE_ASSETS = [
     OFFLINE_URL,

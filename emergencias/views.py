@@ -94,6 +94,19 @@ _POSICION_FORMULARIO_SCI = {
 # de acción no se redacta sin saber con qué recursos se cuenta.
 FORMULARIOS_SCI_SIN_REQUISITO = frozenset({"211"})
 
+# Formularios que son bitácoras y no documentos: se escriben durante toda la
+# intervención y solo se cierran cuando la emergencia termina. Añadir uno aquí
+# basta para que deje de exigirse su cierre y para que la ficha lo muestre como
+# registro abierto. El SCI-214 —bitácora cronológica del periodo operacional—
+# es el siguiente candidato natural.
+FORMULARIOS_SCI_CONTINUOS = frozenset({"211"})
+
+def tiene_contenido(formulario):
+    """Si el registro ya se está usando, sea cuadrícula propia o datos JSON."""
+    if hasattr(formulario, "registros"):
+        return formulario.registros.exists()
+    return bool(formulario.datos)
+
 def formularios_sci_finalizados(emergencia):
     """Códigos SCI que la emergencia ya tiene cerrados, el 211 incluido."""
     finalizados = set(
@@ -108,7 +121,7 @@ def formularios_sci_finalizados(emergencia):
     # cumple en cuanto tiene alguno anotado.
     if sci211 and (
         sci211.estado == FormularioSCI211.Estado.FINALIZADO
-        or sci211.registros.exists()
+        or ("211" in FORMULARIOS_SCI_CONTINUOS and sci211.registros.exists())
     ):
         finalizados.add("211")
     return finalizados
@@ -667,10 +680,10 @@ def detalle(request, pk):
             clave_estado, etiqueta_estado = "pending", "No iniciado"
         elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
             clave_estado, etiqueta_estado = "complete", "Finalizado"
-        elif item["codigo"] == "211" and formulario.registros.exists():
-            # Un 211 con recursos anotados no está incompleto: está en uso, y
-            # seguirá abierto hasta que la emergencia termine.
-            clave_estado, etiqueta_estado = "incomplete", "Registro abierto"
+        elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS and tiene_contenido(formulario):
+            # Un registro en uso no está incompleto: seguirá abierto hasta que
+            # la emergencia termine, y el ámbar anuncia algo por corregir.
+            clave_estado, etiqueta_estado = "open", "Registro abierto"
             en_curso = True
         else:
             clave_estado, etiqueta_estado = "incomplete", "Incompleto"

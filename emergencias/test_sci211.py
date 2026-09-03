@@ -303,8 +303,9 @@ class SCI211Tests(TestCase):
         self.assertContains(respuesta, 'class="sci-next-step__cta"', html=False)
         self.assertNotContains(respuesta, "Continuar SCI-211")
         self.assertContains(respuesta, "Incompleto o con errores")
+        # El 211 con recursos ya no comparte el ámbar de lo incompleto.
         self.assertContains(
-            respuesta, 'class="sci-form-tab sci-form-tab--incomplete"', html=False
+            respuesta, 'class="sci-form-tab sci-form-tab--open"', html=False
         )
         self.assertContains(
             respuesta, 'class="sci-form-tab sci-form-tab--locked"', html=False
@@ -1763,3 +1764,59 @@ class SolicitudDel202AlSCI211Tests(ConUnidadDesplegable, SCI211Tests):
         self.assertEqual(
             formulario.registros.filter(recurso_inventario=unidad).count(), 1
         )
+
+
+class ColorDelRegistroAbiertoTests(ConUnidadDesplegable, SCI211Tests):
+    """Un registro en uso se distingue de uno incompleto, no comparte color."""
+
+    def con_recursos(self):
+        self.finalizar_anteriores("211")
+        self.crear_formulario(completo=False).registros.create(
+            orden=1, solicitado_por="CI",
+            fecha_hora_solicitud=self.emergencia.fecha_reporte,
+            recurso_inventario=self.crear_unidad_desplegable("AB-COLOR-01"),
+            clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+            matricula_identificacion="AB-COLOR-01", numero_personas=2,
+            asignado_a="Zona de operaciones",
+        )
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:detalle", args=[self.emergencia.pk]))
+
+    def test_el_211_en_uso_tiene_su_propio_estado(self):
+        respuesta = self.con_recursos()
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "211"
+        )
+        self.assertEqual(tarjeta["clave_estado"], "open")
+        self.assertEqual(tarjeta["etiqueta_estado"], "Registro abierto")
+
+    def test_no_se_pinta_como_incompleto(self):
+        respuesta = self.con_recursos()
+        self.assertContains(respuesta, "sci-form-tab--open")
+
+    def test_la_leyenda_explica_el_color(self):
+        respuesta = self.con_recursos()
+        self.assertContains(respuesta, "Registro abierto durante la emergencia")
+        self.assertContains(respuesta, "sci-status-dot--open")
+
+    def test_el_estado_existe_en_la_hoja_de_estilos(self):
+        hoja = (
+            Path(settings.BASE_DIR)
+            / "static" / "emergencias" / "css" / "emergencias.css"
+        ).read_text(encoding="utf-8")
+        self.assertIn(".sci-form-tab--open{", hoja)
+        self.assertIn(".sci-status-dot--open{", hoja)
+
+    def test_un_211_vacio_sigue_marcado_como_incompleto(self):
+        self.finalizar_anteriores("211")
+        self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "211"
+        )
+        self.assertEqual(tarjeta["clave_estado"], "incomplete")
