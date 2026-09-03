@@ -1,3 +1,4 @@
+from emergencias.forms import TIPOS_EMERGENCIA
 from emergencias.indicadores import anotar_indicadores
 from emergencias.services import desplegar_unidad
 from pathlib import Path
@@ -577,3 +578,57 @@ class RedaccionDeLosPuntosClaveTests(PersonalComprometidoTests):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse("dashboard:principal"))
         self.assertContains(respuesta, "2 unidades movilizadas, 1 en el lugar")
+
+
+class DesplegableDeTiposTests(TestCase):
+    """El filtro ofrece el catálogo, no las cadenas que haya en la base."""
+
+    @classmethod
+    def setUpTestData(cls):
+        canton = Canton.objects.create(nombre="Latacunga", codigo="TIP")
+        cuerpo = CuerpoBomberos.objects.create(
+            canton=canton, nombre="Bomberos Tipos", sigla="TIP",
+            ruc="0596000001600", direccion="Centro",
+        )
+        cls.estacion = Estacion.objects.create(
+            cuerpo_bomberos=cuerpo, nombre="Central Tipos", codigo="TIP-C",
+            direccion="Centro", latitud="-0.930000", longitud="-78.610000",
+        )
+        cls.usuario = get_user_model().objects.create_user(
+            username="panel-tipos", cedula="2000000001", password="clave",
+            estacion=cls.estacion,
+        )
+        cls.usuario.groups.add(Group.objects.get(name="Responsable institucional"))
+
+    def crear(self, codigo, tipo):
+        emergencia = Emergencia.objects.create(
+            codigo=codigo, tipo_emergencia=tipo, direccion="Centro",
+            estacion_responsable=self.estacion, registrado_por=self.usuario,
+        )
+        # Se salta el limpiado del modelo para reproducir lo que hay guardado.
+        Emergencia.objects.filter(pk=emergencia.pk).update(tipo_emergencia=tipo)
+        return emergencia
+
+    def tipos(self):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("dashboard:principal")).context["tipos_del_filtro"]
+
+    def test_ofrece_el_catalogo_completo(self):
+        self.crear("IE-01032026-600", "Incendio estructural")
+        self.assertEqual(self.tipos()[:len(TIPOS_EMERGENCIA)], list(TIPOS_EMERGENCIA))
+
+    def test_una_variante_con_espacios_no_se_duplica(self):
+        self.crear("IE-01032026-601", "Incendio forestal")
+        self.crear("IE-01032026-602", "Incendio forestal ")
+        tipos = self.tipos()
+        self.assertEqual(tipos.count("Incendio forestal"), 1)
+        self.assertEqual(len(tipos), len(TIPOS_EMERGENCIA))
+
+    def test_un_tipo_ajeno_al_catalogo_sigue_siendo_filtrable(self):
+        self.crear("IE-01032026-603", "Enjambre de abejas")
+        tipos = self.tipos()
+        self.assertIn("Enjambre de abejas", tipos)
+        self.assertEqual(tipos[-1], "Enjambre de abejas")
+
+    def test_el_catalogo_sale_aunque_no_haya_emergencias(self):
+        self.assertEqual(self.tipos(), list(TIPOS_EMERGENCIA))

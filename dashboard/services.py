@@ -4,6 +4,7 @@ from django.utils.dateparse import parse_date
 
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
+from emergencias.forms import TIPOS_EMERGENCIA
 from emergencias.indicadores import anotar_indicadores, preparar_indicadores
 
 from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI211
@@ -86,13 +87,26 @@ def emergencias_para_elegir(estaciones):
     )
 
 def tipos_para_elegir(estaciones):
-    """Tipos de emergencia presentes ahora mismo, sin repetir."""
-    return sorted(
+    """Los tipos del catálogo, más los que existan fuera de él.
+
+    Antes se armaba con los valores guardados sin más, de modo que dos
+    variantes de la misma cadena —una con un espacio sobrante, por ejemplo—
+    aparecían como dos opciones idénticas. El catálogo manda el orden y los
+    nombres; solo se añade lo que alguien registró antes de que el tipo fuera
+    un desplegable, para que esas emergencias sigan siendo filtrables.
+    """
+    guardados = (
         emergencias_del_ambito(estaciones)
         .exclude(estado__in=ESTADOS_TERMINADOS)
         .values_list("tipo_emergencia", flat=True)
         .distinct()
     )
+    conocidos = {tipo.strip().casefold() for tipo in TIPOS_EMERGENCIA}
+    ajenos = sorted({
+        tipo.strip() for tipo in guardados
+        if tipo and tipo.strip().casefold() not in conocidos
+    })
+    return list(TIPOS_EMERGENCIA) + ajenos
 
 def emergencia_pedida(parametros):
     """Devuelve el identificador de la emergencia elegida, o None.
