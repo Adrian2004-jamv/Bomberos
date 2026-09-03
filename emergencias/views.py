@@ -1116,6 +1116,13 @@ def sci211_imprimir(request, pk):
     contexto = {
         "formulario": formulario,
         "filas_vacias": range(max(0, 24 - formulario.registros.count())),
+        # La vista imprimible es también donde se descubre que el formulario
+        # quedó a medias, así que desde aquí se vuelve a llenarlo. El de los
+        # formularios genéricos ya ofrecía este camino; el SCI-211 no.
+        "puede_editar": (
+            puede_editar_sci(request.user, formulario.emergencia)
+            and formulario.es_editable
+        ),
     }
 
     return render(request, "emergencias/sci211/pdf.html", contexto)

@@ -1381,3 +1381,45 @@ class DesplegableAgrupadoTests(ConUnidadDesplegable, SCI211Tests):
             respuesta,
             f"{unidad.codigo_interno} - {unidad.nombre} ({self.estacion.nombre})",
         )
+
+
+class ImprimibleDel211Tests(SCI211Tests):
+    """Desde la vista imprimible se vuelve al editor si aún es borrador."""
+
+    def imprimir(self, formulario):
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci211_imprimir", args=[formulario.pk])
+        )
+
+    def test_un_borrador_ofrece_volver_a_editar(self):
+        formulario = self.crear_formulario(completo=False)
+        respuesta = self.imprimir(formulario)
+        self.assertContains(respuesta, "Editar")
+        self.assertContains(
+            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
+
+    def test_un_formulario_finalizado_no_lo_ofrece(self):
+        formulario = self.crear_formulario()
+        finalizar_sci211(formulario, self.usuario)
+        respuesta = self.imprimir(formulario)
+        self.assertNotContains(
+            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
+
+    def test_quien_no_puede_editar_tampoco_lo_ve(self):
+        formulario = self.crear_formulario(completo=False)
+        consulta = get_user_model().objects.create_user(
+            username="consulta-imprimir", cedula="1700000001", password="clave",
+            estacion=self.estacion,
+        )
+        consulta.groups.add(Group.objects.get(name="Operador de consulta"))
+        self.client.force_login(consulta)
+        respuesta = self.client.get(
+            reverse("emergencias:sci211_imprimir", args=[formulario.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(
+            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk])
+        )
