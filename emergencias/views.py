@@ -86,16 +86,6 @@ _POSICION_FORMULARIO_SCI = {
     codigo: posicion for posicion, codigo in enumerate(ORDEN_FORMULARIOS_SCI)
 }
 
-# El SCI-211 es el único que no espera turno. Anotar una unidad en él es la
-# decisión de enviarla, y en una emergencia el carro sale antes de que nadie
-# haya redactado el resumen del incidente ni el registro de pacientes. Exigirle
-# dos formularios previos ponía el papeleo por delante de la respuesta.
-#
-# Conserva su lugar en el orden recomendado, que sigue guiando la
-# documentación, y sigue siendo requisito para los que vienen después: el plan
-# de acción no se redacta sin saber con qué recursos se cuenta.
-FORMULARIOS_SCI_SIN_REQUISITO = frozenset({"211"})
-
 def registro_en_uso(formulario):
     """Si el registro ya se está escribiendo, sea cuadrícula propia o JSON.
 
@@ -141,7 +131,15 @@ def desbloqueado_con(codigo, finalizados):
     """
     if codigo not in _POSICION_FORMULARIO_SCI:
         return False
-    if codigo in FORMULARIOS_SCI_SIN_REQUISITO:
+    # Una bitácora no espera turno. Se escribe mientras ocurren las cosas: la
+    # unidad sale antes de que nadie redacte el resumen del incidente, y las
+    # actividades del periodo empiezan mucho antes de que el plan de acción
+    # esté escrito. Abrirlas al llegar su número las volvería inservibles como
+    # registro, que es justamente para lo que existen.
+    #
+    # Conservan su lugar en el orden recomendado, que sigue guiando la
+    # documentación, y siguen siendo requisito de los que vienen después.
+    if codigo in FORMULARIOS_SCI_CONTINUOS:
         return True
     anteriores = ORDEN_FORMULARIOS_SCI[:_POSICION_FORMULARIO_SCI[codigo]]
     return all(anterior in finalizados for anterior in anteriores)

@@ -360,16 +360,17 @@ class SCI211Tests(TestCase):
             respuesta, reverse("emergencias:sci211_imprimir", args=[formulario.pk])
         )
 
-    def test_al_comenzar_solo_estan_abiertos_el_primero_y_el_211(self):
-        """El 211 no espera turno: anotar en él una unidad es despacharla, y el
-        carro sale antes de que nadie redacte el resumen del incidente."""
+    def test_al_comenzar_estan_abiertos_el_primero_y_las_bitacoras(self):
+        """Las bitácoras no esperan turno: el carro sale antes de que nadie
+        redacte el resumen del incidente, y las actividades del periodo
+        empiezan mucho antes de que el plan de acción esté escrito."""
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
             reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
         catalogo = respuesta.context["catalogo_sci"]
         abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
-        self.assertEqual(abiertos, {"201", "211"})
+        self.assertEqual(abiertos, {"201", "211", "214"})
         self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--locked"')
         self.assertNotContains(
             respuesta,
@@ -401,8 +402,8 @@ class SCI211Tests(TestCase):
         catalogo = respuesta.context["catalogo_sci"]
         abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
         # El 201 ya cerrado sigue siendo accesible, el 207 se abre detrás de él
-        # y el 211 nunca esperó. El 202 sigue aguardando al 207 y al 211.
-        self.assertEqual(abiertos, {"201", "207", "211"})
+        # y las bitácoras nunca esperaron. El 202 aguarda al 207 y al 211.
+        self.assertEqual(abiertos, {"201", "207", "211", "214"})
 
     def test_editor_generico_solo_ofrece_inventario_verificado_del_ambito(self):
         self.finalizar_anteriores("202")
@@ -1895,3 +1896,48 @@ class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
         )
         cerrado = finalizar_sci(formulario, self.usuario)
         self.assertEqual(cerrado.estado, FormularioSCI.Estado.FINALIZADO)
+
+
+class BitacorasSinEsperarTurnoTests(SCI211Tests):
+    """Una bitácora se abre desde el principio o no sirve como bitácora."""
+
+    def test_el_214_se_abre_sin_haber_llenado_nada(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["214", self.emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_el_214_no_muestra_candado(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[self.emergencia.pk])
+        )
+        tarjeta = next(
+            item for item in respuesta.context["catalogo_sci"]
+            if item["codigo"] == "214"
+        )
+        self.assertFalse(tarjeta["bloqueado"])
+
+    def test_los_que_no_son_bitacora_siguen_esperando(self):
+        self.client.force_login(self.usuario)
+        for codigo in ("202", "203", "205", "221", "222"):
+            respuesta = self.client.get(
+                reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk]),
+                follow=True,
+            )
+            self.assertContains(
+                respuesta, "Finalice primero el formulario",
+                msg_prefix=f"El SCI-{codigo} no debería abrirse todavía",
+            )
+
+    def test_el_221_sigue_necesitando_al_214(self):
+        """Eximir a la bitácora de esperar turno no la exime de ser requisito
+        de las que vienen detrás."""
+        self.finalizar_anteriores("214")
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["221", self.emergencia.pk]),
+            follow=True,
+        )
+        self.assertContains(respuesta, "Finalice primero el formulario")
