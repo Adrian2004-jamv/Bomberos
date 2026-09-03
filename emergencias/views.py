@@ -255,65 +255,79 @@ def estado_documental_por_emergencia(emergencias):
     identificadores = [emergencia.pk for emergencia in emergencias]
     finalizados = defaultdict(set)
     borradores = defaultdict(set)
+    bitacoras = defaultdict(set)
     if not identificadores:
-        return finalizados, borradores
+        return finalizados, borradores, bitacoras
 
-    for emergencia_id, codigo, estado in FormularioSCI.objects.filter(
+    for emergencia_id, codigo, estado, datos in FormularioSCI.objects.filter(
         emergencia_id__in=identificadores
-    ).values_list("emergencia_id", "codigo_sci", "estado"):
+    ).values_list("emergencia_id", "codigo_sci", "estado", "datos"):
         destino = (finalizados if estado == FormularioSCI.Estado.FINALIZADO
                    else borradores)
         destino[emergencia_id].add(codigo)
+        if codigo in FORMULARIOS_SCI_CONTINUOS and tiene_contenido(datos):
+            bitacoras[emergencia_id].add(codigo)
 
-    for emergencia_id, estado in FormularioSCI211.objects.filter(
+    for emergencia_id, estado, registros in FormularioSCI211.objects.filter(
         emergencia_id__in=identificadores
-    ).values_list("emergencia_id", "estado"):
+    ).annotate(registros_anotados=Count("registros")).values_list(
+        "emergencia_id", "estado", "registros_anotados"
+    ):
         destino = (finalizados if estado == FormularioSCI211.Estado.FINALIZADO
                    else borradores)
         destino[emergencia_id].add("211")
+        if "211" in FORMULARIOS_SCI_CONTINUOS and registros:
+            bitacoras[emergencia_id].add("211")
 
-    return finalizados, borradores
+    return finalizados, borradores, bitacoras
 
-def formulario_en_curso(cerrados, empezados):
-    """El primer formulario del orden oficial que aún no está cerrado.
+def formulario_en_curso(cerrados, empezados, bitacoras_en_uso):
+    """El primer formulario del orden oficial que aún queda por llenar.
 
-    Devuelve ``(codigo, empezado)``, o ``(None, False)`` cuando ya no queda
-    ninguno. Es el mismo criterio que usa la ficha de la emergencia para
-    anunciar el paso siguiente, de modo que las dos pantallas señalan el mismo
-    formulario.
+    Las bitácoras ya en uso no cuentan: el SCI-211 y el SCI-214 siguen
+    abiertos hasta que la emergencia termina, de modo que señalarlas dejaría
+    la columna clavada en ellas por más formularios que se llenaran después.
+
+    Devuelve ``(codigo, empezado)``, o ``(None, False)`` cuando no queda
+    ninguno. Es el mismo criterio con el que la ficha anuncia el paso
+    siguiente, para que las dos pantallas señalen el mismo formulario.
     """
     for codigo in ORDEN_FORMULARIOS_SCI:
+        if codigo in bitacoras_en_uso:
+            continue
         if codigo not in cerrados:
             return codigo, codigo in empezados
     return None, False
 
 def preparar_avance_documental(emergencias):
-    finalizados, borradores = estado_documental_por_emergencia(emergencias)
+    finalizados, borradores, bitacoras = estado_documental_por_emergencia(emergencias)
     for emergencia in emergencias:
         emergencia.formularios_completados = emergencia.formularios_registrados
         emergencia.porcentaje_formularios = round(
             emergencia.formularios_completados / TOTAL_FORMULARIOS_SCI * 100
         )
+        abiertas = sorted(bitacoras[emergencia.pk])
         codigo, empezado = formulario_en_curso(
-            finalizados[emergencia.pk], borradores[emergencia.pk]
+            finalizados[emergencia.pk], borradores[emergencia.pk], abiertas
         )
         # Antes esta línea nombraba siempre al SCI-211, aunque se estuviera
         # llenando otro: el listado decía «SCI-211 en borrador» al lado de una
         # emergencia cuyo 211 ya estaba cerrado hacía rato.
         emergencia.formulario_actual = f"SCI-{codigo}" if codigo else ""
         emergencia.formulario_actual_empezado = empezado
+        emergencia.bitacoras_abiertas = [f"SCI-{item}" for item in abiertas]
 
         if emergencia.formularios_completados == 0:
             emergencia.etapa_formularios = "Sin iniciar"
             emergencia.clave_etapa_formularios = "sin_iniciar"
-        elif emergencia.formularios_completados == TOTAL_FORMULARIOS_SCI:
+        elif codigo is None:
+            # «Completa» se decide por lo que queda por llenar y no por cuántos
+            # formularios existen: una fila podía anunciarse completa mientras
+            # debajo se leía que el SCI-201 seguía en borrador.
             emergencia.etapa_formularios = "Completa"
             emergencia.clave_etapa_formularios = "completa"
         else:
-            emergencia.etapa_formularios = (
-                f"{emergencia.formulario_actual} en curso" if codigo
-                else "En elaboración"
-            )
+            emergencia.etapa_formularios = f"{emergencia.formulario_actual} en curso"
             emergencia.clave_etapa_formularios = "en_elaboracion"
     return emergencias
 

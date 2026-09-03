@@ -643,3 +643,89 @@ class ReporteDeRecursosTests(BaseRegistroTests):
         self.client.force_login(otro)
         respuesta = self.client.get(reverse("emergencias:exportar_recursos"))
         self.assertEqual(respuesta.status_code, 403)
+
+
+class BitacorasEnLaColumnaDocumentalTests(BaseRegistroTests):
+    """El SCI-211 y el SCI-214 no dejan la columna clavada en ellos."""
+
+    def cerrar(self, emergencia, *codigos):
+        for codigo in codigos:
+            FormularioSCI.objects.create(
+                emergencia=emergencia, codigo_sci=codigo,
+                datos={"preparado": True}, creado_por=self.usuario,
+                modificado_por=self.usuario,
+                estado=FormularioSCI.Estado.FINALIZADO,
+                finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
+            )
+
+    def abrir_211(self, emergencia, con_recursos=True):
+        formulario = FormularioSCI211.objects.create(
+            emergencia=emergencia, codigo=f"SCI-211-{emergencia.pk}",
+            punto_registro="Puesto de Comando", registrador_1=self.usuario.username,
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        if con_recursos:
+            formulario.registros.create(
+                orden=1, solicitado_por="CI",
+                fecha_hora_solicitud=emergencia.fecha_reporte,
+                clase_recurso="Vehículos", institucion_procedencia="Bomberos",
+                matricula_identificacion="AB-COL-01", numero_personas=1,
+                asignado_a="Zona de operaciones",
+            )
+        return formulario
+
+    def abrir_214(self, emergencia):
+        return FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="214",
+            datos={"actividades": [{"hora": "10:00", "evento": "Arribo"}]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+
+    def test_el_211_en_uso_no_es_el_formulario_en_curso(self):
+        emergencia = self.crear("RG-BIT-1")
+        self.cerrar(emergencia, "201", "207")
+        self.abrir_211(emergencia)
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-202 en curso")
+        self.assertNotContains(respuesta, "SCI-211 en curso")
+
+    def test_el_214_en_uso_tampoco_interrumpe(self):
+        emergencia = self.crear("RG-BIT-2")
+        self.cerrar(emergencia, "201", "207", "202", "203", "204", "205", "206", "215")
+        self.abrir_211(emergencia)
+        self.abrir_214(emergencia)
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-221 en curso")
+        self.assertNotContains(respuesta, "SCI-214 en curso")
+
+    def test_las_bitacoras_abiertas_se_anuncian_aparte(self):
+        emergencia = self.crear("RG-BIT-3")
+        self.abrir_211(emergencia)
+        self.abrir_214(emergencia)
+        respuesta = self.listar()
+        self.assertContains(respuesta, "incident-open-logs")
+        self.assertContains(respuesta, "SCI-211")
+        self.assertContains(respuesta, "SCI-214")
+
+    def test_un_211_vacio_si_es_el_formulario_en_curso(self):
+        emergencia = self.crear("RG-BIT-4")
+        self.cerrar(emergencia, "201", "207")
+        self.abrir_211(emergencia, con_recursos=False)
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-211 en curso")
+        self.assertNotContains(respuesta, "incident-open-logs")
+
+    def test_completa_solo_cuando_no_queda_nada_por_llenar(self):
+        """Antes bastaba con que existieran doce formularios: una fila decía
+        «Completa» mientras debajo se leía que el 201 seguía en borrador."""
+        emergencia = self.crear("RG-BIT-5")
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="201", datos={"a": 1},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        self.cerrar(emergencia, "207", "202", "203", "204", "205", "206",
+                    "215", "214", "221", "222")
+        self.abrir_211(emergencia)
+        respuesta = self.listar()
+        self.assertContains(respuesta, "SCI-201 en curso")
+        self.assertNotContains(respuesta, "Completa")
