@@ -804,18 +804,9 @@ def detalle(request, pk):
     ))
     for despliegue in despliegues:
         # La tabla solo ofrece cerrar el despliegue y transmitir el GPS. Cerrarlo
-        # es lo que devuelve la unidad al inventario y lo que permite cerrar
-        # después la emergencia; el resto de estados se consultó que estorbaba.
-        despliegue.transiciones = (
-            [
-                transicion for transicion in transiciones_disponibles(
-                    TRANSICIONES_VALIDAS, despliegue.estado, DespliegueUnidad.Estado
-                )
-                if transicion["valor"] == DespliegueUnidad.Estado.FINALIZADA
-            ]
-            if estacion_autorizada(request.user, despliegue.estacion_procedencia_id)
-            else []
-        )
+        # El botón de transición de estado se oculta en la vista de detalle;
+        # el despliegue se finaliza automáticamente al cerrar la emergencia.
+        despliegue.transiciones = []
     contexto = {
         "emergencia": emergencia,
         "despliegues": despliegues,
