@@ -116,6 +116,36 @@ class PwaTests(TestCase):
         self.assertIn("fetch(request).catch(() => caches.match(OFFLINE_URL))", contenido)
         self.assertNotIn("cache.put(request, response", contenido)
 
+    def test_toda_pantalla_lleva_la_cola_sin_conexion(self):
+        """El indicador de lo pendiente vive en la plantilla base a propósito.
+
+        El bombero guarda un formulario en la escena y sigue navegando; si el
+        aviso solo estuviera en la pantalla donde lo llenó, cerraría la
+        aplicación sin enterarse de que aún no se envió.
+        """
+        base = (Path(settings.BASE_DIR) / "templates" / "base.html").read_text(encoding="utf-8")
+        self.assertIn("pwa/js/cola.js", base)
+        self.assertIn("pwa/js/sin-conexion.js", base)
+        self.assertLess(base.index("pwa/js/cola.js"), base.index("pwa/js/sin-conexion.js"))
+
+    def test_el_aviso_de_pendientes_esta_en_los_controles(self):
+        controles = (
+            Path(settings.BASE_DIR) / "templates" / "componentes" / "pwa_controles.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("data-pendientes-envio", controles)
+        self.assertIn("data-pendientes-cuenta", controles)
+        self.assertIn("data-pendientes-reintentar", controles)
+
+    def test_los_formularios_de_la_escena_se_guardan_sin_conexion(self):
+        """Los dos que se llenan en el lugar del incidente, no los de confirmar."""
+        plantillas = Path(settings.BASE_DIR) / "templates" / "emergencias"
+        for nombre in ("sci_editar.html", "sci211/formulario.html"):
+            with self.subTest(plantilla=nombre):
+                self.assertIn(
+                    "data-guardar-sin-conexion",
+                    (plantillas / nombre).read_text(encoding="utf-8"),
+                )
+
     def test_todo_lo_que_se_precarga_existe(self):
         """``cache.addAll`` falla entero si uno solo de los archivos no está.
 

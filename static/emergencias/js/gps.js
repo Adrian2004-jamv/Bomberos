@@ -78,7 +78,14 @@
 
     const guardarParaDespues = async (payload) => {
         if (!cola) return;
-        try { await cola.guardar({ cuerpo: payload }); } catch (_error) { /* sin IndexedDB */ }
+        try {
+            await cola.guardar({
+                url: root.dataset.registerUrl,
+                tipo: "json",
+                cuerpo: payload,
+                titulo: "Posición GPS",
+            });
+        } catch (_error) { /* este navegador no guarda sin conexión */ }
         await mostrarPendientes();
     };
 
@@ -87,27 +94,23 @@
         try { ui.pending.textContent = String(await cola.pendientes()); } catch (_error) { /* sin IndexedDB */ }
     };
 
-    // Reenvía lo guardado antes de seguir. Una posición que el servidor rechaza
-    // por su contenido no mejora con el tiempo, así que se descarta en lugar de
-    // atascar la cola para siempre; lo único que se reintenta es la falta de red.
+    // El vaciado lo hace la cola, que sabe a qué dirección va cada entrada.
+    // Aquí solo se refleja en pantalla lo que salió, porque el chofer mira este
+    // contador para saber si ya puede cerrar la aplicación.
     const reenviarLoGuardado = async () => {
-        if (!cola || sending) return;
-        sending = true;
+        if (!cola) return;
         try {
-            const resultado = await cola.vaciar(async (envio) => {
-                const { response } = await entregar(envio.cuerpo);
-                return response.ok || [400, 409].includes(response.status);
-            });
+            const resultado = await cola.enviarPendientes();
             if (resultado.entregados) {
                 sentCount += resultado.entregados;
                 ui.count.textContent = String(sentCount);
                 setMessage(
-                    `Se enviaron ${resultado.entregados} posicion(es) que estaban guardadas sin conexión.`,
+                    `Se enviaron ${resultado.entregados} registro(s) que estaban guardados sin conexión.`,
                     "success",
                 );
             }
-        } catch (_error) { /* se reintenta en la siguiente ocasión */ }
-        finally { sending = false; await mostrarPendientes(); }
+        } catch (_error) { /* se reintenta a la próxima */ }
+        await mostrarPendientes();
     };
 
     window.addEventListener("online", reenviarLoGuardado);

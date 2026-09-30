@@ -18,3 +18,35 @@
 .offline-actions a { color: var(--color-navy-950); border-color: var(--color-slate-300); background: white; }
 @media (min-width: 480px) { .offline-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .pwa-controls { right: .65rem; bottom: .65rem; max-width: calc(100vw - 1.3rem); } .pwa-update { align-items: stretch; flex-direction: column; } }
+
+/* Lo que espera para salir no puede parecerse a un aviso más: mientras tenga
+   un número distinto de cero, cerrar la aplicación pierde ese trabajo. */
+.pwa-pending {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.7rem 0.8rem;
+    border-left: 4px solid #b5121b;
+    border-radius: 6px;
+    background: #fff4f4;
+    color: #4a1013;
+    font-size: 0.82rem;
+}
+
+.pwa-pending__detalle:empty { display: none; }
+
+.pwa-pending__detalle {
+    margin: 0;
+    color: #6b2c30;
+}
+
+.pwa-pending button {
+    justify-self: start;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid #b5121b;
+    border-radius: 5px;
+    background: #fff;
+    color: #b5121b;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}

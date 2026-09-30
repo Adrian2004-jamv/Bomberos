@@ -12,7 +12,7 @@
     </div>
   </div>
 
-  <form method="post" id="sci-document-form" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %} sci-paper--word">{% csrf_token %}
+  <form method="post" id="sci-document-form" data-guardar-sin-conexion="Formulario SCI" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %} sci-paper--word">{% csrf_token %}
     <header class="sci-paper__header">
       <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="Sistema de Comando de Incidentes">
       <div>

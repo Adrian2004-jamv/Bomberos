@@ -8,6 +8,11 @@
         <span aria-hidden="true"></span><strong>En línea</strong>
     </p>
     <button class="pwa-install" type="button" data-install-app hidden>Instalar aplicación</button>
+    <div class="pwa-pending" data-pendientes-envio role="status" aria-live="polite" hidden>
+        <span><strong data-pendientes-cuenta>0</strong> registro(s) guardado(s) en este equipo, sin enviar.</span>
+        <p class="pwa-pending__detalle" data-pendientes-detalle></p>
+        <button type="button" data-pendientes-reintentar>Enviar ahora</button>
+    </div>
     <div class="pwa-update" data-update-notice role="status" aria-live="polite" hidden>
         <span>Existe una nueva versión del sistema disponible.</span>
         <button type="button" data-update-app>Actualizar</button>

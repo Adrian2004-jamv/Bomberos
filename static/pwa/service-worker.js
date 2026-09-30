@@ -3,7 +3,7 @@
 const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
 // Subir este numero descarta todo lo guardado por la version anterior: el
 // detector de «activate» borra las caches cuyo nombre no coincide con esta.
-const STATIC_CACHE = `${CACHE_PREFIX}static-v11`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v12`;
 const OFFLINE_URL = "/sin-conexion/";
 const SAFE_ASSETS = [
     OFFLINE_URL,
@@ -18,6 +18,7 @@ const SAFE_ASSETS = [
     // solo se guardaban despues de visitarlas, de modo que un telefono recien
     // instalado en el cuartel se quedaba sin ellas al salir de cobertura.
     "/static/pwa/js/cola.js",
+    "/static/pwa/js/sin-conexion.js",
     "/static/emergencias/js/gps.js",
     "/static/emergencias/css/gps.css",
     "/static/emergencias/css/mi_unidad.css",
