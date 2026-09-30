@@ -8,9 +8,7 @@
     const decir = (texto) => { if (aviso) aviso.textContent = texto; };
 
     const mapa = L.map(contenedor, { scrollWheelZoom: false });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19, attribution: "© OpenStreetMap",
-    }).addTo(mapa);
+    fondoDelMapa(mapa);
     mapa.setView([-0.933, -78.616], 13);
 
     fetch(contenedor.dataset.recorridoUrl, { credentials: "same-origin" })

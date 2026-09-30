@@ -1,5 +1,7 @@
 from datetime import timedelta
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import Point
@@ -12,6 +14,82 @@ from instituciones.models import Canton, CuerpoBomberos, Estacion
 from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .services import clasificar_antiguedad
+
+# ==========================================
+# MÓDULO: FONDO CARTOGRÁFICO
+# ==========================================
+
+class FondoDelMapaTests(TestCase):
+    """El fondo de los mapas se declara una sola vez y con su atribución.
+
+    Los servidores de mosaicos de openstreetmap.org los mantienen voluntarios y
+    su política de uso no contempla una aplicación en producción: el 30/09/2026
+    empezaron a devolver 403 con una imagen de «Access blocked» donde debía ir
+    el mapa, y uno de los cuatro mapas pedía los mosaicos sin citar la fuente.
+    Un mapa que puede apagarse sin aviso no sirve para despachar unidades.
+    """
+
+    @property
+    def estaticos(self):
+        return Path(settings.BASE_DIR) / "static"
+
+    @property
+    def fondo(self):
+        return self.estaticos / "mapas" / "js" / "fondo.js"
+
+    def propios(self):
+        """Los archivos JavaScript del proyecto, sin las bibliotecas de terceros."""
+        return [
+            archivo for archivo in self.estaticos.rglob("*.js")
+            if "vendor" not in archivo.parts
+        ]
+
+    def test_nadie_pide_mosaicos_a_los_servidores_voluntarios(self):
+        culpables = [
+            archivo.relative_to(settings.BASE_DIR).as_posix()
+            for archivo in self.propios()
+            if "tile.openstreetmap.org" in archivo.read_text(encoding="utf-8")
+        ]
+        self.assertEqual(
+            culpables, [],
+            "Estos archivos volvieron a los mosaicos de los voluntarios de "
+            "OpenStreetMap, que ya bloquearon la aplicación una vez: "
+            f"{culpables}. Use fondoDelMapa().",
+        )
+
+    def test_el_fondo_se_declara_en_un_solo_archivo(self):
+        otros = [
+            archivo.relative_to(settings.BASE_DIR).as_posix()
+            for archivo in self.propios()
+            if archivo != self.fondo
+            and "L.tileLayer(" in archivo.read_text(encoding="utf-8")
+        ]
+        self.assertEqual(
+            otros, [],
+            "El fondo del mapa se arma aparte de mapas/js/fondo.js en "
+            f"{otros}. Así fue como un mapa quedó sin atribución y "
+            "OpenStreetMap bloqueó la aplicación.",
+        )
+
+    def test_el_fondo_cita_a_quien_pone_los_datos_y_los_servidores(self):
+        codigo = self.fondo.read_text(encoding="utf-8")
+        self.assertIn("attribution", codigo)
+        self.assertIn("openstreetmap.org/copyright", codigo)
+        self.assertIn("carto.com/attributions", codigo)
+
+    def test_toda_plantilla_con_mapa_carga_el_fondo(self):
+        plantillas = Path(settings.BASE_DIR) / "templates"
+        sin_fondo = []
+        for plantilla in plantillas.rglob("*.html"):
+            texto = plantilla.read_text(encoding="utf-8")
+            if "vendor/leaflet/leaflet.js" not in texto:
+                continue
+            if "mapas/js/fondo.js" not in texto:
+                sin_fondo.append(plantilla.relative_to(settings.BASE_DIR).as_posix())
+        self.assertEqual(
+            sin_fondo, [],
+            f"Estas plantillas dibujan un mapa sin cargar el fondo: {sin_fondo}.",
+        )
 
 class MapaOperativoTests(TestCase):
     @classmethod

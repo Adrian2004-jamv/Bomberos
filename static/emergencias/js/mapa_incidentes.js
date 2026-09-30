@@ -4,9 +4,7 @@
     if (!root || typeof L === "undefined") return;
     const status = document.querySelector("[data-incident-map-status]");
     const map = L.map(root.id, {zoomControl: true, attributionControl: false}).setView([-0.93, -78.62], 10);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-    }).addTo(map);
+    fondoDelMapa(map);
     const layer = L.layerGroup().addTo(map);
     let fitted = false;
 
