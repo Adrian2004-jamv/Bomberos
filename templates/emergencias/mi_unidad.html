@@ -3,7 +3,7 @@
 
 {% block title %}Mi unidad{% endblock %}
 {% block page_title %}Mi unidad{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/mi_unidad.css' %}?v=4">{% endblock %}
 
 {% block content %}
 {% if sin_asignacion %}
@@ -39,6 +39,18 @@
         <a class="unidad-accion unidad-accion--gps" href="{% url 'emergencias:transmitir_gps' despliegue.pk %}">
             <i class="ti ti-broadcast" aria-hidden="true"></i> Transmitir mi ubicación
         </a>
+        {% comment %}
+        El cierre se pide dos veces —el botón y el aviso del navegador— porque
+        es el paso que libera la unidad y deja de transmitir: pulsarlo sin
+        querer, en marcha y con guantes, la borraría del mapa a mitad del
+        incidente.
+        {% endcomment %}
+        <form method="post" action="{% url 'emergencias:cerrar_mi_despliegue' despliegue.pk %}" onsubmit="return confirm('¿La unidad {{ despliegue.unidad.codigo_interno }} ya regresó al cuartel? Se cerrará el despliegue, dejará de transmitir la ubicación y la unidad quedará libre para otra emergencia.')">{% csrf_token %}
+            <button class="unidad-accion unidad-accion--cerrar" type="submit">
+                <i class="ti ti-circle-check" aria-hidden="true"></i> Ya regresamos al cuartel
+            </button>
+        </form>
+        <p class="unidad-asignada__nota">Pulse «Ya regresamos» solo cuando la unidad esté de vuelta: con eso queda libre para el siguiente aviso.</p>
     </div>
 </section>
 {% endfor %}

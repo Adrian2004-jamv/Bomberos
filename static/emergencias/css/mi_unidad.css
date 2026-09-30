@@ -54,6 +54,25 @@
 .unidad-accion--gps { color: #fff; background: var(--color-red-700); }
 .unidad-accion--gps:hover { background: #a20d16; }
 
+/* El cierre no compite en color con transmitir: es la acción que se pulsa una
+   sola vez, al final, y no debe confundirse con el botón rojo de siempre. */
+.unidad-accion--cerrar {
+    width: 100%;
+    border: 2px solid var(--color-navy-900);
+    color: var(--color-navy-900);
+    background: #fff;
+    font-family: inherit;
+    cursor: pointer;
+}
+.unidad-accion--cerrar:hover { color: #fff; background: var(--color-navy-900); }
+
+.unidad-asignada__nota {
+    margin: 0;
+    color: var(--color-slate-600);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
 .unidad-sin-coordenadas {
     display: flex;
     align-items: center;

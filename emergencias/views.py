@@ -42,7 +42,7 @@ from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
-                       detener_transmision,
+                       cerrar_despliegue_conducido, detener_transmision,
                        cambiar_estado_emergencia, desplegar_unidad,
                        registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
@@ -804,9 +804,23 @@ def detalle(request, pk):
     ))
     for despliegue in despliegues:
         # La tabla solo ofrece cerrar el despliegue y transmitir el GPS. Cerrarlo
-        # El botón de transición de estado se oculta en la vista de detalle;
-        # el despliegue se finaliza automáticamente al cerrar la emergencia.
-        despliegue.transiciones = []
+        # es lo que devuelve la unidad al inventario y lo que permite cerrar
+        # después la emergencia; el resto de estados se consultó que estorbaba.
+        #
+        # El chofer tiene el mismo botón en «Mi unidad», que es donde cae natural:
+        # él sabe cuándo volvió al cuartel. Aquí se conserva porque no puede ser
+        # el único camino —un teléfono sin batería o sin señal dejaría la unidad
+        # asignada a un incidente terminado y la emergencia sin poder cerrarse.
+        despliegue.transiciones = (
+            [
+                transicion for transicion in transiciones_disponibles(
+                    TRANSICIONES_VALIDAS, despliegue.estado, DespliegueUnidad.Estado
+                )
+                if transicion["valor"] == DespliegueUnidad.Estado.FINALIZADA
+            ]
+            if estacion_autorizada(request.user, despliegue.estacion_procedencia_id)
+            else []
+        )
     contexto = {
         "emergencia": emergencia,
         "despliegues": despliegues,
@@ -1534,6 +1548,32 @@ def mi_unidad(request):
     }
 
     return render(request, "emergencias/mi_unidad.html", contexto)
+
+@login_required
+@require_POST
+def cerrar_mi_despliegue(request, pk):
+    """El chofer cierra su despliegue cuando la unidad regresa al cuartel.
+
+    No pasa por ``actualizar_despliegue``: esa vista mueve el despliegue a
+    cualquier estado y se apoya en los permisos de estación, que un chofer no
+    tiene. Aquí solo se cierra, y solo el propio conductor.
+    """
+    if not es_chofer(request.user):
+        raise PermissionDenied
+    despliegue = get_object_or_404(despliegues_asignados(request.user), pk=pk)
+    try:
+        cerrar_despliegue_conducido(
+            despliegue, request.user, request.POST.get("observaciones", "")
+        )
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        messages.success(
+            request,
+            f"{despliegue.unidad.codigo_interno}: despliegue cerrado. "
+            "La unidad vuelve a estar disponible.",
+        )
+    return redirect("emergencias:mi_unidad")
 
 @login_required
 def mi_historial(request):

@@ -80,9 +80,10 @@ TRANSICIONES_EMERGENCIA = {
 def validar_usuario(usuario, permitir_chofer=False):
     """Comprueba que el usuario exista, esté activo y pueda gestionar despliegues.
 
-    ``permitir_chofer`` abre el paso a quien solo conduce. Se usa al informar
-    posiciones, que es lo único que hace desde la carretera; despachar unidades
-    o mover el estado del despliegue siguen exigiendo permiso de gestión.
+    ``permitir_chofer`` abre el paso a quien solo conduce: informar posiciones y
+    cerrar el despliegue de su propia unidad cuando regresa al cuartel. Despachar
+    unidades o llevar el despliegue a cualquier otro estado siguen exigiendo
+    permiso de gestión.
     """
     Usuario = get_user_model()
     if (
@@ -209,21 +210,65 @@ def desplegar_unidad(emergencia, unidad, usuario_responsable, observaciones=""):
         raise ValidationError("La unidad ya fue asignada a otro despliegue activo.") from error
     return despliegue
 
-@transaction.atomic
-def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, observaciones=""):
-    validar_usuario(usuario_responsable)
+def _despliegue_a_mover(despliegue, nuevo_estado, usuario_responsable,
+                        permitir_chofer=False):
+    """Comprueba lo que no depende de quién pide el cambio y bloquea la fila.
+
+    Vive aparte porque el despliegue se cierra desde dos sitios con permisos
+    distintos: el despacho, que responde por la estación, y el chofer, que
+    responde por su propia unidad. Lo que ambos comparten es esto.
+    """
+    validar_usuario(usuario_responsable, permitir_chofer=permitir_chofer)
     if nuevo_estado not in DespliegueUnidad.Estado.values:
         raise ValidationError("El estado de despliegue no es válido.")
     if not isinstance(despliegue, DespliegueUnidad) or not despliegue.pk:
         raise ValidationError("El despliegue no existe.")
     try:
-        actual = DespliegueUnidad.objects.select_for_update().select_related(
+        return DespliegueUnidad.objects.select_for_update().select_related(
             "unidad", "emergencia"
         ).get(pk=despliegue.pk)
     except DespliegueUnidad.DoesNotExist as error:
         raise ValidationError("El despliegue no existe.") from error
+
+@transaction.atomic
+def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, observaciones=""):
+    actual = _despliegue_a_mover(despliegue, nuevo_estado, usuario_responsable)
     if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
         raise ValidationError("El despliegue está fuera del ámbito autorizado.")
+    return _aplicar_estado_despliegue(
+        actual, nuevo_estado, usuario_responsable, observaciones
+    )
+
+@transaction.atomic
+def cerrar_despliegue_conducido(despliegue, chofer, observaciones=""):
+    """Cierra el despliegue que conduce el propio chofer.
+
+    El chofer no pasa por ``estacion_autorizada``: su alcance es una sola fila
+    —el despliegue que conduce—, no la estación entera. Y solo puede cerrarlo:
+    la salida y la llegada las sella el GPS por distancia, no el dedo de nadie.
+
+    El botón sigue estando además en la ficha de la emergencia. Si este fuera el
+    único camino, un chofer sin batería, sin señal o que simplemente no lo pulsa
+    dejaría la unidad marcada como asignada, la emergencia sin poder cerrarse
+    —exige que ningún despliegue siga activo— y el SCI-211 sin poder finalizarse.
+    """
+    nuevo_estado = DespliegueUnidad.Estado.FINALIZADA
+    actual = _despliegue_a_mover(
+        despliegue, nuevo_estado, chofer, permitir_chofer=True
+    )
+    if not conduce_el_despliegue(chofer, actual):
+        raise ValidationError("Solo el chofer de la unidad cierra este despliegue.")
+    return _aplicar_estado_despliegue(
+        actual, nuevo_estado, chofer, observaciones, liberar_por_delegacion=True
+    )
+
+def _aplicar_estado_despliegue(actual, nuevo_estado, usuario_responsable, observaciones,
+                               liberar_por_delegacion=False):
+    """Sella las fechas del despliegue y devuelve la unidad al inventario.
+
+    ``liberar_por_delegacion`` solo lo usa el cierre que hace el propio chofer,
+    que no gestiona inventario. El camino del despacho queda igual que siempre.
+    """
     if nuevo_estado not in TRANSICIONES_VALIDAS.get(actual.estado, set()):
         raise ValidationError(
             f"No se puede cambiar de {actual.get_estado_display()} al estado solicitado."
@@ -265,6 +310,7 @@ def cambiar_estado_despliegue(despliegue, nuevo_estado, usuario_responsable, obs
             usuario_responsable=usuario_responsable,
             motivo=f"Cierre de despliegue en emergencia {actual.emergencia.codigo}",
             observaciones=observaciones,
+            autorizacion_delegada=liberar_por_delegacion,
         )
     return actual
 

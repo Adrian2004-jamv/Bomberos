@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -13,7 +14,8 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .models import DespliegueUnidad, Emergencia
 from .permissions import es_chofer, solo_es_chofer
-from .services import desplegar_unidad
+from .services import (cambiar_estado_emergencia, cerrar_despliegue_conducido,
+                       desplegar_unidad)
 
 class BaseChoferTests(TestCase):
     @classmethod
@@ -122,9 +124,9 @@ class PantallaDelChoferTests(BaseChoferTests):
         self.assertContains(respuesta, despliegue.emergencia.codigo)
         self.assertContains(respuesta, despliegue.unidad.codigo_interno)
 
-    def test_la_pantalla_solo_ofrece_transmitir(self):
+    def test_la_pantalla_no_ofrece_navegacion_externa(self):
         """La navegación se retiró: el chofer usa su propio mapa, y un enlace
-        a otra aplicación distraía del único botón que el sistema necesita."""
+        a otra aplicación distraía de los botones del sistema."""
         self.desplegar_con_chofer()
         self.client.force_login(self.chofer)
         respuesta = self.client.get(reverse("emergencias:mi_unidad"))
@@ -158,6 +160,152 @@ class PantallaDelChoferTests(BaseChoferTests):
         self.assertContains(respuesta, "Mi unidad")
         self.assertNotContains(respuesta, "Panel de control")
         self.assertNotContains(respuesta, "Capacidades operativas")
+
+# ==========================================
+# MÓDULO: CIERRE DEL DESPLIEGUE POR EL CHOFER
+# ==========================================
+
+class CierreDelDespliegueTests(BaseChoferTests):
+    """El chofer cierra su propia unidad cuando regresa al cuartel.
+
+    Es quien lo sabe de primera mano, así que el botón cae natural en su
+    pantalla. Lo que no puede es ser el único camino: sin cerrar el despliegue
+    la unidad sigue marcada como asignada, la emergencia no se deja cerrar y el
+    SCI-211 no se puede finalizar. Por eso el despacho conserva el suyo.
+    """
+
+    def cerrar(self, despliegue):
+        return self.client.post(
+            reverse("emergencias:cerrar_mi_despliegue", args=[despliegue.pk])
+        )
+
+    def test_su_pantalla_ofrece_cerrar_el_despliegue(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(reverse("emergencias:mi_unidad"))
+        self.assertContains(respuesta, "Ya regresamos al cuartel")
+        self.assertContains(
+            respuesta,
+            reverse("emergencias:cerrar_mi_despliegue", args=[despliegue.pk]),
+        )
+
+    def test_al_cerrarlo_la_unidad_vuelve_a_estar_disponible(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.cerrar(despliegue)
+
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.FINALIZADA)
+        self.assertIsNotNone(despliegue.fecha_retorno)
+        despliegue.unidad.refresh_from_db()
+        self.assertEqual(
+            despliegue.unidad.disponibilidad, Recurso.Disponibilidad.DISPONIBLE
+        )
+
+    def test_cerrarlo_apaga_la_transmision(self):
+        despliegue = self.desplegar_con_chofer()
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(transmitiendo=True)
+        self.client.force_login(self.chofer)
+        self.cerrar(despliegue)
+        despliegue.refresh_from_db()
+        self.assertFalse(despliegue.transmitiendo)
+
+    def test_desaparece_de_su_pantalla_al_cerrarlo(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        self.cerrar(despliegue)
+        respuesta = self.client.get(reverse("emergencias:mi_unidad"))
+        self.assertContains(respuesta, "No tiene una unidad asignada")
+
+    def test_no_puede_cerrar_el_despliegue_de_otro_chofer(self):
+        ajeno = self.desplegar_con_chofer(
+            chofer=self.otro_chofer, codigo="IE-01012026-801"
+        )
+        self.client.force_login(self.chofer)
+        self.assertEqual(self.cerrar(ajeno).status_code, 404)
+        ajeno.refresh_from_db()
+        self.assertEqual(ajeno.estado, DespliegueUnidad.Estado.ASIGNADA)
+
+    def test_quien_no_es_chofer_no_entra_por_esta_via(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.jefe)
+        self.assertEqual(self.cerrar(despliegue).status_code, 403)
+
+    def test_por_get_no_se_cierra_nada(self):
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.chofer)
+        respuesta = self.client.get(
+            reverse("emergencias:cerrar_mi_despliegue", args=[despliegue.pk])
+        )
+        self.assertEqual(respuesta.status_code, 405)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.ASIGNADA)
+
+    def test_el_servicio_rechaza_a_quien_no_conduce_la_unidad(self):
+        """La barrera vive en el servicio, no solo en la vista: el chofer no
+        pasa por los permisos de estación, de modo que su autorización es
+        conducir esa fila y ninguna otra."""
+        despliegue = self.desplegar_con_chofer()
+        with self.assertRaises(ValidationError):
+            cerrar_despliegue_conducido(despliegue, self.otro_chofer)
+        despliegue.refresh_from_db()
+        self.assertEqual(despliegue.estado, DespliegueUnidad.Estado.ASIGNADA)
+
+    def test_cerrado_por_el_chofer_la_emergencia_ya_se_puede_cerrar(self):
+        """La cadena completa: sin este paso la emergencia queda trabada."""
+        despliegue = self.desplegar_con_chofer()
+        emergencia = despliegue.emergencia
+        if emergencia.estado == Emergencia.Estado.REPORTADA:
+            cambiar_estado_emergencia(
+                emergencia, Emergencia.Estado.EN_ATENCION, self.jefe
+            )
+            emergencia.refresh_from_db()
+
+        with self.assertRaises(ValidationError):
+            cambiar_estado_emergencia(emergencia, Emergencia.Estado.CERRADA, self.jefe)
+
+        self.client.force_login(self.chofer)
+        self.cerrar(despliegue)
+
+        emergencia.refresh_from_db()
+        cambiar_estado_emergencia(emergencia, Emergencia.Estado.CERRADA, self.jefe)
+        emergencia.refresh_from_db()
+        self.assertEqual(emergencia.estado, Emergencia.Estado.CERRADA)
+
+    def test_cerrar_no_le_abre_el_inventario(self):
+        """La liberación de la unidad va por una vía delegada y estrecha: el
+        chofer sigue sin poder tocar un recurso por su cuenta."""
+        from inventario.permissions import puede_gestionar_recurso
+        from inventario.services import actualizar_estado_recurso
+
+        despliegue = self.desplegar_con_chofer()
+        self.assertFalse(puede_gestionar_recurso(self.chofer, despliegue.unidad))
+        with self.assertRaises(ValidationError):
+            actualizar_estado_recurso(
+                recurso=despliegue.unidad,
+                nuevo_estado_operativo=Recurso.EstadoOperativo.FUERA_SERVICIO,
+                nueva_disponibilidad=Recurso.Disponibilidad.NO_DISPONIBLE,
+                usuario_responsable=self.chofer,
+                motivo="Intento directo desde el perfil de chofer",
+            )
+        despliegue.unidad.refresh_from_db()
+        self.assertEqual(
+            despliegue.unidad.estado_operativo, Recurso.EstadoOperativo.OPERATIVO
+        )
+
+    def test_el_despacho_conserva_su_propio_boton(self):
+        """Que el chofer tenga el suyo no quita el de la ficha: un teléfono sin
+        batería o sin señal dejaría la emergencia sin poder cerrarse."""
+        despliegue = self.desplegar_con_chofer()
+        self.client.force_login(self.jefe)
+        respuesta = self.client.get(
+            reverse("emergencias:detalle", args=[despliegue.emergencia_id])
+        )
+        fila = respuesta.context["despliegues"][0]
+        self.assertEqual(
+            [transicion["valor"] for transicion in fila.transiciones],
+            [DespliegueUnidad.Estado.FINALIZADA],
+        )
 
 # ==========================================
 # MÓDULO: TRANSMISIÓN DE UBICACIÓN

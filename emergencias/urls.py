@@ -27,6 +27,7 @@ urlpatterns = [
     path("<int:pk>/despachar/", views.despachar, name="despachar"),
     path("despliegues/<int:pk>/estado/", views.actualizar_despliegue, name="despliegue_estado"),
     path("mi-unidad/", views.mi_unidad, name="mi_unidad"),
+    path("mi-unidad/despliegues/<int:pk>/cerrar/", views.cerrar_mi_despliegue, name="cerrar_mi_despliegue"),
     path("mi-unidad/historial/", views.mi_historial, name="mi_historial"),
     path("mi-unidad/recorridos/<int:pk>/", views.mi_recorrido, name="mi_recorrido"),
     path("despliegues/<int:pk>/gps/", views.transmitir_gps, name="transmitir_gps"),

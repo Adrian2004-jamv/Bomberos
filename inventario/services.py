@@ -15,8 +15,19 @@ def actualizar_estado_recurso(
     motivo,
     observaciones="",
     confirmar_disponibilidad=False,
+    autorizacion_delegada=False,
 ):
-    """Actualiza el recurso y registra su historial en una única transacción."""
+    """Actualiza el recurso y registra su historial en una única transacción.
+
+    ``autorizacion_delegada`` salta la comprobación de permiso sobre el recurso
+    porque quien llama ya comprobó una autorización distinta y más estrecha. El
+    caso es el chofer que cierra el despliegue de su unidad al volver al
+    cuartel: no gestiona inventario —no puede editar un solo recurso desde la
+    pantalla de inventario—, pero devolver su propia unidad a disponible es la
+    consecuencia del hecho que él reporta, y el servicio de despliegues ya
+    verificó que conduce esa unidad. Nunca se active desde una vista: solo desde
+    un servicio que haya hecho esa comprobación.
+    """
     Usuario = get_user_model()
 
     if (
@@ -43,7 +54,9 @@ def actualizar_estado_recurso(
     except Recurso.DoesNotExist as error:
         raise ValidationError("El recurso no existe.") from error
 
-    if not puede_gestionar_recurso(usuario_responsable, recurso_actual):
+    if not autorizacion_delegada and not puede_gestionar_recurso(
+        usuario_responsable, recurso_actual
+    ):
         raise ValidationError("El usuario no tiene autorización para cambiar este recurso.")
 
     estado_anterior = recurso_actual.estado_operativo
