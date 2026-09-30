@@ -71,11 +71,12 @@ class FondoDelMapaTests(TestCase):
             "OpenStreetMap bloqueó la aplicación.",
         )
 
-    def test_el_fondo_cita_a_quien_pone_los_datos_y_los_servidores(self):
+    def test_el_fondo_declara_una_atribucion(self):
+        """Sin ella el proveedor puede cortar el servicio, y eso ya pasó."""
         codigo = self.fondo.read_text(encoding="utf-8")
-        self.assertIn("attribution", codigo)
-        self.assertIn("openstreetmap.org/copyright", codigo)
-        self.assertIn("carto.com/attributions", codigo)
+        declaracion = codigo.split("attribution:", 1)
+        self.assertEqual(len(declaracion), 2, "El fondo no declara atribución.")
+        self.assertIn("<a href=", declaracion[1])
 
     def test_toda_plantilla_con_mapa_carga_el_fondo(self):
         plantillas = Path(settings.BASE_DIR) / "templates"
