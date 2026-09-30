@@ -5,7 +5,7 @@
 {% block page_title %}Mapa operativo{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">
-<link rel="stylesheet" href="{% static 'mapas/css/operativo.css' %}">
+<link rel="stylesheet" href="{% static 'mapas/css/operativo.css' %}?v=2">
 {% endblock %}
 
 {% block content %}
@@ -17,6 +17,17 @@
             <div class="sync-state" data-sync-state role="status" aria-live="polite"><span aria-hidden="true"></span><strong>Preparando mapa</strong><small data-sync-time>Sin sincronizar</small></div>
         </div>
     </header>
+
+    <details class="map-offline" data-mapa-sin-conexion>
+        <summary>Mapa sin internet</summary>
+        <p>Descargue las imágenes del mapa de Latacunga para que siga viéndose cuando no haya señal. Se guardan en este equipo; conviene hacerlo con wifi y una sola vez.</p>
+        <div class="map-offline__acciones">
+            <button type="button" data-descargar-mapa>Descargar mapa de la zona</button>
+            <button type="button" class="map-offline__borrar" data-borrar-mapa>Borrar lo guardado</button>
+        </div>
+        <progress data-avance-mapa value="0" max="1" hidden></progress>
+        <p class="map-offline__estado" data-estado-mapa role="status" aria-live="polite"></p>
+    </details>
 
     <details class="map-filters" open>
         <summary>Filtros operativos</summary>
@@ -56,4 +67,5 @@
 <script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script>
 <script src="{% static 'mapas/js/fondo.js' %}?v=2" defer></script>
 <script src="{% static 'mapas/js/operativo.js' %}?v=2" defer></script>
+<script src="{% static 'mapas/js/mapa_sin_conexion.js' %}?v=1" defer></script>
 {% endblock %}

@@ -86,7 +86,21 @@ window.colaDeEnvios = (() => {
 
     // `envio` es {url, tipo, cuerpo, titulo}. `tipo` vale "json" para las
     // posiciones del GPS y "formulario" para lo que se escribe en pantalla.
+    //
+    // De un formulario se guarda solo el último envío: guardar dos veces sin
+    // señal es corregir lo escrito, no pedir dos documentos. Sin esto, pulsar
+    // Guardar dos veces en el formulario de una emergencia nueva creaba dos
+    // emergencias al reconectar, cada una con su propio código.
+    //
+    // Las posiciones del GPS no se descartan nunca: cada una es un punto
+    // distinto del recorrido, aunque todas vayan a la misma dirección.
     const guardar = async (envio) => {
+        if (envio.tipo === "formulario") {
+            const anteriores = (await listar()).filter(
+                (previo) => previo.tipo === "formulario" && previo.url === envio.url
+            );
+            for (const previo of anteriores) await olvidar(previo.id);
+        }
         await enTransaccion("readwrite", (almacen) => {
             almacen.add({ ...envio, guardado: Date.now() });
         });

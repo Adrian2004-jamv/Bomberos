@@ -21,7 +21,7 @@
         <span>El código, la estación responsable y la fecha del reporte no cambian. El estado operativo se mueve desde el detalle de la emergencia.</span>
     </div>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" data-guardar-sin-conexion="Registro de la emergencia" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         <div class="emergency-form-grid">

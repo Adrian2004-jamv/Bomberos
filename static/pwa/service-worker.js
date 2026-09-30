@@ -5,6 +5,15 @@ const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
 // detector de «activate» borra las caches cuyo nombre no coincide con esta.
 const STATIC_CACHE = `${CACHE_PREFIX}static-v12`;
 const OFFLINE_URL = "/sin-conexion/";
+// Los mosaicos del mapa viven en su propia cache y no llevan numero de version:
+// reunirlos cuesta cientos de peticiones y varios megabytes, y descartarlos
+// porque cambio una hoja de estilo dejaria el mapa en blanco justo donde no hay
+// senal para rehacerlos. Se vacia solo cuando alguien lo pide.
+const MAPA_CACHE = `${CACHE_PREFIX}mapa`;
+// Solo el servidor que usa fondo.js. Nombrar otros «por si acaso» hace que la
+// guarda de mapas/tests.py los tome por una vuelta a los mosaicos de los
+// voluntarios de OpenStreetMap, que es justo lo que no debe volver a pasar.
+const SERVIDORES_DE_MOSAICOS = ["server.arcgisonline.com"];
 const SAFE_ASSETS = [
     OFFLINE_URL,
     "/static/css/variables.css",
@@ -50,7 +59,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys()
-            .then((keys) => Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== STATIC_CACHE).map((key) => caches.delete(key))))
+            .then((keys) => Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== STATIC_CACHE && key !== MAPA_CACHE).map((key) => caches.delete(key))))
             .then(() => self.clients.claim()),
     );
 });
@@ -58,6 +67,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
     if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
     if (event.data?.type === "CLEAR_SESSION_CACHE") event.waitUntil(clearSessionCaches());
+    if (event.data?.type === "CLEAR_MAP_CACHE") event.waitUntil(caches.delete(MAPA_CACHE));
 });
 
 self.addEventListener("fetch", (event) => {
@@ -71,6 +81,25 @@ self.addEventListener("fetch", (event) => {
                 return response;
             }));
         }
+        return;
+    }
+
+    // Los mosaicos se sirven de la copia guardada antes que de la red. Un mapa
+    // es util sin conexion solo si las imagenes ya estan aqui, y una vez
+    // descargado un trozo de Latacunga no cambia de un dia para otro.
+    if (SERVIDORES_DE_MOSAICOS.includes(url.hostname)) {
+        event.respondWith(caches.open(MAPA_CACHE).then(async (cache) => {
+            const guardado = await cache.match(request);
+            if (guardado) return guardado;
+            const respuesta = await fetch(request);
+            // Las respuestas opacas tambien se guardan: los mosaicos vienen de
+            // otro origen y sin CORS no se puede mirar dentro, pero se dibujan
+            // igual. Lo que no se guarda es un error disfrazado de imagen.
+            if (respuesta && (respuesta.ok || respuesta.type === "opaque")) {
+                cache.put(request, respuesta.clone());
+            }
+            return respuesta;
+        }));
         return;
     }
 

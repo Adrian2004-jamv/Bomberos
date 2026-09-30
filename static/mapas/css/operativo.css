@@ -43,3 +43,41 @@ button:focus-visible, select:focus-visible, summary:focus-visible { outline: .2r
 @media (min-width: 700px) { .map-header { flex-direction: row; align-items: center; justify-content: space-between; }.map-filters form { grid-template-columns: repeat(2, minmax(0, 1fr)); }.unit-cards, .emergency-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1050px) { .map-filters form { grid-template-columns: repeat(3, minmax(0, 1fr)); }.map-layout { grid-template-columns: minmax(0, 1fr) 13rem; }.operational-summary { grid-template-columns: 1fr; align-content: start; }.operational-summary > strong { grid-column: auto; }.unit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .operational-map { min-height: 21rem; }.map-legend { position: static; margin-top: .5rem; }.section-heading { align-items: stretch; flex-direction: column; } }
+
+/* Descarga del mapa para trabajar sin señal. Va plegado y en tono neutro: se usa
+   una vez, en el cuartel y con wifi, no en medio de un incidente. */
+.map-offline {
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    font-size: 0.86rem;
+}
+
+.map-offline > summary {
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.map-offline p { margin: 0.5rem 0; color: var(--color-slate-600); }
+
+.map-offline__acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.map-offline button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--color-navy-900);
+    border-radius: 5px;
+    background: var(--color-navy-900);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.map-offline button[disabled] { opacity: 0.6; cursor: progress; }
+
+.map-offline__borrar { background: #fff; color: var(--color-navy-900); }
+
+.map-offline progress { width: 100%; margin-top: 0.5rem; }
+
+.map-offline__estado:empty { display: none; }

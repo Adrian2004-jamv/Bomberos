@@ -146,6 +146,38 @@ class PwaTests(TestCase):
                     (plantillas / nombre).read_text(encoding="utf-8"),
                 )
 
+    def test_los_mosaicos_del_mapa_no_se_borran_al_subir_de_version(self):
+        """Reunirlos cuesta 1526 peticiones y unos 37 MB.
+
+        Descartarlos porque cambió una hoja de estilo dejaría el mapa en blanco
+        justo donde no hay señal para volver a bajarlos.
+        """
+        worker = (
+            Path(settings.BASE_DIR) / "static" / "pwa" / "service-worker.js"
+        ).read_text(encoding="utf-8")
+        limpieza = [
+            linea for linea in worker.splitlines()
+            if "caches.delete(key)" in linea and "STATIC_CACHE" in linea
+        ]
+        self.assertEqual(len(limpieza), 1)
+        self.assertIn("MAPA_CACHE", limpieza[0])
+
+    def test_los_mosaicos_se_sirven_de_la_copia_guardada(self):
+        worker = (
+            Path(settings.BASE_DIR) / "static" / "pwa" / "service-worker.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SERVIDORES_DE_MOSAICOS", worker)
+        # El servidor que usa fondo.js tiene que estar en esa lista, o los
+        # mosaicos nunca se guardarían.
+        fondo = (
+            Path(settings.BASE_DIR) / "static" / "mapas" / "js" / "fondo.js"
+        ).read_text(encoding="utf-8")
+        servidores = worker.split("SERVIDORES_DE_MOSAICOS = [")[1].split("]")[0]
+        self.assertTrue(
+            any(host.strip().strip('",') in fondo for host in servidores.split(",")),
+            "El service worker no guarda mosaicos del servidor que usa el mapa.",
+        )
+
     def test_todo_lo_que_se_precarga_existe(self):
         """``cache.addAll`` falla entero si uno solo de los archivos no está.
 
