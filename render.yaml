@@ -10,8 +10,19 @@
 # esos paquetes. La extension PostGIS la crea la migracion 0003 de emergencias,
 # de modo que una base recien creada queda lista sin intervencion manual.
 
+# El plan gratuito de PostgreSQL vence a los 30 dias de creado: Render la
+# suspende y ya no se puede reactivar, solo pasarla a plan pago o reemplazarla.
+# Cuando eso ocurra, suba el numero del nombre (bomberos-postgres-3, -4...) y
+# sincronice el blueprint: Render crea la base nueva, reengancha DATABASE_URL y
+# vuelve a construir. El buildCommand deja el sistema utilizable sobre una base
+# vacia —migraciones, PostGIS, cantones, Latacunga con sus tres estaciones,
+# inventario inicial y superusuario—, de modo que no hay nada que restaurar a
+# mano. Lo que no vuelve son las cuentas creadas desde la web, el inventario
+# agregado a mano y las emergencias con sus formularios SCI.
+#
+# Borre la base anterior recien cuando la nueva este sirviendo.
 databases:
-  - name: bomberos-postgres
+  - name: bomberos-postgres-2
     databaseName: bomberos_cotopaxi
     user: bomberos
     plan: free
@@ -103,7 +114,7 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: bomberos-postgres
+          name: bomberos-postgres-2
           property: connectionString
       - key: CHANNEL_LAYER_BACKEND
         value: redis
