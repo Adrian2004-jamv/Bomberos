@@ -254,6 +254,123 @@ class PosicionesGPSTests(TestCase):
         respuesta = self.client.get(reverse("emergencias:transmitir_gps", args=[self.despliegue.pk]))
         self.assertEqual(respuesta.status_code, 403)
 
+# ==========================================
+# MÓDULO: REENVÍO DE LA COLA SIN CONEXIÓN
+# ==========================================
+
+class ReenvioDeLaColaTests(PosicionesGPSTests):
+    """Lo que el teléfono guardó sin señal tiene que poder llegar después.
+
+    La unidad sale a una quebrada sin cobertura y sincroniza al regresar. Para
+    entonces el despliegue puede estar cerrado y parte de la cola puede haberse
+    enviado ya: ninguna de las dos cosas debe costarle el recorrido.
+    """
+
+    def url(self, despliegue=None):
+        return reverse(
+            "emergencias:registrar_posicion", args=[(despliegue or self.despliegue).pk]
+        )
+
+    def enviar(self, datos, usuario=None):
+        cliente = Client()
+        cliente.force_login(usuario or self.usuario)
+        return cliente.post(
+            self.url(), data=json.dumps(datos), content_type="application/json"
+        )
+
+    def test_la_misma_lectura_no_duplica_el_recorrido(self):
+        momento = timezone.now().isoformat()
+        datos = self.datos_validos(fecha_dispositivo=momento)
+
+        primera = self.enviar(datos)
+        segunda = self.enviar(datos)
+
+        self.assertEqual(primera.status_code, 201)
+        self.assertEqual(segunda.status_code, 200)
+        self.assertTrue(segunda.json()["repetida"])
+        self.assertEqual(primera.json()["id"], segunda.json()["id"])
+        self.assertEqual(PosicionUnidad.objects.filter(despliegue=self.despliegue).count(), 1)
+
+    def test_dos_lecturas_distintas_si_se_guardan_las_dos(self):
+        ahora = timezone.now()
+        self.enviar(self.datos_validos(fecha_dispositivo=ahora.isoformat()))
+        self.enviar(self.datos_validos(
+            fecha_dispositivo=(ahora + timedelta(seconds=20)).isoformat()
+        ))
+        self.assertEqual(PosicionUnidad.objects.filter(despliegue=self.despliegue).count(), 2)
+
+    def test_la_base_impide_la_copia_aunque_no_pase_por_el_servicio(self):
+        momento = timezone.now()
+        self.crear_posicion(fecha_dispositivo=momento)
+        with self.assertRaises(Exception):
+            PosicionUnidad.objects.create(
+                despliegue=self.despliegue, reportado_por=self.usuario,
+                ubicacion=Point(-78.61, -0.93, srid=4326), fecha_dispositivo=momento,
+            )
+
+    def test_una_posicion_del_recorrido_llega_aunque_el_despliegue_ya_cerro(self):
+        """El caso que motiva todo: se sincroniza al volver, no en la quebrada."""
+        capturada = timezone.now()
+        DespliegueUnidad.objects.filter(pk=self.despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA,
+            fecha_retorno=capturada + timedelta(minutes=30),
+        )
+        respuesta = self.enviar(self.datos_validos(fecha_dispositivo=capturada.isoformat()))
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(PosicionUnidad.objects.filter(despliegue=self.despliegue).count(), 1)
+
+    def test_no_se_admite_seguir_en_vivo_una_unidad_ya_recogida(self):
+        """Aceptar lo atrasado no es aceptar lo nuevo."""
+        cierre = timezone.now() - timedelta(minutes=10)
+        DespliegueUnidad.objects.filter(pk=self.despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA, fecha_retorno=cierre,
+        )
+        respuesta = self.enviar(self.datos_validos(
+            fecha_dispositivo=timezone.now().isoformat()
+        ))
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(PosicionUnidad.objects.filter(despliegue=self.despliegue).count(), 0)
+
+    def test_sin_hora_del_aparato_no_hay_llegada_tardia(self):
+        """Una posición sin hora no prueba cuándo se tomó, así que no entra."""
+        DespliegueUnidad.objects.filter(pk=self.despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA, fecha_retorno=timezone.now(),
+        )
+        respuesta = self.enviar(self.datos_validos())
+        self.assertEqual(respuesta.status_code, 409)
+
+    def consola(self):
+        cliente = Client()
+        cliente.force_login(self.usuario)
+        return cliente.get(
+            reverse("emergencias:transmitir_gps", args=[self.despliegue.pk])
+        )
+
+    def test_la_consola_carga_la_cola_antes_que_el_gps(self):
+        """Si gps.js corre primero, window.colaDeEnvios todavía no existe y la
+        consola se queda sin guardar nada: el orden de los dos scripts importa."""
+        cuerpo = self.consola().content.decode()
+        self.assertIn("pwa/js/cola.js", cuerpo)
+        self.assertLess(cuerpo.index("pwa/js/cola.js"), cuerpo.index("emergencias/js/gps.js"))
+
+    def test_la_consola_dice_cuantas_quedan_sin_enviar(self):
+        """El chofer no puede cerrar la aplicación con la cola a medias, así que
+        tiene que poder verla."""
+        self.assertContains(self.consola(), "data-gps-pending")
+        self.assertContains(self.consola(), "Guardadas sin conexión")
+
+    def test_la_consola_explica_que_hacer_al_perder_la_senal(self):
+        self.assertContains(self.consola(), "Si se queda sin señal, siga transmitiendo")
+
+    def test_tampoco_entra_lo_anterior_al_despacho(self):
+        self.despliegue.refresh_from_db()
+        anterior = self.despliegue.fecha_asignacion - timedelta(hours=1)
+        DespliegueUnidad.objects.filter(pk=self.despliegue.pk).update(
+            estado=DespliegueUnidad.Estado.FINALIZADA, fecha_retorno=timezone.now(),
+        )
+        respuesta = self.enviar(self.datos_validos(fecha_dispositivo=anterior.isoformat()))
+        self.assertEqual(respuesta.status_code, 409)
+
 class PosicionesGPSFueraDeTransaccionTests(TransactionTestCase):
     """Reproduce las condiciones de produccion, no las de TestCase.
 

@@ -3,7 +3,6 @@
 
     const MIN_INTERVAL_MS = 15000;
     const MIN_DISTANCE_METERS = 10;
-    const MAX_PENDING_POSITIONS = 5;
     const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 };
     const root = document.querySelector("[data-gps-console]");
     if (!root) return;
@@ -13,12 +12,16 @@
         state: root.querySelector("[data-gps-state]"), message: root.querySelector("[data-gps-message]"),
         coordinates: root.querySelector("[data-gps-coordinates]"), accuracy: root.querySelector("[data-gps-accuracy]"),
         speed: root.querySelector("[data-gps-speed]"), time: root.querySelector("[data-gps-time]"), count: root.querySelector("[data-gps-count]"),
+        pending: root.querySelector("[data-gps-pending]"),
     };
     let watchId = null;
     let lastSent = null;
     let sentCount = 0;
     let sending = false;
-    const pending = [];
+    // Lo que no se pudo enviar no se guarda en memoria: la pestaña se cierra, el
+    // teléfono se bloquea y el recorrido de media hora en una quebrada sin señal
+    // se perdía entero. La cola vive en IndexedDB y se vacía al volver la red.
+    const cola = window.colaDeEnvios || null;
 
     const csrfToken = () => document.cookie.split("; ").find((item) => item.startsWith("csrftoken="))?.split("=")[1] || "";
     const radians = (degrees) => degrees * Math.PI / 180;
@@ -63,16 +66,57 @@
         fecha_dispositivo: new Date(position.timestamp).toISOString(),
     });
     const shouldSend = (payload) => !lastSent || Date.now() - lastSent.time >= MIN_INTERVAL_MS || distanceMeters(lastSent, payload) >= MIN_DISTANCE_METERS;
-    const send = async (payload) => {
-        if (sending) { pending.push(payload); if (pending.length > MAX_PENDING_POSITIONS) pending.shift(); return; }
+    const entregar = async (payload) => {
+        const response = await fetch(root.dataset.registerUrl, {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+    };
+
+    const guardarParaDespues = async (payload) => {
+        if (!cola) return;
+        try { await cola.guardar({ cuerpo: payload }); } catch (_error) { /* sin IndexedDB */ }
+        await mostrarPendientes();
+    };
+
+    const mostrarPendientes = async () => {
+        if (!cola || !ui.pending) return;
+        try { ui.pending.textContent = String(await cola.pendientes()); } catch (_error) { /* sin IndexedDB */ }
+    };
+
+    // Reenvía lo guardado antes de seguir. Una posición que el servidor rechaza
+    // por su contenido no mejora con el tiempo, así que se descarta en lugar de
+    // atascar la cola para siempre; lo único que se reintenta es la falta de red.
+    const reenviarLoGuardado = async () => {
+        if (!cola || sending) return;
         sending = true;
         try {
-            const response = await fetch(root.dataset.registerUrl, {
-                method: "POST", credentials: "same-origin",
-                headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
-                body: JSON.stringify(payload),
+            const resultado = await cola.vaciar(async (envio) => {
+                const { response } = await entregar(envio.cuerpo);
+                return response.ok || [400, 409].includes(response.status);
             });
-            const data = await response.json().catch(() => ({}));
+            if (resultado.entregados) {
+                sentCount += resultado.entregados;
+                ui.count.textContent = String(sentCount);
+                setMessage(
+                    `Se enviaron ${resultado.entregados} posicion(es) que estaban guardadas sin conexión.`,
+                    "success",
+                );
+            }
+        } catch (_error) { /* se reintenta en la siguiente ocasión */ }
+        finally { sending = false; await mostrarPendientes(); }
+    };
+
+    window.addEventListener("online", reenviarLoGuardado);
+
+    const send = async (payload) => {
+        if (sending) { await guardarParaDespues(payload); return; }
+        sending = true;
+        try {
+            const { response, data } = await entregar(payload);
             if (!response.ok) {
                 if ([401, 403, 409].includes(response.status)) stop(data.error || "La transmisión ya no está autorizada.", "error");
                 else setMessage(data.error || "No fue posible enviar la posición.", "error");
@@ -87,12 +131,15 @@
             setState("Transmitiendo", "active");
             setMessage("Última ubicación enviada correctamente.", "success");
         } catch (_error) {
-            pending.push(payload); if (pending.length > MAX_PENDING_POSITIONS) pending.shift();
-            setState("Envío sin confirmar", "error");
-            setMessage("Sin conexión con el servidor. La transmisión no se confirma.", "error");
+            await guardarParaDespues(payload);
+            setState("Guardando sin conexión", "error");
+            setMessage(
+                "Sin conexión con el servidor. Las posiciones quedan guardadas en el "
+                + "teléfono y se enviarán solas al recuperar la señal.",
+                "error",
+            );
         } finally {
             sending = false;
-            if (watchId !== null && pending.length) send(pending.shift());
         }
     };
     const onPosition = (position) => { const payload = payloadFrom(position); if (shouldSend(payload)) send(payload); };
@@ -102,11 +149,14 @@
     };
     const start = () => {
         if (!("geolocation" in navigator)) { stop("Este navegador no permite geolocalización.", "error"); return; }
-        sentCount = 0; lastSent = null; pending.length = 0; ui.count.textContent = "0";
+        sentCount = 0; lastSent = null; ui.count.textContent = "0";
         ui.start.disabled = true; ui.stop.disabled = false; setState("Esperando ubicación", "stopped");
         setMessage("Solicitando ubicación al dispositivo…");
         watchId = navigator.geolocation.watchPosition(onPosition, onGeolocationError, GEOLOCATION_OPTIONS);
     };
     ui.start.addEventListener("click", start); ui.stop.addEventListener("click", () => stop());
+    // Puede haber quedado cola de una sesión anterior, de un turno que terminó
+    // sin señal. No hace falta volver a transmitir para que salga.
+    mostrarPendientes().then(() => { if (navigator.onLine) reenviarLoGuardado(); });
     window.addEventListener("pagehide", () => { if (watchId !== null) navigator.geolocation.clearWatch(watchId); });
 })();

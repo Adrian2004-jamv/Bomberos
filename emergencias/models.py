@@ -228,6 +228,15 @@ class PosicionUnidad(models.Model):
             models.CheckConstraint(condition=models.Q(precision__isnull=True) | models.Q(precision__gte=0), name="pos_precision_valida"),
             models.CheckConstraint(condition=models.Q(velocidad__isnull=True) | models.Q(velocidad__gte=0), name="pos_velocidad_valida"),
             models.CheckConstraint(condition=models.Q(rumbo__isnull=True) | models.Q(rumbo__gte=0, rumbo__lte=360), name="pos_rumbo_valido"),
+            # La hora que marca el propio aparato identifica la posición: dos
+            # lecturas distintas no comparten milisegundo. Es lo que permite
+            # reenviar la cola guardada sin conexión sin duplicar el recorrido.
+            # Las posiciones antiguas no la tienen, de ahí la condición.
+            models.UniqueConstraint(
+                fields=("despliegue", "fecha_dispositivo"),
+                condition=models.Q(fecha_dispositivo__isnull=False),
+                name="pos_unica_por_hora_del_aparato",
+            ),
         ]
 
     @property

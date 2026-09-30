@@ -411,6 +411,23 @@ def ajustar_a_campo(valor, nombre_campo):
     decimales = PosicionUnidad._meta.get_field(nombre_campo).decimal_places
     return numero.quantize(Decimal(1).scaleb(-decimales))
 
+def del_recorrido(despliegue, fecha_dispositivo):
+    """Si esa hora cae dentro del tiempo que la unidad estuvo desplegada.
+
+    Existe por la cola que el teléfono guarda cuando no hay señal. La unidad
+    sale a una quebrada sin cobertura y sincroniza al regresar, que es
+    justamente cuando el despliegue ya se cerró: sin esto, el recorrido que
+    motiva toda la función se perderia por llegar tarde. Lo que se sigue
+    prohibiendo es seguir en vivo a una unidad ya recogida, y por eso se exige
+    la hora del aparato: una posición sin ella no prueba cuándo se tomó.
+    """
+    if fecha_dispositivo is None:
+        return False
+    if fecha_dispositivo < despliegue.fecha_asignacion:
+        return False
+    cierre = despliegue.fecha_retorno
+    return cierre is None or fecha_dispositivo <= cierre
+
 @transaction.atomic
 def registrar_posicion_unidad(
     despliegue,
@@ -441,14 +458,18 @@ def registrar_posicion_unidad(
     if not conduce_el_despliegue(usuario_responsable, actual):
         if not estacion_autorizada(usuario_responsable, actual.estacion_procedencia_id):
             raise ValidationError("El despliegue está fuera del ámbito autorizado.")
-    if actual.estado not in DespliegueUnidad.ESTADOS_ACTIVOS:
-        raise ValidationError("El despliegue ya no está activo.")
-    if not actual.emergencia.admite_despliegues:
-        raise ValidationError("La emergencia ya no admite seguimiento de unidades.")
     if actual.unidad_id != despliegue.unidad_id:
         raise ValidationError("La unidad ya no corresponde al despliegue.")
     if fecha_dispositivo and timezone.is_naive(fecha_dispositivo):
         fecha_dispositivo = timezone.make_aware(fecha_dispositivo)
+    en_vivo = (
+        actual.estado in DespliegueUnidad.ESTADOS_ACTIVOS
+        and actual.emergencia.admite_despliegues
+    )
+    if not en_vivo and not del_recorrido(actual, fecha_dispositivo):
+        if actual.estado not in DespliegueUnidad.ESTADOS_ACTIVOS:
+            raise ValidationError("El despliegue ya no está activo.")
+        raise ValidationError("La emergencia ya no admite seguimiento de unidades.")
     if fecha_dispositivo and fecha_dispositivo > timezone.now() + timedelta(minutes=5):
         raise ValidationError({"fecha_dispositivo": "La fecha del dispositivo está adelantada."})
 
@@ -473,8 +494,17 @@ def registrar_posicion_unidad(
         reportado_por=usuario_responsable,
         fuente=fuente,
     )
-    posicion.full_clean()
-    posicion.save()
+    posicion.full_clean(validate_constraints=False)
+    try:
+        with transaction.atomic():
+            posicion.save()
+    except IntegrityError:
+        # El telefono reenvia su cola sin saber que parte ya llego. La hora del
+        # aparato identifica la lectura, asi que la que ya esta guardada es esta
+        # misma: se devuelve en lugar de crear una segunda.
+        return PosicionUnidad.objects.get(
+            despliegue=actual, fecha_dispositivo=fecha_dispositivo
+        )
     sellar_tiempos_por_recorrido(actual, posicion)
     from .realtime import publicar_posicion_gps
 

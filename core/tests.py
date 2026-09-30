@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -114,6 +115,29 @@ class PwaTests(TestCase):
         self.assertIn('request.mode === "navigate"', contenido)
         self.assertIn("fetch(request).catch(() => caches.match(OFFLINE_URL))", contenido)
         self.assertNotIn("cache.put(request, response", contenido)
+
+    def test_todo_lo_que_se_precarga_existe(self):
+        """``cache.addAll`` falla entero si uno solo de los archivos no está.
+
+        No deja la precarga a medias: rechaza la instalación completa, y el
+        service worker se queda sin instalar. Un nombre mal escrito en esa lista
+        apaga el modo sin conexión de toda la aplicación sin avisar de nada.
+        """
+        worker = (
+            Path(settings.BASE_DIR) / "static" / "pwa" / "service-worker.js"
+        ).read_text(encoding="utf-8")
+        lista = worker.split("SAFE_ASSETS = [")[1].split("]")[0]
+        rutas = re.findall(r'"(/static/[^"]+)"', lista)
+        self.assertGreater(len(rutas), 5)
+        faltantes = [
+            ruta for ruta in rutas
+            if not (Path(settings.BASE_DIR) / ruta.lstrip("/")).exists()
+        ]
+        self.assertEqual(
+            faltantes, [],
+            f"La precarga nombra archivos que no existen: {faltantes}. "
+            "Con uno solo, el service worker no llega a instalarse.",
+        )
 
     def test_archivos_pwa_no_contienen_credenciales(self):
         archivos = (

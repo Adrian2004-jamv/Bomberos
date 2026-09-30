@@ -1480,6 +1480,7 @@ def registrar_posicion(request, pk):
     if not isinstance(datos, dict):
         return error_json("El cuerpo JSON debe ser un objeto.", 400, "datos_no_validos")
     despliegue = despliegue_alcanzable(request.user, pk)
+    inicio = timezone.now()
     fecha_dispositivo = datos.get("fecha_dispositivo")
     if fecha_dispositivo:
         fecha_dispositivo = parse_datetime(str(fecha_dispositivo))
@@ -1499,11 +1500,17 @@ def registrar_posicion(request, pk):
         mensaje = next(iter(error.messages), "Los datos enviados no son válidos.")
         codigo = "despliegue_inactivo" if "activo" in mensaje or "seguimiento" in mensaje else "datos_no_validos"
         return error_json(mensaje, 409 if codigo == "despliegue_inactivo" else 400, codigo)
+    # El teléfono reenvía su cola sin saber qué parte llegó ya. Se responde 200
+    # y no 201 cuando la posición resultó ser una que ya estaba guardada, para
+    # que el cliente la borre de la cola igual que si fuera nueva: lo que no
+    # debe hacer es reintentarla para siempre.
+    repetida = fecha_dispositivo is not None and posicion.fecha_recepcion < inicio
     return JsonResponse({
         "id": posicion.pk,
         "fecha_recepcion": posicion.fecha_recepcion.isoformat(),
-        "mensaje": "Posición recibida.",
-    }, status=201)
+        "repetida": repetida,
+        "mensaje": "Posición ya registrada." if repetida else "Posición recibida.",
+    }, status=200 if repetida else 201)
 
 @require_GET
 def ultima_posicion(request, pk):

@@ -3,7 +3,7 @@
 const CACHE_PREFIX = "bomberos-cotopaxi-pwa-";
 // Subir este numero descarta todo lo guardado por la version anterior: el
 // detector de «activate» borra las caches cuyo nombre no coincide con esta.
-const STATIC_CACHE = `${CACHE_PREFIX}static-v10`;
+const STATIC_CACHE = `${CACHE_PREFIX}static-v11`;
 const OFFLINE_URL = "/sin-conexion/";
 const SAFE_ASSETS = [
     OFFLINE_URL,
@@ -13,6 +13,14 @@ const SAFE_ASSETS = [
     "/static/css/login.css",
     "/static/pwa/css/pwa.css",
     "/static/js/app.js",
+    // La cola de envios sin conexion y la consola del GPS son lo que el chofer
+    // necesita justamente cuando no hay red: precargarlas no es un lujo. Antes
+    // solo se guardaban despues de visitarlas, de modo que un telefono recien
+    // instalado en el cuartel se quedaba sin ellas al salir de cobertura.
+    "/static/pwa/js/cola.js",
+    "/static/emergencias/js/gps.js",
+    "/static/emergencias/css/gps.css",
+    "/static/emergencias/css/mi_unidad.css",
     "/static/vendor/tabler-icons/tabler-icons.min.css",
     "/static/vendor/tabler-icons/fonts/tabler-icons.woff2",
     "/static/vendor/tom-select-2.6.2.min.js",

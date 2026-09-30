@@ -27,3 +27,10 @@
 @media (min-width: 600px) { .gps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gps-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 960px) { .gps-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .gps-state[data-state="active"] span { animation: none; } }
+
+/* El aviso de la cola se distingue del aviso de privacidad: uno explica una
+   regla, el otro dice qué hacer cuando se corta la señal en plena emergencia. */
+.gps-notice--offline {
+    border-left: 4px solid var(--color-red-700);
+    background: #fff7f7;
+}
