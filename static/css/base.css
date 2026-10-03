@@ -61,7 +61,7 @@ a {
 .content {
     width: min(100%, 90rem);
     margin: 0 auto;
-    padding: 1.25rem clamp(1rem, 3vw, 3rem) 3rem;
+    padding: 1.25rem clamp(1rem, 2vw, 2rem) 3rem;
 }
 
 .page-heading {

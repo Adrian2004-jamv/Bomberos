@@ -69,10 +69,10 @@
             columnDefs: [
                 {className: "dtr-control", orderable: false, searchable: false, targets: 0},
                 {orderable: false, searchable: false, targets: -1},
-                {responsivePriority: 1, targets: [1, 8, 9]},
-                {responsivePriority: 2, targets: [6, 7]},
-                {responsivePriority: 3, targets: 2},
-                {responsivePriority: 4, targets: 3},
+                {responsivePriority: 1, targets: [1, 6, 7, 9]},   // Recurso, Estado, Disponibilidad, Acciones — siempre visibles
+                {responsivePriority: 2, targets: [2, 8]},           // Institución, Foco
+                {responsivePriority: 3, targets: 3},                // Estación
+                {responsivePriority: 4, targets: [4, 5]},           // Categoría, Tipo — últimas en colapsar
             ],
             order: [[2, "asc"], [4, "asc"], [5, "asc"], [1, "asc"]],
             pageLength: 25,
