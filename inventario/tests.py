@@ -242,8 +242,13 @@ class InterfazInventarioTests(TestCase):
         self.assertContains(respuesta, "Buscar recurso…")
         self.assertContains(respuesta, 'data-inventory-column-filter="8"', html=False)
         self.assertContains(respuesta, 'aria-label="Filtrar por actualización"', html=False)
-        self.assertContains(respuesta, "inventario_datatable.js?v=6")
-        self.assertContains(respuesta, "inventario_datatable.css?v=9")
+        # Se comprueba que se enlazan y que llevan marca de versión, no cuál es.
+        # Fijar el número obligaba a tocar esta prueba cada vez que alguien
+        # actualizaba el estilo o el guion, que es justo cuando debe seguir
+        # pasando: la subida de v9 a v11 la rompió sin que nada estuviera mal.
+        contenido = respuesta.content.decode()
+        self.assertRegex(contenido, r"inventario_datatable\.js\?v=\d+")
+        self.assertRegex(contenido, r"inventario_datatable\.css\?v=\d+")
         self.assertContains(respuesta, '>Foco</th>', html=False)
         self.assertContains(respuesta, "jquery-3.7.1.min.js")
 

@@ -61,10 +61,11 @@ a {
 .content {
     width: min(100%, 90rem);
     margin: 0 auto;
-    /* Deja libre la esquina donde viven los controles fijos: sin este hueco se
-       sientan sobre la ultima fila de la tabla. Basta con la pastilla de
-       conexion, que es lo unico que se ve casi siempre. */
-    padding: 1.25rem clamp(1rem, 3vw, 3rem) 4.5rem;
+    /* Margen lateral estrecho para ganar ancho util en las tablas. El hueco de
+       abajo deja libre la esquina donde viven los controles fijos: sin el se
+       sientan sobre la ultima fila. Basta con la pastilla de conexion, que es
+       lo unico que se ve casi siempre. */
+    padding: 1.25rem clamp(1rem, 2vw, 2rem) 4.5rem;
 }
 
 /* El aviso de registros sin enviar es mucho mas alto que la pastilla, asi que

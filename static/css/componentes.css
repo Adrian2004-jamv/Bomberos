@@ -5,13 +5,11 @@
     display: flex;
     width: var(--sidebar-width);
     flex-direction: column;
-    /* Sin esto, lo que no entra en la altura de la ventana no se alcanza de
-       ninguna manera: el menu esta fijo y no se mueve con la pagina. Con nueve
-       modulos, la tarjeta del usuario y el pie, bastaba una ventana corta o el
-       navegador con el zoom subido para que «Cerrar sesion» quedara fuera y
-       hubiera que alejar la vista para pulsarlo. */
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* El menu entero no se desplaza: lo hace la lista de modulos, mas abajo.
+       Antes nada lo hacia, y lo que no entraba en la altura de la ventana no se
+       alcanzaba de ninguna manera — con el zoom subido, «Cerrar sesion» quedaba
+       fuera y habia que alejar la vista para pulsarlo. */
+    overflow: hidden;
     color: var(--color-white);
     background:
         linear-gradient(180deg, rgb(225 6 19 / 14%), transparent 14rem),
@@ -57,7 +55,12 @@
     display: grid;
     gap: 0.3rem;
     padding: 1.25rem 0.85rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    flex: 1;
+    scrollbar-width: none;
 }
+.sidebar__nav::-webkit-scrollbar { display: none; }
 
 .nav-item {
     display: flex;
@@ -116,6 +119,7 @@
     padding: 1rem 1.25rem;
     color: #bdbdbd;
     font-size: 0.78rem;
+    flex-shrink: 0;
 }
 .sidebar__footer .ti { color: var(--color-red-600); font-size: 1.05rem; }
 
