@@ -178,6 +178,40 @@ class PwaTests(TestCase):
             "El service worker no guarda mosaicos del servidor que usa el mapa.",
         )
 
+    def test_las_clases_compartidas_viven_en_la_hoja_global(self):
+        """Una clase usada por varias aplicaciones no puede vivir en la hoja de
+        una sola: las pantallas que no cargan esa hoja llevan la clase escrita
+        en el HTML sin ninguna regla detras, y el fallo no se ve hasta que
+        alguien abre esa pantalla concreta en un telefono.
+
+        Ya paso dos veces: con ``.button--primary``, que dejaba grises todos los
+        botones principales, y con ``.table-responsive``, que dejaba la tabla
+        del catalogo saliendose de su tarjeta en cuatro pantallas.
+        """
+        raiz = Path(settings.BASE_DIR)
+        hojas = raiz / "static" / "css"
+        global_css = (
+            (hojas / "componentes.css").read_text(encoding="utf-8")
+            + (hojas / "base.css").read_text(encoding="utf-8")
+        )
+        for clase in ("table-responsive", "button--primary"):
+            usada_en = {
+                plantilla.relative_to(raiz / "templates").parts[0]
+                for plantilla in (raiz / "templates").rglob("*.html")
+                if clase in plantilla.read_text(encoding="utf-8")
+            }
+            if len(usada_en) < 2:
+                continue
+            with self.subTest(clase=clase):
+                # assertTrue y no assertIn: este ultimo vuelca las 30 KB de
+                # la hoja en el mensaje, y ahi no se lee nada.
+                self.assertTrue(
+                    f".{clase}" in global_css,
+                    f"«{clase}» la usan {sorted(usada_en)} pero no esta definida "
+                    "en componentes.css ni en base.css, que son las unicas hojas "
+                    "que carga toda pantalla.",
+                )
+
     def test_todo_lo_que_se_precarga_existe(self):
         """``cache.addAll`` falla entero si uno solo de los archivos no está.
 
