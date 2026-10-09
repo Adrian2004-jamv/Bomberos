@@ -53,6 +53,7 @@
 
 .sidebar__nav {
     display: grid;
+    align-content: start;
     gap: 0.3rem;
     padding: 1.25rem 0.85rem;
     overflow-y: auto;
@@ -448,8 +449,31 @@
     }
 
     .nav-item {
-        padding: 0.5rem 0.6rem;
-        font-size: 0.88rem;
+        gap: 0.55rem;
+        min-height: 2.4rem;
+        padding: 0.45rem 0.55rem;
+        font-size: 0.86rem;
+    }
+
+    .nav-item > .ti:first-child {
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 0.4rem;
+        font-size: 1.02rem;
+    }
+
+    .sidebar__nav {
+        padding: 0.8rem 0.6rem;
+    }
+
+    .sidebar__brand strong {
+        font-size: 0.92rem;
+        line-height: 1.2;
+    }
+
+    .sidebar__footer {
+        padding: 0.7rem 0.85rem;
+        font-size: 0.72rem;
     }
 }
 
