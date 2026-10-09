@@ -557,3 +557,87 @@
 .table-responsive > table {
     min-width: 100%;
 }
+
+/* ==========================================================================
+   MENU CONTRAIDO
+   ========================================================================== */
+
+.sidebar-collapse {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    width: 100%;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.85rem;
+    border: 0;
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+    color: #bdbdbd;
+    background: rgb(0 0 0 / 18%);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.sidebar-collapse:hover { color: var(--color-white); background: rgb(0 0 0 / 32%); }
+.sidebar-collapse .ti { font-size: 1rem; }
+
+/* En pantalla estrecha el menu ya se guarda entero en un cajon, de modo que
+   contraerlo no aporta nada y el boton solo ocuparia sitio. */
+@media (max-width: 960px) {
+    .sidebar-collapse { display: none; }
+}
+
+body.sidebar-collapsed {
+    --sidebar-width: 4.25rem;
+}
+
+/* El texto de cada modulo es un nodo suelto junto al icono, no un elemento al
+   que se pueda apuntar: se apaga con el tamano de fuente del enlace y se le
+   devuelve al icono. El nombre pasa al atributo title, que lo pone app.js. */
+body.sidebar-collapsed .nav-item,
+body.sidebar-collapsed .sidebar-user__link,
+body.sidebar-collapsed .sidebar-user button,
+body.sidebar-collapsed .sidebar__footer {
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+    font-size: 0;
+}
+
+body.sidebar-collapsed .nav-item > .ti:first-child { font-size: 1.2rem; }
+body.sidebar-collapsed .sidebar-user__link .ti,
+body.sidebar-collapsed .sidebar-user button .ti,
+body.sidebar-collapsed .sidebar__footer .ti { font-size: 1.15rem; }
+
+body.sidebar-collapsed .sidebar__brand {
+    justify-content: center;
+    padding-inline: 0;
+}
+
+body.sidebar-collapsed .sidebar__brand > span,
+body.sidebar-collapsed .sidebar-user__identity,
+body.sidebar-collapsed .sidebar-collapse__texto {
+    display: none;
+}
+
+body.sidebar-collapsed .sidebar-collapse {
+    justify-content: center;
+    padding-inline: 0;
+}
+
+body.sidebar-collapsed .sidebar-collapse .ti {
+    transform: rotate(180deg);
+}
+
+body.sidebar-collapsed .sidebar-user {
+    grid-template-columns: 1fr;
+    margin-inline: 0.4rem;
+    padding: 0.5rem 0.3rem;
+}
+
+body.sidebar-collapsed .sidebar-user__icon { justify-self: center; }
+body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }

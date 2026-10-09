@@ -35,6 +35,44 @@ if (closeButton) {
     closeButton.addEventListener("click", () => setSidebar(false));
 }
 
+// Menú contraído: deja solo la franja de iconos y devuelve el ancho a la
+// pantalla. La elección se recuerda porque es una preferencia de sitio de
+// trabajo, no algo que apetezca repetir en cada página.
+const CLAVE_MENU = "bomberos:menu-contraido";
+const botonContraer = document.querySelector("[data-sidebar-collapse]");
+
+function pintarMenuContraido(contraido) {
+    body.classList.toggle("sidebar-collapsed", contraido);
+    if (!botonContraer) return;
+    botonContraer.setAttribute("aria-expanded", String(!contraido));
+    botonContraer.title = contraido ? "Desplegar el menú" : "Contraer el menú";
+}
+
+if (botonContraer) {
+    // Con el menú contraído el nombre del módulo no se ve, así que pasa al
+    // título: el puntero lo muestra y los lectores de pantalla lo anuncian.
+    document.querySelectorAll(".sidebar [data-nav]").forEach((enlace) => {
+        const nombre = enlace.textContent.trim();
+        if (nombre && !enlace.title) enlace.title = nombre;
+    });
+
+    // El guion en línea de base.html aplica la clase antes de pintar, pero no
+    // toca el botón: sin esto, al recargar con el menú contraído el botón
+    // seguía anunciando «Contraer» cuando lo que hace es desplegar.
+    pintarMenuContraido(body.classList.contains("sidebar-collapsed"));
+
+    botonContraer.addEventListener("click", () => {
+        const contraido = !body.classList.contains("sidebar-collapsed");
+        pintarMenuContraido(contraido);
+        try {
+            window.localStorage.setItem(CLAVE_MENU, contraido ? "1" : "0");
+        } catch (_error) {
+            // Navegador sin almacenamiento: el menú funciona igual, solo que
+            // vuelve a abrirse en la siguiente página.
+        }
+    });
+}
+
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
         setSidebar(false);

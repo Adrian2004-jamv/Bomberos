@@ -1,5 +1,18 @@
 {% load static %}
 <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+    {% comment %}
+    El botón va dentro del menú y no en la barra superior porque esa barra solo
+    existe en pantallas estrechas, y aquí hace falta justamente en las anchas.
+    {% endcomment %}
+    <button
+        class="sidebar-collapse"
+        type="button"
+        data-sidebar-collapse
+        aria-controls="sidebar"
+        aria-expanded="true"
+        title="Contraer el menú"
+    ><i class="ti ti-chevron-left" aria-hidden="true"></i><span class="sidebar-collapse__texto">Contraer</span></button>
+
     <a class="sidebar__brand" href="{% url 'emergencias:lista' %}" aria-label="Ir al registro de emergencias">
         <img
             class="brand-logo"
@@ -14,46 +27,46 @@
 
 {% if solo_chofer %}
     <nav class="sidebar__nav">
-        <a class="nav-item{% if request.resolver_match.url_name == 'mi_unidad' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_unidad' %}">
+        <a data-nav class="nav-item{% if request.resolver_match.url_name == 'mi_unidad' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_unidad' %}">
             <i class="ti ti-steering-wheel" aria-hidden="true"></i> Mi unidad
         </a>
-        <a class="nav-item{% if request.resolver_match.url_name == 'mi_historial' or request.resolver_match.url_name == 'mi_recorrido' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_historial' %}">
+        <a data-nav class="nav-item{% if request.resolver_match.url_name == 'mi_historial' or request.resolver_match.url_name == 'mi_recorrido' %} nav-item--active{% endif %}" href="{% url 'emergencias:mi_historial' %}">
             <i class="ti ti-route" aria-hidden="true"></i> Historial
         </a>
     </nav>
 {% else %}
     <nav class="sidebar__nav">
-        <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':3' == 'sci' %} nav-item--active{% endif %}" href="{% url 'emergencias:lista' %}"{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':3' == 'sci' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':3' == 'sci' %} nav-item--active{% endif %}" href="{% url 'emergencias:lista' %}"{% if request.resolver_match.namespace == 'emergencias' and not request.resolver_match.url_name|slice:':3' == 'sci' %} aria-current="page"{% endif %}>
             <i class="ti ti-firetruck" aria-hidden="true"></i> Acción
         </a>
-        <a class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} nav-item--active{% endif %}" href="{% url 'dashboard:principal' %}"{% if request.resolver_match.namespace == 'dashboard' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} nav-item--active{% endif %}" href="{% url 'dashboard:principal' %}"{% if request.resolver_match.namespace == 'dashboard' %} aria-current="page"{% endif %}>
             <i class="ti ti-dashboard" aria-hidden="true"></i> Panel de control
         </a>
-        <a class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'instituciones' %} nav-item--active{% endif %}" href="{% url 'instituciones:lista' %}"{% if request.resolver_match.namespace == 'instituciones' %} aria-current="page"{% endif %}>
             <i class="ti ti-building-community" aria-hidden="true"></i> Instituciones
         </a>
         {% if puede_gestionar_usuarios %}
-            <a class="nav-item{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} nav-item--active{% endif %}" href="{% url 'usuarios:lista' %}"{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} aria-current="page"{% endif %}>
+            <a data-nav class="nav-item{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} nav-item--active{% endif %}" href="{% url 'usuarios:lista' %}"{% if request.resolver_match.namespace == 'usuarios' and request.resolver_match.url_name != 'login' %} aria-current="page"{% endif %}>
                 <i class="ti ti-users" aria-hidden="true"></i> Usuarios
             </a>
         {% endif %}
-        <a class="nav-item{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:lista' %}"{% if request.resolver_match.namespace == 'inventario' and not request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
             <i class="ti ti-packages" aria-hidden="true"></i> Inventario
         </a>
         {% if puede_gestionar_catalogos %}
-            <a class="nav-item{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:catalogo' %}"{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
+            <a data-nav class="nav-item{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} nav-item--active{% endif %}" href="{% url 'inventario:catalogo' %}"{% if request.resolver_match.url_name|slice:':8' == 'catalogo' %} aria-current="page"{% endif %}>
                 <i class="ti ti-list-details" aria-hidden="true"></i> Catálogos
             </a>
         {% endif %}
         {% if puede_consultar_capacidades %}
-            <a class="nav-item{% if request.resolver_match.namespace == 'operaciones' %} nav-item--active{% endif %}" href="{% url 'operaciones:lista_capacidades' %}"{% if request.resolver_match.namespace == 'operaciones' %} aria-current="page"{% endif %}>
+            <a data-nav class="nav-item{% if request.resolver_match.namespace == 'operaciones' %} nav-item--active{% endif %}" href="{% url 'operaciones:lista_capacidades' %}"{% if request.resolver_match.namespace == 'operaciones' %} aria-current="page"{% endif %}>
                 <i class="ti ti-shield-check" aria-hidden="true"></i> Capacidades operativas
             </a>
         {% endif %}
-        <a class="nav-item{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':3' == 'sci' %} nav-item--active{% endif %}" href="{% url 'emergencias:sci211_lista' %}"{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':3' == 'sci' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':3' == 'sci' %} nav-item--active{% endif %}" href="{% url 'emergencias:sci211_lista' %}"{% if request.resolver_match.namespace == 'emergencias' and request.resolver_match.url_name|slice:':3' == 'sci' %} aria-current="page"{% endif %}>
             <i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Formularios SCI
         </a>
-        <a class="nav-item{% if request.resolver_match.namespace == 'mapas' %} nav-item--active{% endif %}" href="{% url 'mapas:operativo' %}"{% if request.resolver_match.namespace == 'mapas' %} aria-current="page"{% endif %}>
+        <a data-nav class="nav-item{% if request.resolver_match.namespace == 'mapas' %} nav-item--active{% endif %}" href="{% url 'mapas:operativo' %}"{% if request.resolver_match.namespace == 'mapas' %} aria-current="page"{% endif %}>
             <i class="ti ti-map-pin" aria-hidden="true"></i> Mapa operativo
         </a>
     </nav>

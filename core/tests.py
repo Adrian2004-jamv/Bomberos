@@ -178,6 +178,30 @@ class PwaTests(TestCase):
             "El service worker no guarda mosaicos del servidor que usa el mapa.",
         )
 
+    def test_el_menu_se_puede_contraer_y_la_eleccion_sobrevive(self):
+        """El menu ocupa 17rem fijas y en pantallas medianas eso pesa.
+
+        Tres piezas tienen que estar para que contraerlo funcione: el boton,
+        el guion en linea que restaura la eleccion antes de pintar —si esperara
+        a app.js, que lleva «defer», el menu se veria abierto un instante y se
+        cerraria de golpe en cada pagina— y el estilo del estado contraido.
+        """
+        raiz = Path(settings.BASE_DIR)
+        menu = (raiz / "templates" / "componentes" / "sidebar.html").read_text(encoding="utf-8")
+        base = (raiz / "templates" / "base.html").read_text(encoding="utf-8")
+        guion = (raiz / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        hoja = (raiz / "static" / "css" / "componentes.css").read_text(encoding="utf-8")
+
+        self.assertIn("data-sidebar-collapse", menu)
+        self.assertIn("bomberos:menu-contraido", base)
+        self.assertLess(
+            base.index("bomberos:menu-contraido"), base.index("js/app.js"),
+            "La eleccion debe restaurarse antes de cargar app.js, o el menu "
+            "parpadea abierto en cada pagina.",
+        )
+        self.assertIn("bomberos:menu-contraido", guion)
+        self.assertIn("sidebar-collapsed", hoja)
+
     def test_las_clases_compartidas_viven_en_la_hoja_global(self):
         """Una clase usada por varias aplicaciones no puede vivir en la hoja de
         una sola: las pantallas que no cargan esa hoja llevan la clase escrita
