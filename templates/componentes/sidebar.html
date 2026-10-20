@@ -72,14 +72,14 @@
     </nav>
 {% endif %}
 
-    <section class="sidebar-user" aria-label="Sesión actual">
+    <section class="sidebar-user{% if not user.estacion %} sidebar-user--mando{% endif %}" aria-label="Sesión actual">
         <i class="sidebar-user__icon ti ti-user" aria-hidden="true"></i>
         <div class="sidebar-user__identity">
             <strong>{{ user.get_full_name|default:user.username }}</strong>
             {% if user.estacion %}
                 <span>{{ user.estacion.nombre }}</span>
             {% else %}
-                <span>Sin estación asignada</span>
+                <span class="sidebar-user__mando"><i class="ti ti-broadcast" aria-hidden="true"></i>Mando central · toda la provincia</span>
             {% endif %}
         </div>
         <a class="sidebar-user__link" href="{% url 'usuarios:cambiar_clave' %}"><i class="ti ti-key" aria-hidden="true"></i>Cambiar contraseña</a>

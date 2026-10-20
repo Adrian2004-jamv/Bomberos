@@ -16,7 +16,10 @@
 
 .incident-map-legend__divider{width:100%;margin:.3rem 0;border:none;border-top:1px solid var(--color-slate-200)}
 
-.leaflet-control-attribution{display:none!important}
+/* La atribucion NO se oculta: es obligatoria y ocultarla es la misma
+   infraccion que dejo la aplicacion sin mapa. Se reduce de tamano para
+   que no estorbe, que es lo que se pretendia al esconderla. */
+.leaflet-control-attribution{font-size:.62rem;padding:0 .3rem;background:rgb(255 255 255 / 78%)}
 
 /* Listado de unidades visibles dentro de la leyenda. */
 .map-units { display: grid; gap: .3rem; margin: .2rem 0 0; padding: 0; list-style: none; max-height: 11rem; overflow-y: auto; }
@@ -28,3 +31,48 @@
 .map-units__live { color: #16845b; }
 .map-units__idle { color: var(--color-slate-500); }
 .map-units__empty { color: var(--color-slate-500); font-size: .66rem; }
+
+
+/* La leyenda es un <details>: en pantalla ancha va siempre abierta y sin boton,
+   porque hay sitio de sobra. Por debajo de 768 px arranca cerrada y deja solo
+   el boton «Leyenda», que es lo unico que cabe sin tapar el mapa. */
+.incident-map-legend__boton { display: none; }
+
+@media (min-width: 768px) {
+    .incident-map-legend > summary { display: none; }
+}
+
+@media (max-width: 767.98px) {
+    .incident-map-legend {
+        max-height: none;
+        width: auto;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .incident-map-legend__boton {
+        display: flex;
+        min-height: 2.75rem;
+        align-items: center;
+        gap: .4rem;
+        padding: 0 .8rem;
+        border-radius: var(--radius-sm);
+        background: #fff;
+        font-size: .82rem;
+        font-weight: 800;
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .incident-map-legend__boton::-webkit-details-marker { display: none; }
+
+    .incident-map-legend[open] {
+        max-height: 60%;
+        padding: .6rem .7rem;
+        overflow: auto;
+    }
+
+    .incident-map-legend[open] .incident-map-legend__boton {
+        margin: -.6rem -.7rem .5rem;
+    }
+}

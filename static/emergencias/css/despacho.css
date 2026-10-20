@@ -29,7 +29,7 @@
 
 .deployment-action {
     display: inline-flex;
-    min-height: 2.2rem;
+    min-height: 3rem;
     align-items: center;
     gap: 0.3rem;
     padding: 0.35rem 0.6rem;

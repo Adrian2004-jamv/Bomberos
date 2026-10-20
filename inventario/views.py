@@ -132,11 +132,12 @@ def cambiar_estado(request, pk):
         raise PermissionDenied
     form = CambioEstadoRecursoForm(request.POST or None, recurso=recurso)
     if request.method == "POST" and form.is_valid():
+        estado_operativo, disponibilidad = form.estado_y_disponibilidad()
         try:
             recurso, registro = actualizar_estado_recurso(
                 recurso=recurso,
-                nuevo_estado_operativo=form.cleaned_data["nuevo_estado_operativo"],
-                nueva_disponibilidad=form.cleaned_data["nueva_disponibilidad"],
+                nuevo_estado_operativo=estado_operativo,
+                nueva_disponibilidad=disponibilidad,
                 usuario_responsable=request.user,
                 motivo=form.cleaned_data["motivo"],
                 observaciones=form.cleaned_data["observaciones"],
@@ -170,6 +171,38 @@ def confirmar_disponibilidad(request, pk):
         confirmar_disponibilidad=True,
     )
     messages.success(request, f"{recurso.codigo_interno} quedó confirmado como operativo y disponible.")
+    return redirect("inventario:lista")
+
+@login_required
+@require_POST
+def retirar_de_servicio(request, pk):
+    """Marca el recurso como averiado en un paso, sin pedir el motivo.
+
+    El camino largo —ficha, cambiar estado, dos desplegables y un motivo
+    obligatorio— son ocho pasos. Confirmar que todo está bien costaba uno, de
+    modo que el sistema facilitaba la noticia buena y entorpecía la mala,
+    justo al revés de lo que necesita un despacho: que una autobomba quedó
+    inservible es el dato urgente.
+
+    El motivo se añade después desde la ficha. Obligarlo aquí, con guantes y
+    con prisa, es lo que hace que no se registre nada.
+    """
+    exigir_gestion(request.user)
+    recurso = get_object_or_404(recursos_base(request.user), pk=pk)
+    if not puede_gestionar_recurso(request.user, recurso):
+        raise PermissionDenied
+    actualizar_estado_recurso(
+        recurso=recurso,
+        nuevo_estado_operativo=Recurso.EstadoOperativo.FUERA_SERVICIO,
+        nueva_disponibilidad=Recurso.Disponibilidad.NO_DISPONIBLE,
+        usuario_responsable=request.user,
+        motivo="Retirado de servicio desde el listado",
+    )
+    messages.warning(
+        request,
+        f"{recurso.codigo_interno} quedó fuera de servicio y no disponible. "
+        "Puede anotar el motivo en su ficha.",
+    )
     return redirect("inventario:lista")
 
 @login_required

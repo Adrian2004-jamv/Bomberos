@@ -36,6 +36,6 @@
 .user-status--pending { color: #8a5700; background: #fff3d6; margin-left: 6px; }
 .user-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .user-row-actions form { margin: 0; }
-.user-action { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 6px 10px; border: 1px solid #c8c8c8; border-radius: 8px; color: #191919; background: #fff; font: inherit; font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.user-action { display: inline-flex; align-items: center; gap: 5px; min-height: 2.75rem; padding: 6px 10px; border: 1px solid #c8c8c8; border-radius: 8px; color: #191919; background: #fff; font: inherit; font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
 .user-action:hover { color: #c90012; border-color: #e79aa1; background: #fff7f7; }
 .user-action--danger:hover { color: #fff; border-color: #c90012; background: #c90012; }

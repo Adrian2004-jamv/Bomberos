@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -77,6 +78,49 @@ class FondoDelMapaTests(TestCase):
         declaracion = codigo.split("attribution:", 1)
         self.assertEqual(len(declaracion), 2, "El fondo no declara atribución.")
         self.assertIn("<a href=", declaracion[1])
+
+    def test_ninguna_hoja_esconde_la_atribucion(self):
+        """Declarar la atribucion no basta: hay que verla.
+
+        Una sola linea de CSS la anulaba en la pantalla de Accion, que es la mas
+        usada, y la guarda anterior no se enteraba porque solo revisaba que
+        fondo.js la declarara. Ocultarla es la misma infraccion que dejo la
+        aplicacion sin mapa.
+        """
+        culpables = []
+        for hoja in self.estaticos.rglob("*.css"):
+            if "vendor" in hoja.parts:
+                continue
+            css = hoja.read_text(encoding="utf-8")
+            for regla in re.findall(r"[^{}]*leaflet-control-attribution[^{}]*\{([^}]*)\}", css):
+                limpio = regla.replace(" ", "")
+                if "display:none" in limpio or "visibility:hidden" in limpio:
+                    culpables.append(hoja.relative_to(settings.BASE_DIR).as_posix())
+        self.assertEqual(
+            culpables, [],
+            f"Estas hojas esconden la atribucion del mapa: {culpables}. "
+            "Es obligatoria; si estorba, redúzcala de tamaño, no la oculte.",
+        )
+
+    def test_ningun_mapa_apaga_el_control_de_atribucion(self):
+        """Hay tres formas de esconder la atribucion y las tres ocurrieron.
+
+        No declararla —fue el fallo original, que dejo la aplicacion sin mapa—,
+        taparla con CSS, y apagar el control al crear el mapa. La guarda del CSS
+        pasaba tan campante mientras el control estaba apagado y la atribucion
+        no aparecia por ningun lado.
+        """
+        culpables = [
+            archivo.relative_to(settings.BASE_DIR).as_posix()
+            for archivo in self.propios()
+            if "attributionControl" in archivo.read_text(encoding="utf-8")
+            and "attributionControl: false" in archivo.read_text(encoding="utf-8").replace("  ", " ")
+        ]
+        self.assertEqual(
+            culpables, [],
+            f"Estos mapas se crean sin control de atribucion: {culpables}. "
+            "Es obligatoria; si estorba, redúzcala de tamaño, no la apague.",
+        )
 
     def test_toda_plantilla_con_mapa_carga_el_fondo(self):
         plantillas = Path(settings.BASE_DIR) / "templates"

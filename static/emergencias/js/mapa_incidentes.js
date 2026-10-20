@@ -1,9 +1,30 @@
 (() => {
     "use strict";
+
+    // La leyenda arranca abierta en el HTML porque en pantalla ancha debe
+    // verse siempre, y el CSS no puede abrir un <details>. En el telefono se
+    // cierra: ocupaba 184 px sobre la esquina del mapa, casi la cuarta parte
+    // de lo visible, justo donde cae un incidente al norte de Latacunga.
+    const leyenda = document.querySelector("[data-leyenda-mapa]");
+    if (leyenda) {
+        const estrecha = window.matchMedia("(max-width: 767.98px)");
+        // Solo se toca mientras el usuario no haya decidido: en cuanto la abre
+        // o la cierra a mano, se respeta y el cambio de tamano deja de mandar.
+        let decidida = false;
+        leyenda.addEventListener("toggle", () => { decidida = true; });
+        const ajustar = () => { if (!decidida) leyenda.open = !estrecha.matches; };
+        ajustar();
+        estrecha.addEventListener("change", ajustar);
+    }
+
+    "use strict";
     const root = document.querySelector("[data-incident-map]");
     if (!root || typeof L === "undefined") return;
     const status = document.querySelector("[data-incident-map-status]");
-    const map = L.map(root.id, {zoomControl: true, attributionControl: false}).setView([-0.93, -78.62], 10);
+    // attributionControl se queda encendido: apagarlo era la tercera forma de
+    // esconder la atribucion del mapa en este proyecto, despues de no declararla
+    // y de taparla con CSS. Es obligatoria, y ya dejo la aplicacion sin mapa una vez.
+    const map = L.map(root.id, {zoomControl: true}).setView([-0.93, -78.62], 10);
     fondoDelMapa(map);
     const layer = L.layerGroup().addTo(map);
     let fitted = false;

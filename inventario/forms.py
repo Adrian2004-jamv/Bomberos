@@ -65,12 +65,50 @@ class RecursoForm(forms.ModelForm):
             raise ValidationError("No puede trasladar el recurso desde este formulario.")
         return estacion
 
+# El modelo guarda dos columnas —estado operativo y disponibilidad— y la
+# distincion es correcta: un camion puede estar operativo y aun asi no
+# disponible porque esta asignado a otra emergencia. Pero pedirle a un bombero
+# que elija las dos por separado le exige entender esa diferencia justo cuando
+# tiene prisa, y de ahi salen combinaciones sin sentido: «fuera de servicio» y
+# «disponible» a la vez.
+#
+# El formulario ofrece una sola lista en lenguaje de cuartel y aqui se traduce
+# a las dos columnas. La combinacion imposible deja de poder elegirse.
+SITUACIONES_DEL_RECURSO = (
+    ("lista", "Operativa y lista para salir"),
+    ("mantenimiento", "En mantenimiento"),
+    ("averiada", "Averiada, no puede salir"),
+    ("asignada", "Asignada a una emergencia"),
+)
+
+EQUIVALENCIA_DE_SITUACION = {
+    "lista": (Recurso.EstadoOperativo.OPERATIVO, Recurso.Disponibilidad.DISPONIBLE),
+    "mantenimiento": (Recurso.EstadoOperativo.MANTENIMIENTO, Recurso.Disponibilidad.NO_DISPONIBLE),
+    "averiada": (Recurso.EstadoOperativo.FUERA_SERVICIO, Recurso.Disponibilidad.NO_DISPONIBLE),
+    "asignada": (Recurso.EstadoOperativo.OPERATIVO, Recurso.Disponibilidad.ASIGNADO),
+}
+
+
+def situacion_de(recurso):
+    """La opcion de la lista que corresponde al estado guardado del recurso.
+
+    Las dos columnas admiten combinaciones que la lista no nombra —un recurso
+    dado de baja, o reservado—. En ese caso no se preselecciona nada: es
+    preferible que el usuario elija a que el formulario le cambie el estado sin
+    que se de cuenta.
+    """
+    actual = (recurso.estado_operativo, recurso.disponibilidad)
+    for clave, equivalencia in EQUIVALENCIA_DE_SITUACION.items():
+        if equivalencia == actual:
+            return clave
+    return None
+
+
 class CambioEstadoRecursoForm(forms.Form):
-    nuevo_estado_operativo = forms.ChoiceField(
-        label="Nuevo estado operativo", choices=Recurso.EstadoOperativo.choices
-    )
-    nueva_disponibilidad = forms.ChoiceField(
-        label="Nueva disponibilidad", choices=Recurso.Disponibilidad.choices
+    situacion = forms.ChoiceField(
+        label="¿Cómo está la unidad?",
+        choices=SITUACIONES_DEL_RECURSO,
+        help_text="El sistema traduce esta respuesta al estado y la disponibilidad del recurso.",
     )
     motivo = forms.CharField(
         label="Motivo",
@@ -86,14 +124,15 @@ class CambioEstadoRecursoForm(forms.Form):
     def __init__(self, *args, recurso=None, **kwargs):
         super().__init__(*args, **kwargs)
         if recurso and not self.is_bound:
-            self.initial.update(
-                {
-                    "nuevo_estado_operativo": recurso.estado_operativo,
-                    "nueva_disponibilidad": recurso.disponibilidad,
-                }
-            )
+            situacion = situacion_de(recurso)
+            if situacion:
+                self.initial["situacion"] = situacion
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control"
+
+    def estado_y_disponibilidad(self):
+        """Traduce la respuesta a las dos columnas que guarda el modelo."""
+        return EQUIVALENCIA_DE_SITUACION[self.cleaned_data["situacion"]]
 
 class CategoriaRecursoForm(forms.ModelForm):
     class Meta:

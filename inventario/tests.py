@@ -196,10 +196,73 @@ class InterfazInventarioTests(TestCase):
     def test_cambio_estado_crea_historial_y_sin_diferencias_no_crea_otro(self):
         self.client.force_login(self.usuarios["encargado"])
         ruta = reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk])
-        self.client.post(ruta, {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": "Revisión", "observaciones": "Taller"})
+        # El formulario pide una sola situación en lenguaje de cuartel y la
+        # traduce a las dos columnas del modelo.
+        self.client.post(ruta, {"situacion": "mantenimiento", "motivo": "Revisión", "observaciones": "Taller"})
         self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
-        self.client.post(ruta, {"nuevo_estado_operativo": "mantenimiento", "nueva_disponibilidad": "no_disponible", "motivo": "Sin novedades", "observaciones": ""})
+        self.client.post(ruta, {"situacion": "mantenimiento", "motivo": "Sin novedades", "observaciones": ""})
         self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
+
+    def test_una_sola_lista_traduce_a_las_dos_columnas(self):
+        """El modelo guarda estado operativo y disponibilidad por separado; el
+        formulario pregunta una sola cosa, en lenguaje de cuartel."""
+        self.client.force_login(self.usuarios["encargado"])
+        ruta = reverse("inventario:cambiar_estado", args=[self.recurso_uno.pk])
+        esperado = {
+            "lista": (Recurso.EstadoOperativo.OPERATIVO, Recurso.Disponibilidad.DISPONIBLE),
+            "averiada": (Recurso.EstadoOperativo.FUERA_SERVICIO, Recurso.Disponibilidad.NO_DISPONIBLE),
+            "asignada": (Recurso.EstadoOperativo.OPERATIVO, Recurso.Disponibilidad.ASIGNADO),
+        }
+        for situacion, (estado, disponibilidad) in esperado.items():
+            with self.subTest(situacion=situacion):
+                self.client.post(ruta, {"situacion": situacion, "motivo": "Prueba"})
+                self.recurso_uno.refresh_from_db()
+                self.assertEqual(self.recurso_uno.estado_operativo, estado)
+                self.assertEqual(self.recurso_uno.disponibilidad, disponibilidad)
+
+    def test_la_combinacion_imposible_ya_no_se_puede_elegir(self):
+        """Con dos desplegables se podía dejar un recurso «fuera de servicio» y
+        «disponible» a la vez. Ahora ninguna opción produce esa pareja."""
+        from .forms import EQUIVALENCIA_DE_SITUACION
+
+        for estado, disponibilidad in EQUIVALENCIA_DE_SITUACION.values():
+            if estado == Recurso.EstadoOperativo.OPERATIVO:
+                continue
+            self.assertNotEqual(
+                disponibilidad, Recurso.Disponibilidad.DISPONIBLE,
+                "Una unidad que no está operativa no puede quedar disponible.",
+            )
+
+    def test_reportar_averia_cuesta_un_solo_envio(self):
+        """El camino largo son ocho pasos y un motivo obligatorio. Reportar que
+        una unidad quedó inservible es el dato urgente de un despacho, así que
+        se hace desde el listado y el motivo se anota después."""
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.post(
+            reverse("inventario:retirar_de_servicio", args=[self.recurso_uno.pk])
+        )
+        self.assertRedirects(respuesta, reverse("inventario:lista"))
+        self.recurso_uno.refresh_from_db()
+        self.assertEqual(self.recurso_uno.estado_operativo, Recurso.EstadoOperativo.FUERA_SERVICIO)
+        self.assertEqual(self.recurso_uno.disponibilidad, Recurso.Disponibilidad.NO_DISPONIBLE)
+        self.assertEqual(self.recurso_uno.historial_estados.count(), 1)
+
+    def test_la_averia_no_se_reporta_por_get(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(
+            reverse("inventario:retirar_de_servicio", args=[self.recurso_uno.pk])
+        )
+        self.assertEqual(respuesta.status_code, 405)
+        self.recurso_uno.refresh_from_db()
+        self.assertEqual(self.recurso_uno.estado_operativo, Recurso.EstadoOperativo.OPERATIVO)
+
+    def test_el_boton_de_averia_esta_en_el_listado(self):
+        self.client.force_login(self.usuarios["encargado"])
+        respuesta = self.client.get(reverse("inventario:lista"))
+        self.assertContains(
+            respuesta,
+            reverse("inventario:retirar_de_servicio", args=[self.recurso_uno.pk]),
+        )
 
     def test_confirmacion_rapida_deja_operativo_disponible_y_enciende_foco(self):
         self.recurso_uno.estado_operativo = Recurso.EstadoOperativo.MANTENIMIENTO

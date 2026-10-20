@@ -1470,15 +1470,24 @@ def registrar_posicion(request, pk):
     if not request.user.is_authenticated:
         return error_json("Autenticación requerida.", 401, "no_autenticado")
     if request.content_type != "application/json":
-        return error_json("El contenido debe ser JSON.", 415, "contenido_no_valido")
+        return error_json(
+            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            415, "contenido_no_valido",
+        )
     if not (puede_gestionar_emergencias(request.user) or es_chofer(request.user)):
         return error_json("No tiene autorización para reportar posiciones.", 403, "sin_autorizacion")
     try:
         datos = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return error_json("El cuerpo JSON no es válido.", 400, "json_no_valido")
+        return error_json(
+            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            400, "json_no_valido",
+        )
     if not isinstance(datos, dict):
-        return error_json("El cuerpo JSON debe ser un objeto.", 400, "datos_no_validos")
+        return error_json(
+            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            400, "datos_no_validos",
+        )
     despliegue = despliegue_alcanzable(request.user, pk)
     inicio = timezone.now()
     fecha_dispositivo = datos.get("fecha_dispositivo")

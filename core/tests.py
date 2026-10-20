@@ -178,6 +178,41 @@ class PwaTests(TestCase):
             "El service worker no guarda mosaicos del servidor que usa el mapa.",
         )
 
+    def test_ningun_elemento_pulsable_baja_de_44_px(self):
+        """Los bomberos usan esto con guantes, de pie y con prisa.
+
+        44 px de lado es el minimo de la WCAG 2.5.5 y esta calibrado para un
+        dedo sin guante; con guante hace falta mas. La auditoria encontro 30
+        selectores por debajo —el peor, las acciones del inventario a 29 px,
+        que es justo donde se reporta una averia— y sin esta guarda la
+        correccion se deshace sola: basta que alguien copie un valor viejo.
+        """
+        pulsable = re.compile(
+            r"button|\.button|action|btn|nav-item|tab|filtro|filter|link"
+            r"|toggle|accion|pagination|summary",
+            re.I,
+        )
+        pequenos = []
+        for hoja in (Path(settings.BASE_DIR) / "static").rglob("*.css"):
+            if "vendor" in hoja.parts:
+                continue
+            css = hoja.read_text(encoding="utf-8", errors="replace")
+            for selector, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+                selector = " ".join(selector.split())
+                if not pulsable.search(selector):
+                    continue
+                medida = re.search(r"min-height:\s*([0-9.]+)(rem|px)", cuerpo)
+                if not medida:
+                    continue
+                px = float(medida.group(1)) * (16 if medida.group(2) == "rem" else 1)
+                if px < 44:
+                    pequenos.append(f"{hoja.name}: {selector[:40]} = {round(px)}px")
+        self.assertEqual(
+            pequenos, [],
+            "Estos elementos pulsables bajan de 44 px y no se aciertan con "
+            f"guantes: {pequenos}",
+        )
+
     def test_el_menu_se_puede_contraer_y_la_eleccion_sobrevive(self):
         """El menu ocupa 17rem fijas y en pantallas medianas eso pesa.
 

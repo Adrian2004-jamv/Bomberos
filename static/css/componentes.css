@@ -178,7 +178,7 @@
 .sidebar-user__link { grid-column: 1 / -1; }
 .sidebar-user__link {
     display: flex;
-    min-height: 2.35rem;
+    min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
@@ -196,7 +196,7 @@
 .sidebar-user button {
     display: flex;
     width: 100%;
-    min-height: 2.35rem;
+    min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
@@ -255,7 +255,7 @@
 .menu-toggle .ti { font-size: 1.45rem; }
 
 .button {
-    min-height: 2.55rem;
+    min-height: 2.75rem;
     padding: 0.55rem 0.9rem;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
@@ -450,7 +450,7 @@
 
     .nav-item {
         gap: 0.55rem;
-        min-height: 2.4rem;
+        min-height: 2.75rem;
         padding: 0.45rem 0.55rem;
         font-size: 0.86rem;
     }
@@ -641,3 +641,85 @@ body.sidebar-collapsed .sidebar-user {
 
 body.sidebar-collapsed .sidebar-user__icon { justify-self: center; }
 body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }
+
+/* ==========================================================================
+   CONTROLES DEL MAPA
+   ========================================================================== */
+
+/* Leaflet los sirve a 26 px, 30 en tactil, y nadie los habia tocado: en un
+   mapa que se maneja con una mano, desde un vehiculo y con guante, eso no se
+   acierta. Van en la hoja global porque hay cuatro mapas en cuatro pantallas
+   distintas y cada una cargaba su propia hoja. */
+/* La especificidad importa: leaflet.css se carga en «extra_css», es decir
+   DESPUES de esta hoja, de modo que una regla con la misma especificidad pierde
+   por orden. Se antepone .leaflet-container —que vive en el propio div del
+   mapa— para ganar sin recurrir a !important. */
+.leaflet-container .leaflet-bar a,
+.leaflet-container.leaflet-touch .leaflet-bar a {
+    width: 2.75rem;
+    height: 2.75rem;
+    line-height: 2.75rem;
+    font-size: 1.35rem;
+}
+
+/* El area de toque crece pero el mapa no se achica: los controles se agrupan
+   igual y siguen sin tapar el centro. */
+.leaflet-touch .leaflet-bar { border-radius: 0.4rem; }
+
+/* ==========================================================================
+   SEMAFORO DE ESTADOS
+   ========================================================================== */
+
+/* Punto de color y texto, nunca solo color: quien no distingue el verde del
+   rojo lee la palabra igual. Vive aqui porque lo usan inventario, la ficha de
+   la emergencia y el SCI-211 — estuvo en inventario.css, que esas dos ultimas
+   no cargan. */
+.resource-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.73rem;
+    font-weight: 800;
+}
+
+.resource-status::before { width: 0.45rem; height: 0.45rem; flex: 0 0 auto; border-radius: 50%; background: currentcolor; content: ""; }
+.resource-status--operativo,
+.resource-status--disponible { color: var(--color-success); }
+.resource-status--mantenimiento,
+.resource-status--reservado { color: var(--color-warning); }
+.resource-status--fuera_servicio,
+.resource-status--no_disponible { color: var(--color-danger); }
+.resource-status--dado_baja,
+.resource-status--asignado { color: var(--color-slate-500); }
+
+/* Estados del despliegue de una unidad. Son otros nombres que los del
+   inventario, pero el mismo codigo de color: verde esta donde debe estar,
+   ambar va en camino, gris termino. */
+.resource-status--en_sitio { color: var(--color-success); }
+.resource-status--en_ruta,
+.resource-status--asignada { color: var(--color-warning); }
+.resource-status--retornando { color: var(--color-navy-700, #334155); }
+.resource-status--finalizada,
+.resource-status--cancelada { color: var(--color-slate-500); }
+
+/* Mando central: sin estacion asignada, cada accion alcanza a toda la
+   provincia. Tenia el mismo aspecto que una cuenta de estacion y la unica
+   diferencia era la frase «Sin estacion asignada», que no dice lo que importa.
+   Ahora la tarjeta lleva franja y el ambito se nombra. */
+/* No se usa --color-orange-500, que pese al nombre es el rojo de la marca y
+   aqui se confundiria con el resto del menu; ni --color-warning (#a15c00), que
+   es un marron oscuro y sobre fondo azul noche no se lee. Este ambar claro
+   contrasta sobre el oscuro y se distingue del rojo institucional. */
+.sidebar-user--mando {
+    border-color: rgb(242 169 59 / 45%);
+    border-left: 0.3rem solid #f2a93b;
+}
+
+.sidebar-user__mando {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #f2a93b !important;
+    font-weight: 800;
+    white-space: normal !important;
+}

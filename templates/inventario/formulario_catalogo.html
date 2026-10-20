@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ titulo }}{% endblock %}
 {% block page_title %}{{ titulo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=3"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'inventario/css/inventario.css' %}?v=4"><link rel="stylesheet" href="{% static 'inventario/css/catalogo.css' %}?v=1">{% endblock %}
 {% block content %}
 <form class="inventory-form inventory-form--narrow" method="post" novalidate>
     {% csrf_token %}

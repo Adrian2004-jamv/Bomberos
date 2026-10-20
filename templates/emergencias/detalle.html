@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=19"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -63,9 +63,10 @@
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
     {% if puede_gestionar and emergencia.admite_despliegues %}<p class="deployment-notice"><i class="ti ti-firetruck" aria-hidden="true"></i> Las unidades se despachan desde el formulario SCI-211, en la documentación operativa de arriba. Anotar una unidad allí es la decisión de enviarla.</p>{% endif %}
     {% if despliegues %}<div class="table-responsive"><table>
-        <thead><tr><th>Unidad</th><th>Procedencia</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Unidad</th><th>Estado</th><th>Procedencia</th><th>Acciones</th></tr></thead>
         <tbody>{% for despliegue in despliegues %}<tr>
             <td>{{ despliegue.unidad }}</td>
+            <td><span class="resource-status resource-status--{{ despliegue.estado }}">{{ despliegue.get_estado_display }}</span></td>
             <td>{{ despliegue.estacion_procedencia }}</td>
             <td><div class="deployment-actions">
                 {% for transicion in despliegue.transiciones %}
