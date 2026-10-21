@@ -73,3 +73,10 @@
     font-size: .58rem; font-style: normal; font-weight: 800;
     text-transform: none; letter-spacing: 0;
 }
+
+
+/* El emblema de la institucion comparte el hueco derecho de la cabecera con el
+   codigo de la emergencia: la rejilla tiene tres columnas y meterlo como cuarto
+   elemento lo mandaba a una fila nueva, partiendo la cabecera en dos. */
+.head__institucion { display: grid; justify-items: end; gap: 4px; }
+.head__institucion img { display: block; width: 52px; height: auto; }

@@ -10,16 +10,24 @@
     <link rel="manifest" href="{% url 'core:manifest' %}">
     <link rel="icon" type="image/png" sizes="192x192" href="{% static 'pwa/icons/icon-192.png' %}">
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
-    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=1">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=2">
 </head>
 <body class="login-page">
     <main class="access-shell">
         <section class="access-context" aria-labelledby="system-name">
             <header class="access-brand">
+                {% comment %}
+                El emblema oficial a color, no la version plana: aqui el logo va
+                sobre un circulo blanco, que es justo el fondo para el que esta
+                dibujado. En el menu lateral se conserva la version plana porque
+                alli el fondo es azul noche y el emblema a color se leeria como
+                una pegatina.
+                {% endcomment %}
                 <img
                     class="access-brand__logo"
-                    src="{% static 'img/logos/Logo.png' %}"
-                    alt="Emblema del Cuerpo de Bomberos"
+                    src="{% static 'img/logos/emblema-bomberos-latacunga-256.png' %}"
+                    alt="Emblema del Cuerpo de Bomberos de Latacunga"
+                    width="256" height="256"
                 >
                 <span class="access-brand__text">
                     <strong>Bomberos Latacunga</strong>

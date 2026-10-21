@@ -178,6 +178,27 @@ class PwaTests(TestCase):
             "El service worker no guarda mosaicos del servidor que usa el mapa.",
         )
 
+    def test_todo_recurso_estatico_que_se_nombra_existe(self):
+        """Una ruta mal escrita en {% static %} no da error: la imagen
+        sencillamente no aparece y el estilo no se aplica, y nadie se entera
+        hasta que alguien abre esa pantalla. Ya paso con una hoja de estilo que
+        no existia en la lista de precarga del service worker.
+        """
+        raiz = Path(settings.BASE_DIR)
+        estaticos = raiz / "static"
+        faltantes = []
+        patron = re.compile(r"\{%\s*static\s+['\"]([^'\"]+)['\"]")
+        for plantilla in (raiz / "templates").rglob("*.html"):
+            for referencia in patron.findall(plantilla.read_text(encoding="utf-8")):
+                if not (estaticos / referencia).exists():
+                    faltantes.append(
+                        f"{plantilla.relative_to(raiz / 'templates').as_posix()} -> {referencia}"
+                    )
+        self.assertEqual(
+            faltantes, [],
+            f"Estas plantillas nombran recursos que no existen: {faltantes}",
+        )
+
     def test_ningun_elemento_pulsable_baja_de_44_px(self):
         """Los bomberos usan esto con guantes, de pie y con prisa.
 

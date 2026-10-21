@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=2"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=7">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=8">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -20,7 +20,10 @@
         <h2>Formulario SCI-{{ codigo }}</h2>
         <strong>{{ esquema.nombre }}</strong>
       </div>
-      <span>{{ esquema.paginas }} pág.</span>
+      <div class="sci-paper__institucion">
+        <img src="{% static 'img/logos/emblema-bomberos-latacunga-256.png' %}" alt="Cuerpo de Bomberos de Latacunga">
+        <span>{{ esquema.paginas }} pág.</span>
+      </div>
     </header>
 
     <p class="sci-proposito">{{ esquema.proposito }}</p>

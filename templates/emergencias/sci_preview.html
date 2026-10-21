@@ -50,7 +50,10 @@ th{background:#eee;font-size:9px}
       <h1>Formulario SCI-{{ codigo }}</h1>
       <p>{{ esquema.nombre|upper }}</p>
     </div>
-    <div class="code">{{ emergencia.codigo }}</div>
+    <div class="head__institucion">
+      <img src="{% static 'img/logos/emblema-bomberos-latacunga-256.png' %}" alt="Cuerpo de Bomberos de Latacunga">
+      <div class="code">{{ emergencia.codigo }}</div>
+    </div>
   </header>
 
   <p class="proposito">{{ esquema.proposito }}</p>
