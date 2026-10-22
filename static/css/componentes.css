@@ -254,6 +254,44 @@
 }
 .menu-toggle .ti { font-size: 1.45rem; }
 
+/* Botón de tour / ayuda en el navbar */
+.tour-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    color: var(--color-navy-900);
+    background: var(--color-white);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms, background 150ms;
+}
+.tour-btn:hover { color: var(--color-red-700); border-color: var(--color-red-600); background: #fff5f5; }
+.tour-btn .ti { font-size: 1.1rem; }
+@media (min-width: 961px) {
+    /* En pantallas anchas el navbar está oculto; mostramos el botón como
+       elemento flotante fijo en la esquina inferior derecha */
+    .tour-btn {
+        position: fixed;
+        z-index: 900;
+        bottom: 1.25rem;
+        right: 1.25rem;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        background: var(--color-white);
+        box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
+        font-size: 0.8rem;
+    }
+}
+@media (max-width: 960px) {
+    .tour-btn span { display: none; }
+}
+
 .button {
     min-height: 2.75rem;
     padding: 0.55rem 0.9rem;
@@ -723,3 +761,35 @@ body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }
     font-weight: 800;
     white-space: normal !important;
 }
+
+/* ── Botón de guía / tour interactivo ─────────────────────────────── */
+.guide-btn,
+.incident-action--guide,
+.inventory-action--guide {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    border: 1.5px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    color: var(--color-navy-900);
+    background: var(--color-white);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 750;
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 150ms ease, color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.guide-btn:hover,
+.incident-action--guide:hover,
+.inventory-action--guide:hover {
+    color: var(--color-red-700);
+    border-color: var(--color-red-600);
+    background: #fff5f5;
+    box-shadow: 0 2px 8px rgb(199 0 20 / 10%);
+}
+.guide-btn .ti,
+.incident-action--guide .ti,
+.inventory-action--guide .ti { font-size: 1.05rem; }

@@ -119,7 +119,7 @@
     <footer class="sci-paper__footer">
       <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
       <div><strong>Posición:</strong>{{ esquema.preparado_por }}</div>
-      <div><strong>Fecha:</strong>{% now "d/m/Y H:i" %}</div>
+      <div><strong>Fecha:</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
     </footer>
   </form>
 

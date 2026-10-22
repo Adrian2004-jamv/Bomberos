@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 import json
 import re
 from collections import defaultdict
@@ -53,7 +53,7 @@ from .services_sci import (crear_sci211_desde_emergencia,
 _ORIENTACION = {"vertical": "Vertical", "horizontal": "Horizontal"}
 
 # ==========================================
-# MÓDULO: CATÁLOGO Y FLUJO DE FORMULARIOS SCI
+# MÃ“DULO: CATÃLOGO Y FLUJO DE FORMULARIOS SCI
 # ==========================================
 
 def entrada_catalogo(codigo, esquema):
@@ -61,37 +61,37 @@ def entrada_catalogo(codigo, esquema):
     return {
         "codigo": codigo,
         "nombre": esquema["nombre"],
-        "formato": f"{_ORIENTACION[esquema['orientacion']]} · {paginas} página{'s' if paginas > 1 else ''}",
+        "formato": f"{_ORIENTACION[esquema['orientacion']]} Â· {paginas} pÃ¡gina{'s' if paginas > 1 else ''}",
         "estructura": esquema["proposito"],
         "implementado": True,
     }
 
 ORDEN_FORMULARIOS_SCI = (
-    "201", "207", "211",  # Fase 1: entender la situación.
-    "202", "203",         # Fase 2: objetivos y organización.
+    "201", "207", "211",  # Fase 1: entender la situaciÃ³n.
+    "202", "203",         # Fase 2: objetivos y organizaciÃ³n.
     "204", "205", "206", "215",  # Fase 3: desarrollar el PAI.
-    "214",                 # Ejecución y registro continuo.
-    "221",                 # Desmovilización.
-    "222",                 # Comando de Área, cuando aplique.
+    "214",                 # EjecuciÃ³n y registro continuo.
+    "221",                 # DesmovilizaciÃ³n.
+    "222",                 # Comando de Ãrea, cuando aplique.
 )
 ETAPA_FORMULARIO_SCI = {
-    "201": "Entender la situación", "207": "Entender la situación",
-    "211": "Entender la situación", "202": "Objetivos y estrategias",
-    "203": "Organización del periodo", "204": "Desarrollar el PAI",
+    "201": "Entender la situaciÃ³n", "207": "Entender la situaciÃ³n",
+    "211": "Entender la situaciÃ³n", "202": "Objetivos y estrategias",
+    "203": "OrganizaciÃ³n del periodo", "204": "Desarrollar el PAI",
     "205": "Desarrollar el PAI", "206": "Desarrollar el PAI",
     "215": "Seguridad del PAI", "214": "Ejecutar, evaluar y revisar",
-    "221": "Desmovilización", "222": "Comando de Área (si aplica)",
+    "221": "DesmovilizaciÃ³n", "222": "Comando de Ãrea (si aplica)",
 }
 _POSICION_FORMULARIO_SCI = {
     codigo: posicion for posicion, codigo in enumerate(ORDEN_FORMULARIOS_SCI)
 }
 
 def registro_en_uso(formulario):
-    """Si el registro ya se está escribiendo, sea cuadrícula propia o JSON.
+    """Si el registro ya se estÃ¡ escribiendo, sea cuadrÃ­cula propia o JSON.
 
-    El SCI-211 guarda sus filas en un modelo aparte; los demás, en el JSON del
-    formulario. «tiene_contenido» descarta las filas en blanco, de modo que un
-    formulario abierto y vacío no cuenta como empezado.
+    El SCI-211 guarda sus filas en un modelo aparte; los demÃ¡s, en el JSON del
+    formulario. Â«tiene_contenidoÂ» descarta las filas en blanco, de modo que un
+    formulario abierto y vacÃ­o no cuenta como empezado.
     """
     if formulario is None:
         return False
@@ -100,9 +100,9 @@ def registro_en_uso(formulario):
     return tiene_contenido(formulario.datos)
 
 def formularios_sci_finalizados(emergencia):
-    """Códigos SCI que ya no detienen a los siguientes.
+    """CÃ³digos SCI que ya no detienen a los siguientes.
 
-    Son los finalizados y, siempre, las bitácoras: por definición no se cierran
+    Son los finalizados y, siempre, las bitÃ¡coras: por definiciÃ³n no se cierran
     hasta que la emergencia termina.
     """
     genericos = list(emergencia.formularios_sci.all())
@@ -110,72 +110,46 @@ def formularios_sci_finalizados(emergencia):
         formulario.codigo_sci for formulario in genericos
         if formulario.estado == FormularioSCI.Estado.FINALIZADO
     }
-    # Una bitácora nunca detiene a las que vienen detrás. No puede cerrarse
-    # hasta que la emergencia termine, de modo que exigir su cierre —o siquiera
-    # que tenga algo escrito— dejaba al SCI-221 con un candado y el mensaje
-    # «finalice el paso anterior», que es una instrucción imposible: el sistema
-    # prohíbe finalizarlo. Y la desmovilización se verifica mientras la
-    # bitácora sigue recibiendo anotaciones, no después.
+    # Una bitÃ¡cora nunca detiene a las que vienen detrÃ¡s. No puede cerrarse
+    # hasta que la emergencia termine, de modo que exigir su cierre â€”o siquiera
+    # que tenga algo escritoâ€” dejaba al SCI-221 con un candado y el mensaje
+    # Â«finalice el paso anteriorÂ», que es una instrucciÃ³n imposible: el sistema
+    # prohÃ­be finalizarlo. Y la desmovilizaciÃ³n se verifica mientras la
+    # bitÃ¡cora sigue recibiendo anotaciones, no despuÃ©s.
     finalizados.update(FORMULARIOS_SCI_CONTINUOS)
     return finalizados
 
 def desbloqueado_con(codigo, finalizados):
-    """Regla de desbloqueo, sin tocar la base.
-
-    La comparten la pantalla que dibuja el candado y la vista que decide si
-    deja entrar. Cuando cada una tenía la suya, una tarjeta podía mostrarse
-    cerrada mientras el formulario ya era accesible.
-    """
+    """Sin bloqueo secuencial â€” todos los formularios estÃ¡n siempre disponibles."""
     if codigo not in _POSICION_FORMULARIO_SCI:
         return False
-    # Una bitácora no espera turno. Se escribe mientras ocurren las cosas: la
-    # unidad sale antes de que nadie redacte el resumen del incidente, y las
-    # actividades del periodo empiezan mucho antes de que el plan de acción
-    # esté escrito. Abrirlas al llegar su número las volvería inservibles como
-    # registro, que es justamente para lo que existen.
-    #
-    # Conservan su lugar en el orden recomendado, que sigue guiando la
-    # documentación, y siguen siendo requisito de los que vienen después.
-    if codigo in FORMULARIOS_SCI_CONTINUOS:
-        return True
-    anteriores = ORDEN_FORMULARIOS_SCI[:_POSICION_FORMULARIO_SCI[codigo]]
-    return all(anterior in finalizados for anterior in anteriores)
+    return True
 
 def formulario_sci_desbloqueado(emergencia, codigo):
-    """Solo permite avanzar cuando todos los formularios anteriores finalizaron."""
+    """Sin bloqueo secuencial â€” todos los formularios estÃ¡n siempre disponibles."""
     if codigo not in _POSICION_FORMULARIO_SCI:
         return False
-    return desbloqueado_con(codigo, formularios_sci_finalizados(emergencia))
+    return True
 
 def redirigir_si_sci_bloqueado(request, emergencia, codigo):
     if codigo not in _POSICION_FORMULARIO_SCI:
         raise Http404
-    if formulario_sci_desbloqueado(emergencia, codigo):
-        return None
-    posicion = _POSICION_FORMULARIO_SCI[codigo]
-    anterior = ORDEN_FORMULARIOS_SCI[posicion - 1]
-    messages.warning(
-        request,
-        f"Finalice primero el formulario SCI-{anterior} para desbloquear SCI-{codigo}.",
-    )
-    return redirect(
-        reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
-    )
+    return None
 
 CATALOGO_FORMULARIOS_SCI = tuple(sorted(
     [entrada_catalogo(codigo, esquema) for codigo, esquema in ESQUEMAS_SCI.items()] + [{
         "codigo": "211",
         "nombre": "Registro y Control de Recursos",
-        "formato": "Horizontal · 2 páginas",
-        "estructura": "Fuente maestra de recursos: solicitud, arribo, institución, estado, "
-                      "asignación y desmovilización de cada recurso del incidente.",
+        "formato": "Horizontal Â· 2 pÃ¡ginas",
+        "estructura": "Fuente maestra de recursos: solicitud, arribo, instituciÃ³n, estado, "
+                      "asignaciÃ³n y desmovilizaciÃ³n de cada recurso del incidente.",
         "implementado": True,
     }],
     key=lambda entrada: _POSICION_FORMULARIO_SCI[entrada["codigo"]],
 ))
 
 # ==========================================
-# MÓDULO: REGISTRO DE EMERGENCIAS
+# MÃ“DULO: REGISTRO DE EMERGENCIAS
 # ==========================================
 
 def emergencias_permitidas(usuario):
@@ -205,8 +179,8 @@ def emergencias_permitidas(usuario):
             default=Value(0),
             output_field=IntegerField(),
         ),
-    # Al agrupar por la anotación, Django deja de aplicar el orden declarado en
-    # el modelo, y paginar sin orden explícito devuelve resultados inestables.
+    # Al agrupar por la anotaciÃ³n, Django deja de aplicar el orden declarado en
+    # el modelo, y paginar sin orden explÃ­cito devuelve resultados inestables.
     ).order_by("-fecha_reporte", "-pk")
 
 ESTADOS_TERMINADOS = (Emergencia.Estado.CERRADA, Emergencia.Estado.CANCELADA)
@@ -244,10 +218,10 @@ def filtrar_por_etapa(emergencias, etapa):
     )
 
 def estado_documental_por_emergencia(emergencias):
-    """Qué formularios tiene cerrados y cuáles en borrador cada emergencia.
+    """QuÃ© formularios tiene cerrados y cuÃ¡les en borrador cada emergencia.
 
     Se resuelve en dos consultas para todo el listado. Preguntarlo por fila
-    costaría dos por emergencia, y esta pantalla se pagina de veinte en veinte.
+    costarÃ­a dos por emergencia, y esta pantalla se pagina de veinte en veinte.
     """
     identificadores = [emergencia.pk for emergencia in emergencias]
     finalizados = defaultdict(set)
@@ -279,15 +253,15 @@ def estado_documental_por_emergencia(emergencias):
     return finalizados, borradores, bitacoras
 
 def formulario_en_curso(cerrados, empezados, bitacoras_en_uso):
-    """El primer formulario del orden oficial que aún queda por llenar.
+    """El primer formulario del orden oficial que aÃºn queda por llenar.
 
-    Las bitácoras ya en uso no cuentan: el SCI-211 y el SCI-214 siguen
-    abiertos hasta que la emergencia termina, de modo que señalarlas dejaría
-    la columna clavada en ellas por más formularios que se llenaran después.
+    Las bitÃ¡coras ya en uso no cuentan: el SCI-211 y el SCI-214 siguen
+    abiertos hasta que la emergencia termina, de modo que seÃ±alarlas dejarÃ­a
+    la columna clavada en ellas por mÃ¡s formularios que se llenaran despuÃ©s.
 
     Devuelve ``(codigo, empezado)``, o ``(None, False)`` cuando no queda
     ninguno. Es el mismo criterio con el que la ficha anuncia el paso
-    siguiente, para que las dos pantallas señalen el mismo formulario.
+    siguiente, para que las dos pantallas seÃ±alen el mismo formulario.
     """
     for codigo in ORDEN_FORMULARIOS_SCI:
         if codigo in bitacoras_en_uso:
@@ -307,9 +281,9 @@ def preparar_avance_documental(emergencias):
         codigo, empezado = formulario_en_curso(
             finalizados[emergencia.pk], borradores[emergencia.pk], abiertas
         )
-        # Antes esta línea nombraba siempre al SCI-211, aunque se estuviera
-        # llenando otro: el listado decía «SCI-211 en borrador» al lado de una
-        # emergencia cuyo 211 ya estaba cerrado hacía rato.
+        # Antes esta lÃ­nea nombraba siempre al SCI-211, aunque se estuviera
+        # llenando otro: el listado decÃ­a Â«SCI-211 en borradorÂ» al lado de una
+        # emergencia cuyo 211 ya estaba cerrado hacÃ­a rato.
         emergencia.formulario_actual = f"SCI-{codigo}" if codigo else ""
         emergencia.formulario_actual_empezado = empezado
         emergencia.bitacoras_abiertas = [f"SCI-{item}" for item in abiertas]
@@ -318,9 +292,9 @@ def preparar_avance_documental(emergencias):
             emergencia.etapa_formularios = "Sin iniciar"
             emergencia.clave_etapa_formularios = "sin_iniciar"
         elif codigo is None:
-            # «Completa» se decide por lo que queda por llenar y no por cuántos
-            # formularios existen: una fila podía anunciarse completa mientras
-            # debajo se leía que el SCI-201 seguía en borrador.
+            # Â«CompletaÂ» se decide por lo que queda por llenar y no por cuÃ¡ntos
+            # formularios existen: una fila podÃ­a anunciarse completa mientras
+            # debajo se leÃ­a que el SCI-201 seguÃ­a en borrador.
             emergencia.etapa_formularios = "Completa"
             emergencia.clave_etapa_formularios = "completa"
         else:
@@ -341,15 +315,15 @@ def consulta_filtrada(request):
         emergencias = filtrar_por_texto(emergencias, filtros["q"])
     if filtros.get("tipo"):
         # Se usa coincidencia parcial porque el registro admite descripciones
-        # mas especificas, por ejemplo «Rescate en altura».
+        # mas especificas, por ejemplo Â«Rescate en alturaÂ».
         emergencias = emergencias.filter(
             tipo_emergencia__icontains=filtros["tipo"]
         )
     if filtros.get("etapa"):
         emergencias = filtrar_por_etapa(emergencias, filtros["etapa"])
     # __date convierte la marca de tiempo a la zona horaria configurada antes de
-    # comparar, de modo que el rango corresponde a los días locales que el
-    # usuario eligió y no a los del UTC almacenado. Ambos extremos se incluyen.
+    # comparar, de modo que el rango corresponde a los dÃ­as locales que el
+    # usuario eligiÃ³ y no a los del UTC almacenado. Ambos extremos se incluyen.
     if filtros.get("desde"):
         emergencias = emergencias.filter(fecha_reporte__date__gte=filtros["desde"])
     if filtros.get("hasta"):
@@ -372,7 +346,7 @@ def lista(request):
     texto y etapa, pero sin la fase: son las cifras que rotulan los botones y
     deben corresponder a lo que se veria al pulsarlos.
     """
-    # El chofer aterriza aquí al iniciar sesión, porque es la página de destino
+    # El chofer aterriza aquÃ­ al iniciar sesiÃ³n, porque es la pÃ¡gina de destino
     # configurada. En vez de negarle el paso se le lleva a la suya.
     if solo_es_chofer(request.user):
         return redirect("emergencias:mi_unidad")
@@ -413,8 +387,8 @@ def lista(request):
             filtros.get("q") or filtros.get("tipo")
             or filtros.get("etapa") or filtros.get("fase")
             or filtros.get("desde") or filtros.get("hasta")
-            # Un rango mal escrito debe seguir ofreciendo «Limpiar»: sin esto la
-            # única salida sería borrar la dirección a mano.
+            # Un rango mal escrito debe seguir ofreciendo Â«LimpiarÂ»: sin esto la
+            # Ãºnica salida serÃ­a borrar la direcciÃ³n a mano.
             or formulario.errors
         ),
         "puede_crear": puede_gestionar_emergencias(request.user),
@@ -425,9 +399,9 @@ def lista(request):
     return render(request, "emergencias/lista.html", contexto)
 
 COLUMNAS_EXPORTACION = (
-    "Código", "Tipo de emergencia", "Prioridad", "Estado", "Fase operativa",
-    "Fecha de reporte", "Fecha de cierre", "Institución", "Estación responsable",
-    "Dirección", "Latitud", "Longitud", "Unidades desplegadas",
+    "CÃ³digo", "Tipo de emergencia", "Prioridad", "Estado", "Fase operativa",
+    "Fecha de reporte", "Fecha de cierre", "InstituciÃ³n", "EstaciÃ³n responsable",
+    "DirecciÃ³n", "Latitud", "Longitud", "Unidades desplegadas",
     "Unidades activas", "Formularios SCI", "SCI-211", "Registrado por",
 )
 
@@ -506,8 +480,8 @@ def exportar(request):
 
 COLUMNAS_RECURSOS = (
     "Emergencia", "Tipo de emergencia", "Prioridad", "Fecha de reporte",
-    "Estación responsable", "Dirección", "Unidad", "Nombre de la unidad",
-    "Tipo de recurso", "Categoría", "Estación de procedencia",
+    "EstaciÃ³n responsable", "DirecciÃ³n", "Unidad", "Nombre de la unidad",
+    "Tipo de recurso", "CategorÃ­a", "EstaciÃ³n de procedencia",
     "Estado del despliegue", "Asignada", "Salida", "En sitio", "Cierre",
     "Responsable de la unidad", "Despachada por", "Posiciones registradas",
 )
@@ -515,9 +489,9 @@ COLUMNAS_RECURSOS = (
 def fila_recurso(despliegue):
     """Una fila por unidad desplegada, no por emergencia.
 
-    El reporte anterior contaba cuántas unidades salieron; este dice cuáles,
-    de dónde, cuándo y quién las conducía, que es lo que se revisa después de
-    una intervención.
+    El reporte anterior contaba cuÃ¡ntas unidades salieron; este dice cuÃ¡les,
+    de dÃ³nde, cuÃ¡ndo y quiÃ©n las conducÃ­a, que es lo que se revisa despuÃ©s de
+    una intervenciÃ³n.
     """
     def momento(valor):
         return timezone.localtime(valor).strftime("%d/%m/%Y %H:%M") if valor else ""
@@ -544,7 +518,7 @@ def exportar_recursos(request):
     """Reporte detallado de los recursos desplegados, con los mismos filtros.
 
     Comparte la consulta del listado, de modo que el rango de fechas, el tipo
-    y la emergencia que estén aplicados en pantalla se llevan al archivo sin
+    y la emergencia que estÃ©n aplicados en pantalla se llevan al archivo sin
     tener que elegirlos otra vez.
     """
     if not puede_consultar_emergencias(request.user):
@@ -565,9 +539,9 @@ def exportar_recursos(request):
     escritor = csv.writer(_Eco(), delimiter=";")
 
     def tramos():
-        # Excel abre el archivo con la codificación del sistema si no encuentra
+        # Excel abre el archivo con la codificaciÃ³n del sistema si no encuentra
         # la marca de orden de bytes, y los acentos llegan rotos.
-        yield "﻿"
+        yield "ï»¿"
         yield escritor.writerow(COLUMNAS_RECURSOS)
         for despliegue in despliegues.iterator():
             yield escritor.writerow(fila_recurso(despliegue))
@@ -580,7 +554,7 @@ def exportar_recursos(request):
     return respuesta
 
 # ==========================================
-# MÓDULO: ALTA Y EDICIÓN DE LA EMERGENCIA
+# MÃ“DULO: ALTA Y EDICIÃ“N DE LA EMERGENCIA
 # ==========================================
 
 @login_required
@@ -602,7 +576,7 @@ def crear(request):
     contexto = {
         "form": formulario,
         "titulo": "Crear emergencia",
-        "eyebrow": "Paso 1 de 2 · Registro operativo",
+        "eyebrow": "Paso 1 de 2 Â· Registro operativo",
         "encabezado": "Datos iniciales del incidente",
         "accion": "Registrar emergencia",
         "url_cancelar": reverse("emergencias:lista") + "#registro-incidentes",
@@ -613,7 +587,7 @@ def crear(request):
 
 @login_required
 def editar(request, pk):
-    """Corrige la información situacional de un incidente todavía en curso."""
+    """Corrige la informaciÃ³n situacional de un incidente todavÃ­a en curso."""
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
     if not estacion_autorizada(request.user, emergencia.estacion_responsable_id):
         raise PermissionDenied
@@ -629,8 +603,8 @@ def editar(request, pk):
         "form": formulario,
         "emergencia": emergencia,
         "titulo": f"Editar {emergencia.codigo}",
-        "eyebrow": f"{emergencia.codigo} · {emergencia.get_estado_display()}",
-        "encabezado": "Situación del incidente",
+        "eyebrow": f"{emergencia.codigo} Â· {emergencia.get_estado_display()}",
+        "encabezado": "SituaciÃ³n del incidente",
         "accion": "Guardar cambios",
         "url_cancelar": reverse("emergencias:detalle", args=[emergencia.pk]),
         "es_creacion": False,
@@ -642,12 +616,12 @@ def editar(request, pk):
 @login_required
 @require_POST
 def eliminar(request, pk):
-    """Borra una emergencia que aún no tiene historia. Solo staff o gestores.
+    """Borra una emergencia que aÃºn no tiene historia. Solo staff o gestores.
 
     Sirve para deshacer un registro equivocado, no para hacer desaparecer una
-    intervención. Los formularios SCI y los despliegues protegen su emergencia
-    a nivel de base de datos: son documentación oficial y no se destruyen. Si
-    la intervención ya empezó, lo que corresponde es cancelarla.
+    intervenciÃ³n. Los formularios SCI y los despliegues protegen su emergencia
+    a nivel de base de datos: son documentaciÃ³n oficial y no se destruyen. Si
+    la intervenciÃ³n ya empezÃ³, lo que corresponde es cancelarla.
     """
     if not (request.user.is_staff or puede_gestionar_emergencias(request.user)):
         raise PermissionDenied
@@ -660,8 +634,8 @@ def eliminar(request, pk):
         messages.error(
             request,
             f"La emergencia {codigo} ya tiene formularios SCI o unidades "
-            "despachadas y no puede eliminarse: es documentación de la "
-            "intervención. Cámbiela a cancelada si se registró por error.",
+            "despachadas y no puede eliminarse: es documentaciÃ³n de la "
+            "intervenciÃ³n. CÃ¡mbiela a cancelada si se registrÃ³ por error.",
         )
         return redirect("emergencias:detalle", pk=pk)
     messages.success(request, f"Emergencia {codigo} eliminada correctamente.")
@@ -681,17 +655,17 @@ def cambiar_estado(request, pk):
         messages.error(request, " ".join(error.messages))
     else:
         messages.success(
-            request, f"La emergencia pasó a {emergencia.get_estado_display().lower()}."
+            request, f"La emergencia pasÃ³ a {emergencia.get_estado_display().lower()}."
         )
     return redirect("emergencias:detalle", pk=emergencia.pk)
 
 # ==========================================
-# MÓDULO: DESPACHO DE UNIDADES
+# MÃ“DULO: DESPACHO DE UNIDADES
 # ==========================================
 
 @login_required
 def despachar(request, pk):
-    """Envía una unidad disponible del ámbito del usuario al incidente."""
+    """EnvÃ­a una unidad disponible del Ã¡mbito del usuario al incidente."""
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
     if not estacion_autorizada(request.user, emergencia.estacion_responsable_id):
         raise PermissionDenied
@@ -748,7 +722,7 @@ def actualizar_despliegue(request, pk):
     return redirect("emergencias:detalle", pk=despliegue.emergencia_id)
 
 # ==========================================
-# MÓDULO: FICHA DE LA EMERGENCIA
+# MÃ“DULO: FICHA DE LA EMERGENCIA
 # ==========================================
 
 @login_required
@@ -767,25 +741,25 @@ def detalle(request, pk):
         formulario = sci211 if item["codigo"] == "211" else genericos.get(item["codigo"])
         en_curso = False
         if item["codigo"] in FORMULARIOS_SCI_CONTINUOS and formulario is None:
-            # Una bitácora sin abrir sigue siendo una bitácora: se pinta como
+            # Una bitÃ¡cora sin abrir sigue siendo una bitÃ¡cora: se pinta como
             # tal desde el principio, igual que su hermana ya empezada.
-            clave_estado, etiqueta_estado = "open", "Registro abierto · sin anotaciones"
+            clave_estado, etiqueta_estado = "open", "Registro abierto Â· sin anotaciones"
         elif formulario is None:
             clave_estado, etiqueta_estado = "pending", "No iniciado"
         elif formulario.estado == FormularioSCI.Estado.FINALIZADO:
             clave_estado, etiqueta_estado = "complete", "Finalizado"
         elif item["codigo"] in FORMULARIOS_SCI_CONTINUOS:
-            # El azul describe qué clase de formulario es —una bitácora que
-            # vive toda la emergencia—, no cuánto lleva escrito. El ámbar
-            # anunciaría algo por corregir y el gris, algo que no ha empezado.
+            # El azul describe quÃ© clase de formulario es â€”una bitÃ¡cora que
+            # vive toda la emergenciaâ€”, no cuÃ¡nto lleva escrito. El Ã¡mbar
+            # anunciarÃ­a algo por corregir y el gris, algo que no ha empezado.
             clave_estado = "open"
-            # Solo deja de señalarse como paso pendiente cuando ya tiene algo
-            # anotado: una bitácora en blanco sí es lo primero que hay que
+            # Solo deja de seÃ±alarse como paso pendiente cuando ya tiene algo
+            # anotado: una bitÃ¡cora en blanco sÃ­ es lo primero que hay que
             # llenar.
             en_curso = registro_en_uso(formulario)
             etiqueta_estado = (
                 "Registro abierto" if en_curso
-                else "Registro abierto · sin anotaciones"
+                else "Registro abierto Â· sin anotaciones"
             )
         else:
             clave_estado, etiqueta_estado = "incomplete", "Incompleto"
@@ -805,11 +779,11 @@ def detalle(request, pk):
     for despliegue in despliegues:
         # La tabla solo ofrece cerrar el despliegue y transmitir el GPS. Cerrarlo
         # es lo que devuelve la unidad al inventario y lo que permite cerrar
-        # después la emergencia; el resto de estados se consultó que estorbaba.
+        # despuÃ©s la emergencia; el resto de estados se consultÃ³ que estorbaba.
         #
-        # El chofer tiene el mismo botón en «Mi unidad», que es donde cae natural:
-        # él sabe cuándo volvió al cuartel. Aquí se conserva porque no puede ser
-        # el único camino —un teléfono sin batería o sin señal dejaría la unidad
+        # El chofer tiene el mismo botÃ³n en Â«Mi unidadÂ», que es donde cae natural:
+        # Ã©l sabe cuÃ¡ndo volviÃ³ al cuartel. AquÃ­ se conserva porque no puede ser
+        # el Ãºnico camino â€”un telÃ©fono sin baterÃ­a o sin seÃ±al dejarÃ­a la unidad
         # asignada a un incidente terminado y la emergencia sin poder cerrarse.
         despliegue.transiciones = (
             [
@@ -835,21 +809,27 @@ def detalle(request, pk):
             item for item in catalogo_sci_estado
             if item["clave_estado"] == "complete"
         ],
-        # Un registro ya en uso no es «el paso siguiente»: seguirá abierto toda
-        # la emergencia, y anunciarlo dejaría el aviso clavado en el SCI-211
-        # sin señalar nunca lo que de verdad falta por llenar.
+        # Un registro ya en uso no es Â«el paso siguienteÂ»: seguirÃ¡ abierto toda
+        # la emergencia, y anunciarlo dejarÃ­a el aviso clavado en el SCI-211
+        # sin seÃ±alar nunca lo que de verdad falta por llenar.
         "siguiente_formulario": next(
             (item for item in catalogo_sci_estado
              if item["clave_estado"] != "complete"
              and not item["bloqueado"] and not item["en_curso"]),
             None
         ),
+        "periodos_sci201": list(
+            FormularioSCI.objects
+            .filter(emergencia=emergencia, codigo_sci="201")
+            .order_by("numero_periodo")
+            .values("numero_periodo", "estado", "fecha_actualizacion", "fecha_finalizacion")
+        ),
     }
 
     return render(request, "emergencias/detalle.html", contexto)
 
 # ==========================================
-# MÓDULO: FORMULARIOS SCI
+# MÃ“DULO: FORMULARIOS SCI
 # ==========================================
 
 def formularios_sci_permitidos(usuario):
@@ -858,8 +838,8 @@ def formularios_sci_permitidos(usuario):
     ).select_related("emergencia", "creado_por", "modificado_por", "finalizado_por")
 
 def emergencia_para_visualizar(usuario):
-    # Antes se prefería un código sembrado fijo; la migración 0008 lo convirtió
-    # al formato oficial, así que esa búsqueda ya no encontraba nada.
+    # Antes se preferÃ­a un cÃ³digo sembrado fijo; la migraciÃ³n 0008 lo convirtiÃ³
+    # al formato oficial, asÃ­ que esa bÃºsqueda ya no encontraba nada.
     return emergencias_permitidas(usuario).order_by("pk").first()
 
 def preparar_expedientes_sci(usuario):
@@ -898,7 +878,7 @@ def preparar_expedientes_sci(usuario):
             completo = bool(secciones_totales) and secciones_llenas == secciones_totales
             documentos.append({
                 **catalogo[codigo],
-                "estado": "Completo" if completo else "En elaboración",
+                "estado": "Completo" if completo else "En elaboraciÃ³n",
                 "clave_estado": "complete" if completo else "draft",
                 "actualizado": formulario.fecha_actualizacion,
                 "editable": puede_editar_sci(usuario, emergencia),
@@ -946,14 +926,14 @@ def formulario_sci_catalogo_visualizar(request, codigo):
     if esquema is None:
         raise Http404
     cuerpo = SimpleNamespace(nombre="Cuerpos de Bomberos de Cotopaxi")
-    estacion = SimpleNamespace(nombre="Estación por asignar", cuerpo_bomberos=cuerpo)
+    estacion = SimpleNamespace(nombre="EstaciÃ³n por asignar", cuerpo_bomberos=cuerpo)
     emergencia = SimpleNamespace(
         pk=None,
         codigo="VISTA-PREVIA",
         tipo_emergencia="Incidente por registrar",
-        descripcion="Espacio destinado a la descripción y evaluación inicial del incidente.",
+        descripcion="Espacio destinado a la descripciÃ³n y evaluaciÃ³n inicial del incidente.",
         fecha_reporte=timezone.now(),
-        direccion="Ubicación por registrar",
+        direccion="UbicaciÃ³n por registrar",
         latitud=None,
         longitud=None,
         estacion_responsable=estacion,
@@ -987,14 +967,18 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
     contexto = contexto_documento_sci(request.user, emergencia, codigo)
     contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
-    return render(request, "emergencias/sci_preview.html", contexto)
+    plantilla = (
+        "emergencias/sci_preview_201.html"
+        if codigo == "201" else "emergencias/sci_preview.html"
+    )
+    return render(request, plantilla, contexto)
 
 def periodo_heredado(emergencia, codigo):
-    """Lo que ya se escribió del periodo operacional en otro formulario.
+    """Lo que ya se escribiÃ³ del periodo operacional en otro formulario.
 
-    Nueve de los doce formularios piden el mismo periodo: su número, su inicio
+    Nueve de los doce formularios piden el mismo periodo: su nÃºmero, su inicio
     y su fin. Escribirlo veintisiete veces no aporta nada y se presta a que las
-    copias no coincidan, que es peor que no tenerlo. Se toma del formulario más
+    copias no coincidan, que es peor que no tenerlo. Se toma del formulario mÃ¡s
     reciente que lo tenga, y el usuario puede cambiarlo si este periodo es otro.
     """
     heredado = {}
@@ -1010,7 +994,7 @@ def periodo_heredado(emergencia, codigo):
             break
     return heredado
 
-def contexto_documento_sci(usuario, emergencia, codigo):
+def contexto_documento_sci(usuario, emergencia, codigo, periodo=1):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
     # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
@@ -1028,7 +1012,8 @@ def contexto_documento_sci(usuario, emergencia, codigo):
         "codigo": codigo,
         "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": formulario,
-        # Un campo vacío se ofrece con lo que ya se escribió en otro formulario
+        "datos_sci": datos,
+        # Un campo vacÃ­o se ofrece con lo que ya se escribiÃ³ en otro formulario
         # de esta emergencia; uno con valor propio no se toca.
         "campos_periodo": [
             dict(campo,
@@ -1042,16 +1027,16 @@ def contexto_documento_sci(usuario, emergencia, codigo):
         "recursos_disponibles": recursos_disponibles_verificados(usuario),
         "recursos_agrupados": recursos_agrupados_para_sci(usuario),
         "recursos_del_lugar": en_el_lugar,
-        # El nombre de quien firma se ofrece hecho: lo escribía en cada uno de
+        # El nombre de quien firma se ofrece hecho: lo escribÃ­a en cada uno de
         # los doce formularios.
         "preparado_por_sugerido": usuario.get_full_name() or usuario.username,
         "recursos_del_lugar_agrupados": agrupar_recursos(en_el_lugar),
     }
 
 def recursos_disponibles_verificados(usuario):
-    """Inventario utilizable, con aviso si la confirmación no es del día.
+    """Inventario utilizable, con aviso si la confirmaciÃ³n no es del dÃ­a.
 
-    Se ofrece todo lo operativo y libre. La confirmación caduca a las 24 horas,
+    Se ofrece todo lo operativo y libre. La confirmaciÃ³n caduca a las 24 horas,
     pero eso se advierte en la etiqueta en vez de esconder la unidad.
     """
     recursos = list(
@@ -1068,11 +1053,11 @@ def recursos_disponibles_verificados(usuario):
     return recursos
 
 def recursos_en_el_lugar(emergencia, usuario):
-    """Recursos que el SCI-211 ya registró en esta emergencia.
+    """Recursos que el SCI-211 ya registrÃ³ en esta emergencia.
 
-    Es el único conjunto que puede figurar como «en el lugar»: nada está en la
-    escena si no pasó por el registro de recursos. Ofrecer ahí el inventario
-    entero permitía anotar en el plan de acción un carro que seguía en el
+    Es el Ãºnico conjunto que puede figurar como Â«en el lugarÂ»: nada estÃ¡ en la
+    escena si no pasÃ³ por el registro de recursos. Ofrecer ahÃ­ el inventario
+    entero permitÃ­a anotar en el plan de acciÃ³n un carro que seguÃ­a en el
     patio.
     """
     formulario = getattr(emergencia, "formulario_sci_211", None)
@@ -1100,7 +1085,7 @@ def recursos_agrupados_para_sci(usuario):
     return agrupar_recursos(recursos_disponibles_verificados(usuario))
 
 def recursos_solicitados_en(esquema, post_validado, recursos):
-    """Recursos que el formulario dejó anotados como «por solicitar»."""
+    """Recursos que el formulario dejÃ³ anotados como Â«por solicitarÂ»."""
     por_etiqueta = {recurso.etiqueta_sci: recurso for recurso in recursos}
     solicitados = {}
     for seccion in esquema["secciones"]:
@@ -1121,9 +1106,9 @@ def recursos_solicitados_en(esquema, post_validado, recursos):
     return list(solicitados.values())
 
 def trasladar_solicitudes_al_sci211(request, emergencia, codigo, esquema, post_validado, recursos):
-    """Lleva al SCI-211 lo que el plan de acción acaba de solicitar.
+    """Lleva al SCI-211 lo que el plan de acciÃ³n acaba de solicitar.
 
-    Solo del SCI-202: es el formulario donde se piden recursos. Anotarlos allí
+    Solo del SCI-202: es el formulario donde se piden recursos. Anotarlos allÃ­
     y no en el registro obligaba a copiarlos a mano de un formulario al otro.
     """
     if codigo != "202":
@@ -1141,7 +1126,7 @@ def trasladar_solicitudes_al_sci211(request, emergencia, codigo, esquema, post_v
         return
     despachadas, avisos = desplegar_recursos_del_sci211(formulario_211, request.user)
     if despachadas:
-        messages.success(request, f"Se despachó {despachadas} unidad(es).")
+        messages.success(request, f"Se despachÃ³ {despachadas} unidad(es).")
     for aviso in avisos:
         messages.warning(request, aviso)
 
@@ -1149,9 +1134,9 @@ def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
     """Valida IDs seleccionados y guarda una etiqueta legible en el JSON SCI.
 
     Cada columna se contrasta contra el conjunto del que dice surtirse. Una
-    columna de recursos «en el lugar» que aceptara cualquier identificador del
-    inventario dejaría anotar en el plan de acción un carro que sigue en el
-    patio, por más que el desplegable no lo ofrezca.
+    columna de recursos Â«en el lugarÂ» que aceptara cualquier identificador del
+    inventario dejarÃ­a anotar en el plan de acciÃ³n un carro que sigue en el
+    patio, por mÃ¡s que el desplegable no lo ofrezca.
     """
     normalizado = post.copy()
     conjuntos = {
@@ -1180,13 +1165,13 @@ def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
                     normalizado[clave] = permitidos[recurso_id]
                 elif columna.get("origen") == ORIGEN_EN_EL_LUGAR:
                     raise ValidationError(
-                        f"«{columna['etiqueta']}» solo admite recursos que el "
+                        f"Â«{columna['etiqueta']}Â» solo admite recursos que el "
                         "SCI-211 haya registrado en esta emergencia."
                     )
                 else:
                     raise ValidationError(
                         "El recurso seleccionado ya no pertenece al inventario "
-                        "disponible de su ámbito."
+                        "disponible de su Ã¡mbito."
                     )
     return normalizado
 
@@ -1211,7 +1196,7 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
         defaults={"creado_por": request.user, "modificado_por": request.user},
     )
     if not formulario.es_editable:
-        messages.info(request, f"El formulario SCI-{codigo} está finalizado y es de solo lectura.")
+        messages.info(request, f"El formulario SCI-{codigo} estÃ¡ finalizado y es de solo lectura.")
         return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
     if request.method == "POST":
         recursos = recursos_disponibles_verificados(request.user)
@@ -1236,17 +1221,23 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
             )
     contexto = contexto_documento_sci(request.user, emergencia, codigo)
     contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
-    return render(request, "emergencias/sci_editar.html", contexto)
+    plantilla = (
+        "emergencias/sci_editar_201.html"
+        if codigo == "201" else "emergencias/sci_editar.html"
+    )
+    return render(request, plantilla, contexto)
 
 @login_required
-def formulario_sci_finalizar(request, codigo, emergencia_pk):
+def formulario_sci_finalizar(request, codigo, emergencia_pk, periodo=1):
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
     bloqueado = redirigir_si_sci_bloqueado(request, emergencia, codigo)
     if bloqueado:
         return bloqueado
     if not puede_editar_sci(request.user, emergencia) or obtener_esquema(codigo) is None:
         raise PermissionDenied
-    formulario = get_object_or_404(FormularioSCI, emergencia=emergencia, codigo_sci=codigo)
+    formulario = get_object_or_404(
+        FormularioSCI, emergencia=emergencia, codigo_sci=codigo, numero_periodo=periodo
+    )
     if request.method == "POST":
         try:
             finalizar_sci(formulario, request.user)
@@ -1257,6 +1248,68 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk):
     return redirect(
         reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
     )
+
+
+@login_required
+@require_POST
+def sci_nuevo_periodo(request, codigo, emergencia_pk):
+    """Crea un nuevo período operacional para un formulario SCI.
+
+    El período anterior debe estar finalizado. El nuevo hereda los datos de
+    encabezado del período anterior para no empezar desde cero.
+    """
+    emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
+    if not puede_editar_sci(request.user, emergencia):
+        raise PermissionDenied
+    if obtener_esquema(codigo) is None:
+        raise Http404
+    ultimo = (
+        FormularioSCI.objects
+        .filter(emergencia=emergencia, codigo_sci=codigo)
+        .order_by("-numero_periodo")
+        .first()
+    )
+    if ultimo is None:
+        messages.warning(request, f"Primero crea y finaliza el período 1 del SCI-{codigo}.")
+        return redirect(reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci")
+    if ultimo.es_editable:
+        messages.warning(
+            request,
+            f"El SCI-{codigo} — Período {ultimo.numero_periodo} aún está en borrador. "
+            "Finalízalo antes de abrir un nuevo período operacional."
+        )
+        return redirect(reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci")
+    nuevo_periodo = ultimo.numero_periodo + 1
+    # Hereda datos del período anterior, limpiando los campos de contenido nuevo
+    datos_heredados = dict(ultimo.datos or {})
+    for campo_resetear in ("evaluacion_inicial", "objetivos_iniciales",
+                           "acciones", "organigrama", "croquis"):
+        datos_heredados.pop(campo_resetear, None)
+    nuevo, creado = FormularioSCI.objects.get_or_create(
+        emergencia=emergencia,
+        codigo_sci=codigo,
+        numero_periodo=nuevo_periodo,
+        defaults={
+            "datos": datos_heredados,
+            "preparado_por": ultimo.preparado_por,
+            "creado_por": request.user,
+            "modificado_por": request.user,
+        },
+    )
+    if creado:
+        messages.success(
+            request,
+            f"SCI-{codigo} — Período operacional {nuevo_periodo} creado. "
+            "Los datos del período anterior fueron copiados como base."
+        )
+    else:
+        messages.info(request, f"El SCI-{codigo} período {nuevo_periodo} ya existe.")
+    return redirect(
+        reverse("emergencias:sci_editar_periodo",
+                kwargs={"codigo": codigo, "emergencia_pk": emergencia_pk,
+                        "periodo": nuevo_periodo})
+    )
+
 
 @login_required
 @require_POST
@@ -1289,7 +1342,7 @@ def sci211_editar(request, pk):
     cabecera = FormularioSCI211Form(request.POST or None, instance=formulario)
     registros = RegistroRecursoSCI211FormSet(
         request.POST or None, instance=formulario,
-        form_kwargs={"usuario": request.user},
+        form_kwargs={"usuario": request.user, "emergencia": formulario.emergencia},
     )
     if request.method == "POST" and cabecera.is_valid() and registros.is_valid():
         cabecera.save(commit=False)
@@ -1301,13 +1354,13 @@ def sci211_editar(request, pk):
         for orden, instancia in enumerate(instancias, start=1):
             instancia.orden = orden
             instancia.save()
-        # Anotar una unidad en el SCI-211 es la decisión de enviarla, así que el
-        # despacho ocurre aquí y no en una pantalla aparte.
+        # Anotar una unidad en el SCI-211 es la decisiÃ³n de enviarla, asÃ­ que el
+        # despacho ocurre aquÃ­ y no en una pantalla aparte.
         despachadas, avisos = desplegar_recursos_del_sci211(formulario, request.user)
         if despachadas:
             messages.success(
                 request,
-                f"Se despachó {despachadas} unidad(es) desde el SCI-211."
+                f"Se despachÃ³ {despachadas} unidad(es) desde el SCI-211."
             )
         for aviso in avisos:
             messages.warning(request, aviso)
@@ -1316,10 +1369,10 @@ def sci211_editar(request, pk):
             messages.success(request, "Borrador guardado. Confirme para finalizar.")
             return redirect("emergencias:sci211_finalizar", pk=pk)
         if accion == "guardar_recurso":
-            # El botón de cada tarjeta guarda de verdad y devuelve al editor con
-            # lo ya anotado plegado, para seguir añadiendo recursos. Antes solo
-            # minimizaba la tarjeta: quien lo pulsaba y cerraba la pestaña
-            # perdía el recurso creyendo haberlo guardado.
+            # El botÃ³n de cada tarjeta guarda de verdad y devuelve al editor con
+            # lo ya anotado plegado, para seguir aÃ±adiendo recursos. Antes solo
+            # minimizaba la tarjeta: quien lo pulsaba y cerraba la pestaÃ±a
+            # perdÃ­a el recurso creyendo haberlo guardado.
             messages.success(request, "Recurso guardado en el SCI-211.")
             return redirect(
                 reverse("emergencias:sci211_editar", args=[pk]) + "?plegar=1"
@@ -1328,8 +1381,8 @@ def sci211_editar(request, pk):
         return redirect(
             reverse("emergencias:detalle", args=[formulario.emergencia_id]) + "#formularios-sci"
         )
-    # Si el inventario no ofrece nada, la lista sale con una sola opción vacía y
-    # no se entiende por qué. Conviene decirlo antes de que alguien lo busque.
+    # Si el inventario no ofrece nada, la lista sale con una sola opciÃ³n vacÃ­a y
+    # no se entiende por quÃ©. Conviene decirlo antes de que alguien lo busque.
     hay_recursos = registros.forms[0].fields["recurso_inventario"].queryset.exists()
     contexto = {
         "formulario_sci": formulario, "cabecera": cabecera, "registros": registros,
@@ -1365,10 +1418,10 @@ def sci211_finalizar(request, pk):
     if not puede_editar_sci(request.user, formulario.emergencia) or not formulario.es_editable:
         raise PermissionDenied
     if request.method == "POST":
-        # También se despacha aquí. A esta pantalla se puede llegar sin haber
-        # guardado el editor —desde la ficha de la emergencia o por la propia
-        # dirección—, y sin este paso la unidad quedaba anotada en el formulario
-        # pero nunca salía. El servicio ignora lo ya despachado.
+        # TambiÃ©n se despacha aquÃ­. A esta pantalla se puede llegar sin haber
+        # guardado el editor â€”desde la ficha de la emergencia o por la propia
+        # direcciÃ³nâ€”, y sin este paso la unidad quedaba anotada en el formulario
+        # pero nunca salÃ­a. El servicio ignora lo ya despachado.
         despachadas, avisos = desplegar_recursos_del_sci211(formulario, request.user)
         for aviso in avisos:
             messages.warning(request, aviso)
@@ -1379,7 +1432,7 @@ def sci211_finalizar(request, pk):
             return redirect("emergencias:sci211_editar", pk=pk)
         if despachadas:
             messages.success(
-                request, f"Se despachó {despachadas} unidad(es) desde el SCI-211."
+                request, f"Se despachÃ³ {despachadas} unidad(es) desde el SCI-211."
             )
         messages.success(request, "Formulario SCI-211 finalizado. Ahora es de solo lectura.")
         return redirect(
@@ -1400,9 +1453,9 @@ def sci211_imprimir(request, pk):
     contexto = {
         "formulario": formulario,
         "filas_vacias": range(max(0, 24 - formulario.registros.count())),
-        # La vista imprimible es también donde se descubre que el formulario
-        # quedó a medias, así que desde aquí se vuelve a llenarlo. El de los
-        # formularios genéricos ya ofrecía este camino; el SCI-211 no.
+        # La vista imprimible es tambiÃ©n donde se descubre que el formulario
+        # quedÃ³ a medias, asÃ­ que desde aquÃ­ se vuelve a llenarlo. El de los
+        # formularios genÃ©ricos ya ofrecÃ­a este camino; el SCI-211 no.
         "puede_editar": (
             puede_editar_sci(request.user, formulario.emergencia)
             and formulario.es_editable
@@ -1412,7 +1465,7 @@ def sci211_imprimir(request, pk):
     return render(request, "emergencias/sci211/pdf.html", contexto)
 
 # ==========================================
-# MÓDULO: SEGUIMIENTO GPS
+# MÃ“DULO: SEGUIMIENTO GPS
 # ==========================================
 
 def despliegues_permitidos(usuario):
@@ -1423,20 +1476,20 @@ def despliegues_permitidos(usuario):
 @login_required
 @ensure_csrf_cookie
 def transmitir_gps(request, pk):
-    # El chofer llega aquí por su propia unidad; el resto, por su estación y
+    # El chofer llega aquÃ­ por su propia unidad; el resto, por su estaciÃ³n y
     # solo si puede gestionarla: esta consola no es de consulta.
     despliegue = despliegue_alcanzable(request.user, pk, exigir_gestion=True)
     if not despliegue.activo or not despliegue.emergencia.admite_despliegues:
-        raise PermissionDenied("El despliegue no admite transmisión GPS.")
+        raise PermissionDenied("El despliegue no admite transmisiÃ³n GPS.")
     contexto = {"despliegue": despliegue}
 
     return render(request, "emergencias/transmitir_gps.html", contexto)
 
 def despliegue_alcanzable(usuario, pk, exigir_gestion=False):
-    """Devuelve el despliegue si el usuario lo conduce o alcanza su estación.
+    """Devuelve el despliegue si el usuario lo conduce o alcanza su estaciÃ³n.
 
     ``exigir_gestion`` reproduce la barrera de las pantallas que no son de
-    consulta: un operador de consulta ve la última posición de una unidad, pero
+    consulta: un operador de consulta ve la Ãºltima posiciÃ³n de una unidad, pero
     no abre la consola desde la que se transmite.
     """
     despliegue = DespliegueUnidad.objects.filter(pk=pk).select_related(
@@ -1455,9 +1508,9 @@ def error_json(mensaje, estado, codigo):
 def detener_transmision_gps(request, pk):
     """Apaga el seguimiento en vivo de una unidad y la retira del mapa."""
     if not request.user.is_authenticated:
-        return error_json("Autenticación requerida.", 401, "no_autenticado")
+        return error_json("AutenticaciÃ³n requerida.", 401, "no_autenticado")
     if not (puede_gestionar_emergencias(request.user) or es_chofer(request.user)):
-        return error_json("No tiene autorización sobre esta unidad.", 403, "sin_autorizacion")
+        return error_json("No tiene autorizaciÃ³n sobre esta unidad.", 403, "sin_autorizacion")
     despliegue = despliegue_alcanzable(request.user, pk)
     try:
         detener_transmision(despliegue, request.user)
@@ -1468,24 +1521,24 @@ def detener_transmision_gps(request, pk):
 @require_POST
 def registrar_posicion(request, pk):
     if not request.user.is_authenticated:
-        return error_json("Autenticación requerida.", 401, "no_autenticado")
+        return error_json("AutenticaciÃ³n requerida.", 401, "no_autenticado")
     if request.content_type != "application/json":
         return error_json(
-            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            "No se pudo leer el dato enviado por el telÃ©fono. Vuelva a intentarlo.",
             415, "contenido_no_valido",
         )
     if not (puede_gestionar_emergencias(request.user) or es_chofer(request.user)):
-        return error_json("No tiene autorización para reportar posiciones.", 403, "sin_autorizacion")
+        return error_json("No tiene autorizaciÃ³n para reportar posiciones.", 403, "sin_autorizacion")
     try:
         datos = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
         return error_json(
-            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            "No se pudo leer el dato enviado por el telÃ©fono. Vuelva a intentarlo.",
             400, "json_no_valido",
         )
     if not isinstance(datos, dict):
         return error_json(
-            "No se pudo leer el dato enviado por el teléfono. Vuelva a intentarlo.",
+            "No se pudo leer el dato enviado por el telÃ©fono. Vuelva a intentarlo.",
             400, "datos_no_validos",
         )
     despliegue = despliegue_alcanzable(request.user, pk)
@@ -1494,7 +1547,7 @@ def registrar_posicion(request, pk):
     if fecha_dispositivo:
         fecha_dispositivo = parse_datetime(str(fecha_dispositivo))
         if fecha_dispositivo is None:
-            return error_json("La fecha del dispositivo no es válida.", 400, "datos_no_validos")
+            return error_json("La fecha del dispositivo no es vÃ¡lida.", 400, "datos_no_validos")
         if timezone.is_naive(fecha_dispositivo):
             fecha_dispositivo = timezone.make_aware(fecha_dispositivo)
     try:
@@ -1506,11 +1559,11 @@ def registrar_posicion(request, pk):
             fecha_dispositivo=fecha_dispositivo,
         )
     except ValidationError as error:
-        mensaje = next(iter(error.messages), "Los datos enviados no son válidos.")
+        mensaje = next(iter(error.messages), "Los datos enviados no son vÃ¡lidos.")
         codigo = "despliegue_inactivo" if "activo" in mensaje or "seguimiento" in mensaje else "datos_no_validos"
         return error_json(mensaje, 409 if codigo == "despliegue_inactivo" else 400, codigo)
-    # El teléfono reenvía su cola sin saber qué parte llegó ya. Se responde 200
-    # y no 201 cuando la posición resultó ser una que ya estaba guardada, para
+    # El telÃ©fono reenvÃ­a su cola sin saber quÃ© parte llegÃ³ ya. Se responde 200
+    # y no 201 cuando la posiciÃ³n resultÃ³ ser una que ya estaba guardada, para
     # que el cliente la borre de la cola igual que si fuera nueva: lo que no
     # debe hacer es reintentarla para siempre.
     repetida = fecha_dispositivo is not None and posicion.fecha_recepcion < inicio
@@ -1518,19 +1571,19 @@ def registrar_posicion(request, pk):
         "id": posicion.pk,
         "fecha_recepcion": posicion.fecha_recepcion.isoformat(),
         "repetida": repetida,
-        "mensaje": "Posición ya registrada." if repetida else "Posición recibida.",
+        "mensaje": "PosiciÃ³n ya registrada." if repetida else "PosiciÃ³n recibida.",
     }, status=200 if repetida else 201)
 
 @require_GET
 def ultima_posicion(request, pk):
     if not request.user.is_authenticated:
-        return error_json("Autenticación requerida.", 401, "no_autenticado")
+        return error_json("AutenticaciÃ³n requerida.", 401, "no_autenticado")
     if not puede_consultar_emergencias(request.user):
-        return error_json("No tiene autorización para consultar el despliegue.", 403, "sin_autorizacion")
+        return error_json("No tiene autorizaciÃ³n para consultar el despliegue.", 403, "sin_autorizacion")
     despliegue = despliegue_alcanzable(request.user, pk)
     posicion = despliegue.posiciones.order_by("-fecha_recepcion", "-pk").first()
     if posicion is None:
-        return JsonResponse({"disponible": False, "mensaje": "Todavía no existen posiciones."})
+        return JsonResponse({"disponible": False, "mensaje": "TodavÃ­a no existen posiciones."})
     return JsonResponse({
         "disponible": True,
         "latitud": posicion.ubicacion.y, "longitud": posicion.ubicacion.x,
@@ -1544,15 +1597,15 @@ def ultima_posicion(request, pk):
 
 
 # ==========================================
-# MÓDULO: PANTALLA DEL CHOFER
+# MÃ“DULO: PANTALLA DEL CHOFER
 # ==========================================
 
 @login_required
 def mi_unidad(request):
-    """Única pantalla del chofer: la unidad que conduce y su emergencia.
+    """Ãšnica pantalla del chofer: la unidad que conduce y su emergencia.
 
-    Se resuelve por los despliegues que tiene asignados y no por su estación,
-    de modo que solo alcanza lo suyo aunque comparta institución con el resto.
+    Se resuelve por los despliegues que tiene asignados y no por su estaciÃ³n,
+    de modo que solo alcanza lo suyo aunque comparta instituciÃ³n con el resto.
     """
     if not es_chofer(request.user):
         raise PermissionDenied
@@ -1571,8 +1624,8 @@ def cerrar_mi_despliegue(request, pk):
     """El chofer cierra su despliegue cuando la unidad regresa al cuartel.
 
     No pasa por ``actualizar_despliegue``: esa vista mueve el despliegue a
-    cualquier estado y se apoya en los permisos de estación, que un chofer no
-    tiene. Aquí solo se cierra, y solo el propio conductor.
+    cualquier estado y se apoya en los permisos de estaciÃ³n, que un chofer no
+    tiene. AquÃ­ solo se cierra, y solo el propio conductor.
     """
     if not es_chofer(request.user):
         raise PermissionDenied
@@ -1593,7 +1646,7 @@ def cerrar_mi_despliegue(request, pk):
 
 @login_required
 def mi_historial(request):
-    """Recorridos que el chofer ya cerró, para consultarlos después."""
+    """Recorridos que el chofer ya cerrÃ³, para consultarlos despuÃ©s."""
     if not es_chofer(request.user):
         raise PermissionDenied
 
@@ -1609,7 +1662,7 @@ def mi_historial(request):
 
 @login_required
 def mi_recorrido(request, pk):
-    """Dibuja sobre el mapa el recorrido que esta unidad registró."""
+    """Dibuja sobre el mapa el recorrido que esta unidad registrÃ³."""
     if not es_chofer(request.user):
         raise PermissionDenied
     despliegue = get_object_or_404(despliegues_conducidos(request.user), pk=pk)
@@ -1619,3 +1672,6 @@ def mi_recorrido(request, pk):
     }
 
     return render(request, "emergencias/mi_recorrido.html", contexto)
+
+
+

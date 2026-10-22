@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resumen · {{ datos.codigo }}{% endblock %}
+{% block page_title %}Resumen operativo · {{ datos.codigo }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=10">
+<style>
+.resumen-header{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;padding:1.25rem 1.5rem;border-left:.35rem solid var(--color-red-600);border-radius:var(--radius-md);background:#fff;box-shadow:var(--shadow-sm)}
+.resumen-header h2{margin:0 0 .25rem;color:var(--color-navy-950);font-size:1.35rem}
+.resumen-header p{margin:0;color:var(--color-slate-500);font-size:.88rem}
+.resumen-actions{display:flex;gap:.65rem;flex-shrink:0;align-items:center}
+.resumen-panel{margin-bottom:1rem;border:1px solid var(--color-slate-200);border-radius:var(--radius-md);background:#fff;overflow:hidden;box-shadow:var(--shadow-sm)}
+.resumen-panel__heading{padding:.65rem 1.1rem;background:var(--color-navy-900);color:#fff;font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.resumen-panel__body{padding:1rem 1.25rem}
+.dato-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr));gap:.55rem .9rem}
+.dato-item dt{font-size:.7rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.18rem}
+.dato-item dd{margin:0;font-size:.88rem;color:var(--color-navy-950);font-weight:600}
+.crono-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.crono-table th{background:var(--color-navy-900);color:#fff;padding:.5rem .75rem;text-align:left;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.crono-table td{padding:.5rem .75rem;border-bottom:1px solid var(--color-slate-100);vertical-align:top}
+.crono-table tr:last-child td{border-bottom:none}
+.crono-table tr:nth-child(even) td{background:#fafbfc}
+.badge-estado{display:inline-flex;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:800;background:#fee2e2;color:#991b1b}
+.badge-estado--cerrada{background:#d1fae5;color:#065f46}
+.tiempo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-top:.75rem}
+.tiempo-card{padding:.75rem 1rem;border-radius:.6rem;border:1px solid var(--color-slate-200);background:#f8fafc;text-align:center}
+.tiempo-card strong{display:block;font-size:1.1rem;color:var(--color-red-700);font-weight:900}
+.tiempo-card span{font-size:.72rem;color:var(--color-slate-500);font-weight:700}
+.recurso-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.recurso-table th{background:var(--color-navy-900);color:#fff;padding:.45rem .65rem;text-align:left;font-size:.7rem;font-weight:800;letter-spacing:.05em}
+.recurso-table td{padding:.45rem .65rem;border-bottom:1px solid var(--color-slate-100);vertical-align:middle}
+.recurso-table tr:nth-child(even) td{background:#fafbfc}
+.paciente-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.paciente-table th{background:var(--color-navy-900);color:#fff;padding:.45rem .65rem;text-align:left;font-size:.7rem;font-weight:800}
+.paciente-table td{padding:.45rem .65rem;border-bottom:1px solid var(--color-slate-100)}
+.no-data{padding:1.5rem;text-align:center;color:var(--color-slate-400);font-size:.85rem;font-style:italic}
+.texto-operativo{white-space:pre-wrap;font-size:.87rem;color:var(--color-navy-950);line-height:1.6;background:#f8fafc;border-left:3px solid var(--color-red-400);padding:.65rem 1rem;border-radius:0 .4rem .4rem 0;margin:.35rem 0}
+</style>
+{% endblock %}
+
+{% block content %}
+{% with d=datos %}
+
+{# ── Encabezado ── #}
+<div class="resumen-header">
+    <div>
+        <h2>{{ d.tipo }} <span class="badge-estado badge-estado--{{ d.emergencia.estado }}">{{ d.estado }}</span></h2>
+        <p>{{ d.codigo }} · {{ d.estacion }} · {{ d.hora_notificacion }}</p>
+    </div>
+    <div class="resumen-actions">
+        <a class="button button--ghost" href="{% url 'dashboard:principal' %}"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</a>
+        <a class="button" href="{% url 'dashboard:pdf_emergencia' d.emergencia.pk %}" target="_blank"><i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF</a>
+    </div>
+</div>
+
+{# ── 1. Identificación ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">1. Identificación</div>
+    <div class="resumen-panel__body">
+        <dl class="dato-grid">
+            <div class="dato-item"><dt>Código</dt><dd>{{ d.codigo }}</dd></div>
+            <div class="dato-item"><dt>Tipo</dt><dd>{{ d.tipo }}</dd></div>
+            <div class="dato-item"><dt>Prioridad</dt><dd>{{ d.prioridad }}</dd></div>
+            <div class="dato-item"><dt>Estado</dt><dd>{{ d.estado }}</dd></div>
+            <div class="dato-item"><dt>Fecha de reporte</dt><dd>{{ d.hora_notificacion }}</dd></div>
+            <div class="dato-item"><dt>Fecha de cierre</dt><dd>{{ d.hora_cierre }}</dd></div>
+            <div class="dato-item"><dt>Institución</dt><dd>{{ d.institucion }}</dd></div>
+            <div class="dato-item"><dt>Estación responsable</dt><dd>{{ d.estacion }}</dd></div>
+            <div class="dato-item"><dt>Registrado por</dt><dd>{{ d.registrado_por }}</dd></div>
+        </dl>
+    </div>
+</div>
+
+{# ── 2. Ubicación ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">2. Ubicación</div>
+    <div class="resumen-panel__body">
+        <dl class="dato-grid">
+            <div class="dato-item"><dt>Provincia</dt><dd>{{ d.provincia }}</dd></div>
+            <div class="dato-item"><dt>Cantón</dt><dd>{{ d.canton }}</dd></div>
+            <div class="dato-item"><dt>Dirección / referencia</dt><dd>{{ d.direccion }}</dd></div>
+            <div class="dato-item"><dt>Coordenadas GPS</dt><dd>{{ d.coordenadas }}</dd></div>
+        </dl>
+    </div>
+</div>
+
+{# ── 3. Mando ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">3. Mando y personal responsable</div>
+    <div class="resumen-panel__body">
+        <dl class="dato-grid">
+            <div class="dato-item"><dt>Comandante del Incidente (CI)</dt><dd>{{ d.ci_nombre }}</dd></div>
+        </dl>
+        {% if d.representantes %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .35rem">Representantes institucionales</p>
+        <ul style="margin:0;padding-left:1.25rem;font-size:.87rem;color:var(--color-navy-950)">
+            {% for rep in d.representantes %}<li>{{ rep }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% if d.personal_sci %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .35rem">Personal registrado (SCI-214)</p>
+        <ul style="margin:0;padding-left:1.25rem;font-size:.87rem;color:var(--color-navy-950)">
+            {% for p in d.personal_sci %}<li>{{ p }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 4. Cronología ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">4. Cronología y tiempos</div>
+    <div class="resumen-panel__body">
+        <table class="crono-table">
+            <thead><tr><th>Evento</th><th>Fecha y hora</th></tr></thead>
+            <tbody>
+                <tr><td>Notificación de la emergencia</td><td>{{ d.hora_notificacion }}</td></tr>
+                <tr><td>Primera salida de unidades</td><td>{{ d.hora_primera_salida }}</td></tr>
+                <tr><td>Primera llegada al lugar</td><td>{{ d.hora_primera_llegada }}</td></tr>
+                <tr><td>Cierre del incidente</td><td>{{ d.hora_cierre }}</td></tr>
+                <tr><td>Desmovilización estimada (SCI-221)</td><td>{{ d.hora_desmoviliz }}</td></tr>
+            </tbody>
+        </table>
+        <div class="tiempo-grid">
+            <div class="tiempo-card"><strong>{{ d.tiempo_respuesta }}</strong><span>Tiempo de respuesta</span></div>
+            <div class="tiempo-card"><strong>{{ d.duracion_operaciones }}</strong><span>Duración operaciones</span></div>
+            <div class="tiempo-card"><strong>{{ d.duracion_total }}</strong><span>Duración total</span></div>
+        </div>
+    </div>
+</div>
+
+{# ── 5. Descripción operativa ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">5. Descripción y acciones operativas (SCI-201)</div>
+    <div class="resumen-panel__body">
+        {% for etiq, campo in d.items %}{% endfor %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:0 0 .3rem">Evaluación inicial</p>
+        <div class="texto-operativo">{{ d.evaluacion_inicial }}</div>
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Objetivos operativos</p>
+        <div class="texto-operativo">{{ d.objetivos }}</div>
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Estrategias</p>
+        <div class="texto-operativo">{{ d.estrategias }}</div>
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Tácticas</p>
+        <div class="texto-operativo">{{ d.tacticas }}</div>
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Mensaje de seguridad</p>
+        <div class="texto-operativo">{{ d.mensaje_seguridad }}</div>
+        {% if d.acciones_201 %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Cronología de acciones</p>
+        <table class="crono-table">
+            <thead><tr><th style="width:22%">Fecha y hora</th><th>Acción</th></tr></thead>
+            <tbody>{% for a in d.acciones_201 %}<tr><td>{{ a.fecha_hora }}</td><td>{{ a.accion }}</td></tr>{% endfor %}</tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 6. Recursos ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">6. Recursos desplegados ({{ d.total_unidades }} unidad{{ d.total_unidades|pluralize:"es" }})</div>
+    <div class="resumen-panel__body">
+        {% if d.despliegues %}
+        <table class="recurso-table">
+            <thead><tr><th>Código</th><th>Tipo</th><th>Estación</th><th>Estado</th><th>Llegada</th><th>Retorno</th></tr></thead>
+            <tbody>
+            {% for desp in d.despliegues %}
+            <tr>
+                <td><strong>{{ desp.unidad.codigo_interno }}</strong></td>
+                <td>{{ desp.unidad.tipo.nombre }}</td>
+                <td>{{ desp.estacion_procedencia.nombre }}</td>
+                <td><span class="resource-status resource-status--{{ desp.estado }}">{{ desp.get_estado_display }}</span></td>
+                <td>{% if desp.fecha_llegada %}{{ desp.fecha_llegada|date:"d/m H:i" }}{% else %}—{% endif %}</td>
+                <td>{% if desp.fecha_retorno %}{{ desp.fecha_retorno|date:"d/m H:i" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="no-data">No se registraron despliegues de unidades.</div>{% endif %}
+
+        {% if d.registros_211 %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .35rem">Registro SCI-211</p>
+        <table class="recurso-table">
+            <thead><tr><th>Matrícula</th><th>Clase</th><th>Institución</th><th>Estado</th><th>Arribo</th></tr></thead>
+            <tbody>
+            {% for r in d.registros_211 %}
+            <tr>
+                <td>{{ r.matricula_identificacion|default:"—" }}</td>
+                <td>{{ r.clase_recurso|default:"—" }}</td>
+                <td>{{ r.institucion_procedencia|default:"—" }}</td>
+                <td>{{ r.get_estado_recurso_display }}</td>
+                <td>{% if r.fecha_hora_arribo %}{{ r.fecha_hora_arribo|date:"d/m H:i" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 7. Afectaciones ── #}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">7. Afectaciones y resultados (SCI-207)</div>
+    <div class="resumen-panel__body">
+        {% if d.pacientes %}
+        <dl class="dato-grid" style="margin-bottom:.75rem">
+            <div class="dato-item"><dt>Total pacientes atendidos</dt><dd>{{ d.total_pacientes }}</dd></div>
+            <div class="dato-item"><dt>Pacientes trasladados</dt><dd>{{ d.evacuados }}</dd></div>
+        </dl>
+        <table class="paciente-table">
+            <thead><tr><th>Nombre</th><th>Sexo</th><th>Edad</th><th>Clasificación</th><th>Lugar de traslado</th></tr></thead>
+            <tbody>
+            {% for p in d.pacientes %}
+            <tr>
+                <td>{{ p.nombre|default:"—" }}</td>
+                <td>{{ p.sexo|default:"—" }}</td>
+                <td>{{ p.edad|default:"—" }}</td>
+                <td>{{ p.clasificacion|default:"—" }}</td>
+                <td>{{ p.lugar_traslado|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="no-data">No se registraron pacientes en el SCI-207 para este incidente.</div>{% endif %}
+    </div>
+</div>
+
+{# ── 8. Actividades ── #}
+{% if d.actividades %}
+<div class="resumen-panel">
+    <div class="resumen-panel__heading">8. Registro de actividades (SCI-214)</div>
+    <div class="resumen-panel__body">
+        <table class="crono-table">
+            <thead><tr><th style="width:12%">Hora</th><th>Evento</th></tr></thead>
+            <tbody>{% for a in d.actividades %}<tr><td>{{ a.hora }}</td><td>{{ a.evento }}</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{# ── Botón PDF final ── #}
+<div style="text-align:right;margin-top:1rem">
+    <a class="button" href="{% url 'dashboard:pdf_emergencia' d.emergencia.pk %}"><i class="ti ti-file-download" aria-hidden="true"></i> Descargar informe PDF</a>
+</div>
+
+{% endwith %}
+{% endblock %}

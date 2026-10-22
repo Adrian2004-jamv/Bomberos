@@ -27,6 +27,7 @@
 <nav class="incident-actions" aria-label="Acciones de emergencias">
     <a class="incident-action incident-action--active" href="{% url 'emergencias:lista' %}#registro-incidentes" aria-current="page"><i class="ti ti-files" aria-hidden="true"></i> Formularios</a>
     {% if puede_crear %}<a class="incident-action incident-action--new" href="{% url 'emergencias:crear' %}"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo</a>{% endif %}
+    <button class="incident-action incident-action--guide" type="button" onclick="window.bomberosTour && window.bomberosTour.iniciar()" aria-label="Iniciar guía interactiva"><i class="ti ti-help-circle" aria-hidden="true"></i> Guía</button>
 </nav>
 <section id="registro-incidentes" class="panel incident-register" tabindex="-1">
     <form class="incident-register-tools" method="get" data-incident-register-tools>

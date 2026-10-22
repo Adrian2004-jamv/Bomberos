@@ -12,3 +12,6 @@ whitenoise[brotli]==6.11.0
 # localiza las bibliotecas dentro de ellos.
 shapely==2.1.2
 rasterio==1.4.3
+
+# Generación de informes PDF institucionales.
+reportlab==4.2.5

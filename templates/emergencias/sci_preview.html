@@ -6,35 +6,41 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .toolbar{position:sticky;top:0;z-index:2;display:flex;gap:8px;padding:10px 16px;background:#171717}
 .toolbar button,.toolbar a{padding:8px 14px;border:0;border-radius:5px;background:#c70012;color:#fff;font-weight:700;text-decoration:none;cursor:pointer}
 .toolbar .ghost{background:#374151}
-.paper{width:min(1100px,calc(100% - 24px));margin:18px auto;padding:18px;background:#fff;box-shadow:0 8px 30px #0002;overflow-wrap:anywhere}
-.head{display:grid;grid-template-columns:80px 1fr 110px;align-items:center;border-bottom:2px solid #111;padding-bottom:8px}
-.head img{width:64px}
-.head div{text-align:center}
-.head h1{margin:0;font-size:17px}
-.head p{margin:3px 0;font-weight:700}
-.code{text-align:right;font-weight:900;font-size:12px}
-.proposito{margin:8px 0;padding:6px 8px;background:#f3f4f6;font-size:10px;font-style:italic}
-.aviso{margin:8px 0;padding:6px 8px;border-left:4px solid #d89b00;background:#fff7dd;font-size:10px}
-.meta{display:grid;grid-template-columns:repeat(4,1fr);border-left:1px solid #111;border-top:1px solid #111}
-.periodo{display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid #111;border-top:1px solid #111;margin-top:8px}
-.meta div,.periodo div{min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111;overflow-wrap:anywhere}
-.meta strong,.periodo strong{display:block;font-size:9px;text-transform:uppercase;color:#374151}
-.section{margin-top:10px;border:1px solid #111;page-break-inside:avoid}
-.section h2{margin:0;padding:5px 7px;background:#e5e7eb;font-size:11px}
-.section .cuerpo{min-height:44px;margin:0;padding:7px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
-.ayuda{margin:0;padding:4px 7px;border-bottom:1px solid #d1d5db;background:#fafafa;font-size:9px;color:#4b5563}
-table{width:100%;border-collapse:collapse;table-layout:fixed}
-th,td{height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
-th{background:#eee;font-size:9px}
-.firma-seccion{padding:6px 7px;border-top:1px solid #111;font-size:10px}
-.signatures{display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px}
-.signatures div{min-height:52px;padding:6px;border:1px solid #111}
-.signatures strong{display:block;font-size:9px;text-transform:uppercase;color:#374151}
-.estado{margin-top:10px;padding:6px 8px;font-size:10px;font-weight:700}
-.estado--borrador{background:#fff7dd;border-left:4px solid #d89b00}
-.estado--finalizado{background:#e7f6ec;border-left:4px solid #1a7f3c}
+.paper{width:min(760px,calc(100% - 24px));min-height:980px;margin:18px auto;padding:34px 31px 22px;background:#fff;box-shadow:0 8px 30px #0002}
+/* ── Cabecera ── */
+.sci-head{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e}
+.sci-head img{width:60px;height:auto}
+.sci-head-center{text-align:center}
+.sci-head-center h1{margin:0;font-size:13px;color:#1a237e;font-weight:900}
+.sci-head-center p{margin:2px 0 0;font-size:12px;color:#1a237e;font-weight:700}
+.sci-head-right{text-align:right}
+.sci-head-right img{width:52px;height:auto}
+/* ── Tabla principal del formulario ── */
+.sci-form{width:100%;border-collapse:collapse;font-size:10.5px}
+.sci-form td,.sci-form th{border:1px solid #1a237e;padding:4px 6px;vertical-align:top}
+.sci-form .lbl{font-weight:700;color:#1a237e;font-size:10px;display:block;margin-bottom:2px}
+.sci-form .val{min-height:18px;white-space:pre-wrap;word-break:break-word;color:#111}
+.sci-form .val--vacio{color:#aaa;font-style:italic}
+.sci-form .celda-grande{min-height:185px}
+.sci-form .celda-xs{min-height:28px}
+.sci-form .celda-xl{min-height:200px}
+.sci-form .celda-xxl{min-height:770px}
+.sci-form .center{text-align:center;font-weight:700;color:#1a237e}
+/* ── Pie de página ── */
+.sci-footer{display:flex;justify-content:space-between;padding:3px 12px;font-size:9px;color:#555;border-top:1px solid #ccc}
+/* ── Separador de página ── */
+.page-break{page-break-before:always;border-top:2px dashed #ccc;margin:18px 0}
+.page-break-inner{page-break-before:always}
+/* ── Estado ── */
+.estado{padding:5px 8px;font-size:9.5px;font-weight:700;margin:0}
+.estado--borrador{background:#fff7dd;border-left:3px solid #d89b00}
+.estado--finalizado{background:#e7f6ec;border-left:3px solid #1a7f3c}
 .vacio{color:#9ca3af}
-@media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;padding:0;box-shadow:none}}
+/* ── Tabla de acciones ── */
+.tbl-acciones{width:100%;border-collapse:collapse;font-size:10px}
+.tbl-acciones th{background:#e8eaf6;color:#1a237e;font-size:9.5px;padding:3px 5px;border:1px solid #1a237e;text-align:center}
+.tbl-acciones td{border:1px solid #1a237e;padding:3px 5px;height:20px;vertical-align:middle}
+@media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.page-break{border-top:none;margin:0}}
 </style></head><body>
 
 <nav class="toolbar">
@@ -43,66 +49,185 @@ th{background:#eee;font-size:9px}
   <button class="ghost" onclick="window.close()">Cerrar</button>
 </nav>
 
-<main class="paper">
-  <header class="head">
-    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI">
-    <div>
-      <h1>Formulario SCI-{{ codigo }}</h1>
-      <p>{{ esquema.nombre|upper }}</p>
+{% if codigo == '201' %}
+{# ════════════════════════════════════════════════════════════════════ #}
+{# SCI-201  LAYOUT FIEL AL FORMULARIO OFICIAL  Rev. 06-2015            #}
+{# ════════════════════════════════════════════════════════════════════ #}
+
+{% with s=secciones|dictsort:"numero" %}
+{% comment %}Construir acceso rápido a secciones por nombre{% endcomment %}
+{% endwith %}
+
+{# Helper: obtener valor de una sección por nombre #}
+{% for item in secciones %}{% if item.nombre == "lugar_incidente" %}{% with lugar_val=item.valor %}{% endwith %}{% endif %}{% endfor %}
+
+{# ── PÁGINA 1 ─────────────────────────────────────────────────────── #}
+<div class="paper">
+  {# Cabecera #}
+  <div style="display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:60px">
+    <div style="text-align:center">
+      <div style="font-size:13px;color:#1a237e;font-weight:900">Formulario SCI - 201</div>
+      <div style="font-size:12px;color:#1a237e;font-weight:700">Resumen del Incidente</div>
     </div>
-    <div class="head__institucion">
-      <img src="{% static 'img/logos/emblema-bomberos-latacunga-256.png' %}" alt="Cuerpo de Bomberos de Latacunga">
-      <div class="code">{{ emergencia.codigo }}</div>
-    </div>
-  </header>
+    <div aria-hidden="true"></div>
+  </div>
 
-  <p class="proposito">{{ esquema.proposito }}</p>
-  {% if esquema.aviso %}<p class="aviso">{{ esquema.aviso }}</p>{% endif %}
+  {# Tabla principal página 1 #}
+  <table class="sci-form" style="width:100%">
+    <colgroup><col span="6" style="width:16.666%"></colgroup>
+    {# Fila: 1. Nombre del incidente | 2. Fecha y hora de preparación #}
+    <tr>
+      <td colspan="3"><span class="lbl">1. Nombre del Incidente:</span><span class="val">{{ emergencia.tipo_emergencia }}</span></td>
+      <td colspan="3"><span class="lbl">2. Fecha y hora de preparación:</span><span class="val">{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</span></td>
+    </tr>
+    {# Fila: 3. Lugar del incidente #}
+    <tr>
+      <td colspan="6">
+        <span class="lbl">3. Lugar del Incidente:</span>
+        <span class="val">
+          {% for sec in secciones %}{% if sec.nombre == "lugar_incidente" %}{% if sec.valor %}{{ sec.valor }}{% else %}{{ emergencia.direccion }}{% endif %}{% endif %}{% endfor %}
+        </span>
+      </td>
+    </tr>
+    {# Fila: 4. Evaluación inicial #}
+    <tr>
+      <td colspan="6" class="celda-grande" style="min-height:220px">
+        <span class="lbl">4. Evaluación Inicial:</span>
+        <div style="padding-left:6px;margin-top:3px;font-size:10px;color:#1a237e">- Naturaleza del incidente.&nbsp;&nbsp; - Amenazas.&nbsp;&nbsp; - Áreas afectadas.&nbsp;&nbsp; - Aislamiento.</div>
+        <span class="val" style="display:block;margin-top:4px">
+          {% for sec in secciones %}{% if sec.nombre == "evaluacion_inicial" %}{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente de completar</span>{% endif %}{% endif %}{% endfor %}
+        </span>
+      </td>
+    </tr>
+    {# Fila: 5. Objetivos | 6. Estrategias | 7. Tácticas #}
+    <tr>
+      <td colspan="2" class="celda-grande">
+        <span class="lbl">5. Objetivo(s) inicial(es):</span>
+        <span class="val">{% for sec in secciones %}{% if sec.nombre == "objetivos_iniciales" %}{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente</span>{% endif %}{% endif %}{% endfor %}</span>
+      </td>
+      <td colspan="2" class="celda-grande">
+        <span class="lbl">6. Estrategias:</span>
+        <span class="val">{% for sec in secciones %}{% if sec.nombre == "estrategias" %}{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente</span>{% endif %}{% endif %}{% endfor %}</span>
+      </td>
+      <td colspan="2" class="celda-grande">
+        <span class="lbl">7. Tácticas:</span>
+        <span class="val">{% for sec in secciones %}{% if sec.nombre == "tacticas" %}{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente</span>{% endif %}{% endif %}{% endfor %}</span>
+      </td>
+    </tr>
+    {# Fila: 8. PC | 9. Área de Espera #}
+    <tr>
+      <td colspan="3" class="celda-xs"><span class="lbl">8. Ubicación del PC:</span><span class="val">{% for sec in secciones %}{% if sec.nombre == "ubicacion_pc" %}{{ sec.valor|default:"" }}{% endif %}{% endfor %}</span></td>
+      <td colspan="3" class="celda-xs"><span class="lbl">9. Ubicación del E:</span><span class="val">{% for sec in secciones %}{% if sec.nombre == "ubicacion_e" %}{{ sec.valor|default:"" }}{% endif %}{% endfor %}</span></td>
+    </tr>
+    {# Fila: 10. Ruta ingreso | 11. Ruta egreso #}
+    <tr>
+      <td colspan="3" class="celda-xs"><span class="lbl">10. Ruta Ingreso:</span><span class="val">{% for sec in secciones %}{% if sec.nombre == "ruta_ingreso" %}{{ sec.valor|default:"" }}{% endif %}{% endfor %}</span></td>
+      <td colspan="3" class="celda-xs"><span class="lbl">11. Ruta Egreso:</span><span class="val">{% for sec in secciones %}{% if sec.nombre == "ruta_egreso" %}{{ sec.valor|default:"" }}{% endif %}{% endfor %}</span></td>
+    </tr>
+    {# Fila: 12. Mensaje de seguridad #}
+    <tr>
+      <td colspan="6" class="celda-xs">
+        <span class="lbl">12. Mensaje General de Seguridad:</span>
+        <span class="val">{% for sec in secciones %}{% if sec.nombre == "mensaje_seguridad" %}{{ sec.valor|default:"" }}{% endif %}{% endfor %}</span>
+      </td>
+    </tr>
+    {# Fila: 13. CI firma #}
+    <tr>
+      <td colspan="1" style="font-weight:700;color:#1a237e;font-size:10px">Página 1 de 4</td>
+      <td colspan="5"><span class="lbl">13. Comandante del Incidente (Nombre, Apellidos) y firma:</span><span class="val" style="min-height:22px;display:block">{{ formulario_generico.preparado_por|default:"" }}</span></td>
+    </tr>
+  </table>
+  <div class="sci-footer"><span>Rev. 06 - 2015</span><span>{{ emergencia.codigo }}</span></div>
+</div>
 
-  <section class="meta">
-    <div><strong>1. Nombre del incidente</strong>{{ emergencia.tipo_emergencia }}</div>
-    <div><strong>2. Fecha y hora de preparación</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
-    <div><strong>Lugar del incidente</strong>{{ emergencia.direccion }}</div>
-    <div><strong>Institución</strong>{{ emergencia.estacion_responsable.cuerpo_bomberos.nombre }}</div>
-  </section>
+{# ── PÁGINA 2 — MAPA / CROQUIS ────────────────────────────────────── #}
+<div class="paper page-break">
+  <div style="display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:60px">
+    <div style="text-align:center"><div style="font-size:13px;color:#1a237e;font-weight:900">Formulario SCI - 201</div><div style="font-size:12px;color:#1a237e;font-weight:700">Resumen del Incidente</div></div>
+    <div aria-hidden="true"></div>
+  </div>
+  <table class="sci-form" style="width:100%">
+    <tr><td style="text-align:center;font-weight:700;color:#1a237e;font-size:10.5px;padding:4px">14.&nbsp; Mapa Situacional o Croquis:</td></tr>
+    <tr>
+      <td class="celda-xxl" style="vertical-align:top">
+        {% for sec in secciones %}{% if sec.nombre == "croquis" %}
+          {% if sec.valor %}<span class="val" style="white-space:pre-wrap">{{ sec.valor }}</span>
+          {% else %}<span class="val--vacio" style="color:#aaa;font-style:italic">Espacio para el mapa situacional o croquis del incidente.</span>{% endif %}
+          {% if emergencia.latitud %}<div style="margin-top:8px;font-size:9.5px;color:#374151"><strong>Coordenadas GPS:</strong> {{ emergencia.latitud }}, {{ emergencia.longitud }}</div>{% endif %}
+        {% endif %}{% endfor %}
+      </td>
+    </tr>
+    <tr>
+      <td style="width:18%;font-weight:700;color:#1a237e;font-size:10px">Página 2 de 4</td>
+    </tr>
+  </table>
+  <div class="sci-footer"><span>Rev. 06 - 2015</span><span>{{ emergencia.codigo }}</span></div>
+</div>
 
-  {% if campos_periodo %}
-  <section class="periodo">
-    {% for campo in campos_periodo %}
-    <div><strong>{{ campo.numero }}. {{ campo.etiqueta }}</strong>{{ campo.valor|default:"—" }}</div>
-    {% endfor %}
-  </section>
-  {% endif %}
+{# ── PÁGINA 3 — TABLA DE ACCIONES ─────────────────────────────────── #}
+<div class="paper page-break">
+  <div style="display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:60px">
+    <div style="text-align:center"><div style="font-size:13px;color:#1a237e;font-weight:900">Formulario SCI - 201</div><div style="font-size:12px;color:#1a237e;font-weight:700">Resumen del Incidente</div></div>
+    <div aria-hidden="true"></div>
+  </div>
+  <table class="tbl-acciones" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:22%">15. Fecha y Hora:</th>
+        <th>16. Resumen de las Acciones:</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sec in secciones %}{% if sec.nombre == "acciones" %}
+        {% for fila in sec.filas %}
+        <tr>
+          {% for celda in fila.celdas %}
+          <td style="{% if forloop.first %}width:22%{% endif %}">{{ celda.valor }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      {% endif %}{% endfor %}
+    </tbody>
+  </table>
+  <table class="sci-form" style="width:100%;margin-top:0">
+    <tr>
+      <td style="width:18%;font-weight:700;color:#1a237e;font-size:10px;border-top:1px solid #1a237e">Página 3 de 4</td>
+      <td style="border-top:1px solid #1a237e"><span class="lbl">13. Comandante del Incidente (Nombre, Apellidos) y firma:</span><span class="val" style="min-height:16px;display:block">{{ formulario_generico.preparado_por|default:"" }}</span></td>
+    </tr>
+  </table>
+  <div class="sci-footer"><span>Rev. 06 - 2015</span><span>{{ emergencia.codigo }}</span></div>
+</div>
 
-  {% for seccion in secciones %}
-  <section class="section">
-    <h2>{{ seccion.numero }}. {{ seccion.etiqueta|upper }}</h2>
-    {% if seccion.ayuda %}<p class="ayuda">{{ seccion.ayuda }}</p>{% endif %}
-    {% if seccion.tipo == 'tabla' %}
-      <table>
-        <thead><tr>{% for columna in seccion.columnas %}<th{% if columna.ancho %} style="width:{{ columna.ancho }}"{% endif %}>{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td>{{ celda.valor }}</td>{% endfor %}</tr>{% endfor %}</tbody>
-      </table>
-      {% if seccion.firma %}<div class="firma-seccion"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"________________________" }}</div>{% endif %}
-    {% else %}
-      <p class="cuerpo">{% if seccion.valor %}{{ seccion.valor }}{% else %}<span class="vacio">Pendiente de completar</span>{% endif %}</p>
-    {% endif %}
-  </section>
-  {% endfor %}
-
-  {% if codigo == '201' and emergencia.latitud %}
-  <section class="section"><h2>COORDENADAS DEL INCIDENTE</h2><p class="cuerpo">{{ emergencia.latitud }}, {{ emergencia.longitud }}</p></section>
-  {% endif %}
-
-  <section class="signatures">
-    <div><strong>Preparado por</strong>{{ formulario_generico.preparado_por|default:"________________________" }}</div>
-    <div><strong>Posición</strong>{{ esquema.preparado_por }}</div>
-    {% if esquema.aprobado_por %}
-    <div><strong>Aprobado por</strong>{{ esquema.aprobado_por }}</div>
-    {% else %}
-    <div><strong>Fecha y hora</strong>{{ formulario_generico.fecha_actualizacion|date:"d/m/Y H:i"|default:"—" }}</div>
-    {% endif %}
-  </section>
+{# ── PÁGINA 4 — ORGANIGRAMA ────────────────────────────────────────── #}
+<div class="paper page-break">
+  <div style="display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:60px">
+    <div style="text-align:center"><div style="font-size:13px;color:#1a237e;font-weight:900">Formulario SCI - 201</div><div style="font-size:12px;color:#1a237e;font-weight:700">Resumen del Incidente</div></div>
+    <div aria-hidden="true"></div>
+  </div>
+  <table class="sci-form" style="width:100%">
+    <tr>
+      <td style="width:50%"><span class="lbl">1. Nombre del Incidente:</span><span class="val">{{ emergencia.tipo_emergencia }}</span></td>
+      <td style="width:50%"><span class="lbl">2. Fecha y hora de Preparación:</span><span class="val">{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</span></td>
+    </tr>
+    <tr><td colspan="2" style="text-align:center;font-weight:700;color:#1a237e;font-size:10.5px;padding:4px">17. Organigrama Actual:</td></tr>
+    <tr>
+      <td colspan="2" class="celda-xxl" style="vertical-align:top">
+        {% for sec in secciones %}{% if sec.nombre == "organigrama" %}
+          {% if sec.valor %}<span class="val" style="white-space:pre-wrap">{{ sec.valor }}</span>
+          {% else %}<span class="val--vacio" style="color:#aaa;font-style:italic">Espacio para el organigrama del incidente (posiciones activadas y responsable de cada una).</span>{% endif %}
+        {% endif %}{% endfor %}
+      </td>
+    </tr>
+    <tr>
+      <td style="width:18%;font-weight:700;color:#1a237e;font-size:10px">Página 4 de 4</td>
+      <td><span class="lbl">13. Comandante del Incidente (Nombre, Apellidos) y firma:</span><span class="val" style="min-height:16px;display:block">{{ formulario_generico.preparado_por|default:"" }}</span></td>
+    </tr>
+  </table>
+  <div class="sci-footer"><span>Rev. 06 - 2015</span><span>{{ emergencia.codigo }}</span></div>
 
   {% if formulario_generico %}
     {% if formulario_generico.es_editable %}
@@ -111,9 +236,82 @@ th{background:#eee;font-size:9px}
     <p class="estado estado--finalizado">FINALIZADO el {{ formulario_generico.fecha_finalizacion|date:"d/m/Y H:i" }} por {{ formulario_generico.finalizado_por }} · Documento de solo lectura</p>
     {% endif %}
   {% elif solo_vista %}
-  <p class="estado estado--borrador">Vista de catálogo sin incidente asociado · Estructura oficial del formulario. Al registrar una emergencia podrás diligenciarlo y guardarlo.</p>
+  <p class="estado estado--borrador">Vista de catálogo · Estructura oficial del formulario SCI-201 Rev. 06-2015.</p>
   {% else %}
   <p class="estado estado--borrador">SIN REGISTROS · Este formulario aún no ha sido diligenciado para {{ emergencia.codigo }}</p>
   {% endif %}
+</div>
+
+{% else %}
+{# ════════════════════════════════════════════════════════════════════ #}
+{# RESTO DE FORMULARIOS SCI — layout genérico original                 #}
+{# ════════════════════════════════════════════════════════════════════ #}
+<main class="paper" style="padding:18px">
+  <header style="display:grid;grid-template-columns:80px 1fr 110px;align-items:center;border-bottom:2px solid #111;padding-bottom:8px">
+    <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:64px">
+    <div style="text-align:center"><h1 style="margin:0;font-size:17px">Formulario SCI-{{ codigo }}</h1><p style="margin:3px 0;font-weight:700">{{ esquema.nombre|upper }}</p></div>
+    <div style="text-align:right">
+      <img src="{% static 'img/logos/emblema-bomberos-latacunga-256.png' %}" alt="CBL" style="width:52px">
+      <div style="font-weight:900;font-size:12px">{{ emergencia.codigo }}</div>
+    </div>
+  </header>
+
+  <p style="margin:8px 0;padding:6px 8px;background:#f3f4f6;font-size:10px;font-style:italic">{{ esquema.proposito }}</p>
+  {% if esquema.aviso %}<p style="margin:8px 0;padding:6px 8px;border-left:4px solid #d89b00;background:#fff7dd;font-size:10px">{{ esquema.aviso }}</p>{% endif %}
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);border-left:1px solid #111;border-top:1px solid #111">
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">1. Nombre del incidente</strong>{{ emergencia.tipo_emergencia }}</div>
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">2. Fecha y hora de preparación</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Lugar del incidente</strong>{{ emergencia.direccion }}</div>
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Institución</strong>{{ emergencia.estacion_responsable.cuerpo_bomberos.nombre }}</div>
+  </div>
+
+  {% if campos_periodo %}
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid #111;border-top:1px solid #111;margin-top:8px">
+    {% for campo in campos_periodo %}
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">{{ campo.numero }}. {{ campo.etiqueta }}</strong>{{ campo.valor|default:"—" }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% for seccion in secciones %}
+  <section style="margin-top:10px;border:1px solid #111;page-break-inside:avoid">
+    <h2 style="margin:0;padding:5px 7px;background:#e5e7eb;font-size:11px">{{ seccion.numero }}. {{ seccion.etiqueta|upper }}</h2>
+    {% if seccion.ayuda %}<p style="margin:0;padding:4px 7px;border-bottom:1px solid #d1d5db;background:#fafafa;font-size:9px;color:#4b5563">{{ seccion.ayuda }}</p>{% endif %}
+    {% if seccion.tipo == 'tabla' %}
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+        <thead><tr>{% for columna in seccion.columnas %}<th style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;background:#eee;font-size:9px{% if columna.ancho %};width:{{ columna.ancho }}{% endif %}">{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.valor }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+      {% if seccion.firma %}<div style="padding:6px 7px;border-top:1px solid #111;font-size:10px"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"________________________" }}</div>{% endif %}
+    {% else %}
+      <p style="min-height:44px;margin:0;padding:7px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">{% if seccion.valor %}{{ seccion.valor }}{% else %}<span style="color:#9ca3af">Pendiente de completar</span>{% endif %}</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px">
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Preparado por</strong>{{ formulario_generico.preparado_por|default:"________________________" }}</div>
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Posición</strong>{{ esquema.preparado_por }}</div>
+    {% if esquema.aprobado_por %}
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Aprobado por</strong>{{ esquema.aprobado_por }}</div>
+    {% else %}
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Fecha y hora</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
+    {% endif %}
+  </div>
+
+  {% if formulario_generico %}
+    {% if formulario_generico.es_editable %}
+    <p class="estado estado--borrador" style="margin-top:10px;padding:6px 8px;font-size:10px;font-weight:700;background:#fff7dd;border-left:4px solid #d89b00">BORRADOR · Última modificación {{ formulario_generico.fecha_actualizacion|date:"d/m/Y H:i" }} por {{ formulario_generico.modificado_por }}</p>
+    {% else %}
+    <p class="estado estado--finalizado" style="margin-top:10px;padding:6px 8px;font-size:10px;font-weight:700;background:#e7f6ec;border-left:4px solid #1a7f3c">FINALIZADO el {{ formulario_generico.fecha_finalizacion|date:"d/m/Y H:i" }} por {{ formulario_generico.finalizado_por }} · Documento de solo lectura</p>
+    {% endif %}
+  {% elif solo_vista %}
+  <p style="margin-top:10px;padding:6px 8px;font-size:10px;font-weight:700;background:#fff7dd;border-left:4px solid #d89b00">Vista de catálogo sin incidente asociado · Estructura oficial del formulario. Al registrar una emergencia podrás diligenciarlo y guardarlo.</p>
+  {% else %}
+  <p style="margin-top:10px;padding:6px 8px;font-size:10px;font-weight:700;background:#fff7dd;border-left:4px solid #d89b00">SIN REGISTROS · Este formulario aún no ha sido diligenciado para {{ emergencia.codigo }}</p>
+  {% endif %}
 </main>
+{% endif %}
+
 </body></html>

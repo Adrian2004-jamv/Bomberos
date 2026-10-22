@@ -68,24 +68,38 @@ ESQUEMAS_SCI = {
         "periodo_operacional": False,
         "preparado_por": "Comandante del Incidente",
         "secciones": [
+            # Campo 3 — Lugar del incidente (fila completa, auto-completado)
+            {"numero": 3, "nombre": "lugar_incidente", "etiqueta": "Lugar del incidente", "tipo": TEXTO,
+             "ayuda": "Se completa automáticamente con la dirección registrada en la emergencia."},
+            # Campo 4 — Evaluación inicial con sub-ítems
             {"numero": 4, "nombre": "evaluacion_inicial", "etiqueta": "Evaluación inicial", "tipo": TEXTAREA,
-             "ayuda": "Naturaleza del incidente, amenazas, áreas afectadas y aislamiento.", "filas": 5},
-            {"numero": 5, "nombre": "objetivos_iniciales", "etiqueta": "Objetivo(s) inicial(es)", "tipo": TEXTAREA, "filas": 4},
-            {"numero": 6, "nombre": "estrategias", "etiqueta": "Estrategias", "tipo": TEXTAREA, "filas": 4},
-            {"numero": 7, "nombre": "tacticas", "etiqueta": "Tácticas", "tipo": TEXTAREA, "filas": 4},
+             "ayuda": "Incluya: - Naturaleza del incidente.  - Amenazas.  - Áreas afectadas.  - Aislamiento.",
+             "filas": 8},
+            # Campos 5, 6, 7 en una misma sección (se renderizan en 3 columnas en el preview)
+            {"numero": 5, "nombre": "objetivos_iniciales", "etiqueta": "Objetivo(s) inicial(es)", "tipo": TEXTAREA, "filas": 6},
+            {"numero": 6, "nombre": "estrategias", "etiqueta": "Estrategias", "tipo": TEXTAREA, "filas": 6},
+            {"numero": 7, "nombre": "tacticas", "etiqueta": "Tácticas", "tipo": TEXTAREA, "filas": 6},
+            # Campos 8-9 en 2 columnas
             {"numero": 8, "nombre": "ubicacion_pc", "etiqueta": "Ubicación del Puesto de Comando (PC)", "tipo": TEXTO},
             {"numero": 9, "nombre": "ubicacion_e", "etiqueta": "Ubicación del Área de Espera (E)", "tipo": TEXTO},
+            # Campos 10-11 en 2 columnas
             {"numero": 10, "nombre": "ruta_ingreso", "etiqueta": "Ruta de ingreso", "tipo": TEXTO},
             {"numero": 11, "nombre": "ruta_egreso", "etiqueta": "Ruta de egreso", "tipo": TEXTO},
+            # Campo 12 — Seguridad
             {"numero": 12, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad", "tipo": TEXTAREA, "filas": 4},
+            # Campo 14 — Mapa/Croquis (página 2 completa)
             {"numero": 14, "nombre": "croquis", "etiqueta": "Mapa situacional o croquis", "tipo": TEXTAREA,
-             "ayuda": "Describa el croquis. Las coordenadas de la emergencia se imprimen automáticamente.", "filas": 6},
+             "ayuda": "Describa el croquis o adjunte una descripción. Las coordenadas GPS de la emergencia se imprimen automáticamente.",
+             "filas": 18},
+            # Campos 15-16 — Tabla cronológica de acciones (página 3)
             {"numero": 16, "nombre": "acciones", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
-             "columnas": [_columna("fecha_hora", "15. Fecha y hora", "18%", tipo=FECHA_HORA),
-                          _columna("accion", "Resumen de la acción")],
-             "filas_minimas": 6},
+             "columnas": [_columna("fecha_hora", "15. Fecha y Hora", "22%", tipo=FECHA_HORA),
+                          _columna("accion", "16. Resumen de la acción")],
+             "filas_minimas": 24},
+            # Campo 17 — Organigrama (página 4)
             {"numero": 17, "nombre": "organigrama", "etiqueta": "Organigrama actual", "tipo": TEXTAREA,
-             "ayuda": "Posiciones activadas y responsable de cada una.", "filas": 6},
+             "ayuda": "Liste las posiciones activadas y el responsable de cada una.",
+             "filas": 18},
         ],
     },
     "202": {

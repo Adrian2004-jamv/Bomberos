@@ -323,6 +323,11 @@ class FormularioSCI(models.Model):
 
     La estructura de cada código vive en ``esquemas_sci.ESQUEMAS_SCI``; aquí solo
     se guardan los valores capturados y el ciclo de vida del documento.
+
+    El campo ``numero_periodo`` permite emitir varios períodos operacionales del
+    mismo formulario (SCI-201, SCI-202, etc.) dentro de una misma emergencia
+    prolongada. El primer período es el 1; cada vez que se activa uno nuevo se
+    crea un registro separado con el número siguiente.
     """
 
     class Estado(models.TextChoices):
@@ -334,6 +339,11 @@ class FormularioSCI(models.Model):
         verbose_name="emergencia",
     )
     codigo_sci = models.CharField("código SCI", max_length=3)
+    numero_periodo = models.PositiveSmallIntegerField(
+        "número de período operacional", default=1,
+        help_text="Período operacional al que corresponde este formulario. "
+                  "Increméntelo cuando el incidente se extiende a un nuevo período.",
+    )
     datos = models.JSONField(default=dict, blank=True)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
     preparado_por = models.CharField("preparado por", max_length=150, blank=True)
@@ -356,14 +366,17 @@ class FormularioSCI(models.Model):
     class Meta:
         verbose_name = "formulario SCI"
         verbose_name_plural = "formularios SCI"
-        ordering = ("codigo_sci", "pk")
+        ordering = ("codigo_sci", "numero_periodo", "pk")
         constraints = [
             models.UniqueConstraint(
-                fields=("emergencia", "codigo_sci"), name="formulario_sci_unico_por_emergencia"
+                fields=("emergencia", "codigo_sci", "numero_periodo"),
+                name="formulario_sci_unico_por_emergencia_y_periodo",
             )
         ]
 
     def __str__(self):
+        if self.numero_periodo > 1:
+            return f"SCI-{self.codigo_sci} P{self.numero_periodo}-{self.emergencia.codigo}"
         return f"SCI-{self.codigo_sci}-{self.emergencia.codigo}"
 
     @property

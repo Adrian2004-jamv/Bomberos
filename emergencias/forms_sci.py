@@ -129,8 +129,9 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, emergencia=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.emergencia = emergencia
         queryset = Recurso.objects.none()
         if usuario and usuario.is_authenticated:
             # Se ofrece el inventario completo del ámbito. Lo que no puede
@@ -176,8 +177,12 @@ class RegistroRecursoSCI211Form(forms.ModelForm):
             self.fields["solicitado_por"].initial = (
                 usuario.get_full_name() or usuario.username
             )
-        self.fields["fecha_hora_solicitud"].initial = timezone.localtime().replace(
-            second=0, microsecond=0
+        # Cada registro nace de una emergencia ya reportada; usar esa hora
+        # conserva una única fecha base en todos los formularios SCI.
+        fecha_reporte = getattr(self.emergencia, "fecha_reporte", None)
+        self.fields["fecha_hora_solicitud"].initial = (
+            timezone.localtime(fecha_reporte).replace(second=0, microsecond=0)
+            if fecha_reporte else timezone.localtime().replace(second=0, microsecond=0)
         )
 
     def preparar_responsable(self, usuario):

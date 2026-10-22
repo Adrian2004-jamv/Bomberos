@@ -9,7 +9,10 @@
             <h2 id="sci-incidents-title">Formularios organizados por incidente</h2>
             <p>Despliega un incidente para consultar únicamente los documentos que ya fueron creados.</p>
         </div>
-        <span class="sci-incident-total"><strong>{{ expedientes|length }}</strong> incidente{{ expedientes|length|pluralize }}</span>
+        <div style="display:flex;align-items:center;gap:.6rem">
+            <span class="sci-incident-total"><strong>{{ expedientes|length }}</strong> incidente{{ expedientes|length|pluralize }}</span>
+            <button class="guide-btn" type="button" onclick="window.bomberosTour && window.bomberosTour.iniciar()" aria-label="Iniciar guía de formularios SCI"><i class="ti ti-help-circle" aria-hidden="true"></i> Guía</button>
+        </div>
     </div>
     {% if expedientes %}
         <div class="sci-incident-list">

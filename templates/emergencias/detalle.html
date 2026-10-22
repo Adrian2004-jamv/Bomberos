@@ -6,7 +6,7 @@
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
-        <div><p class="eyebrow">{{ emergencia.get_estado_display }}</p><h2>{{ emergencia.tipo_emergencia }}</h2></div>
+        <div><p class="eyebrow">{{ emergencia.get_estado_display }}</p><h2>{{ emergencia.tipo_emergencia }} · {{ emergencia.direccion }}</h2></div>
         <div class="panel__heading-actions">
             {% if puede_gestionar and not emergencia.esta_terminada %}<a class="button button--ghost" href="{% url 'emergencias:editar' emergencia.pk %}"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</a>{% endif %}
             <a class="button" href="{% url 'emergencias:lista' %}">Volver al listado</a>
@@ -57,7 +57,51 @@
         <span><i class="sci-status-dot sci-status-dot--open" aria-hidden="true"></i>Registro abierto durante la emergencia</span><span><i class="sci-status-dot sci-status-dot--pending" aria-hidden="true"></i>No iniciado</span>
     </div>
     <p class="sci-order-help"><i class="ti ti-list-numbers" aria-hidden="true"></i> Orden recomendado según las fases de planificación operativa del SCI.</p>
-    <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>{% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
+    <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>
+    {% elif item.codigo == "201" and periodos_sci201|length > 0 %}
+        {# SCI-201 con múltiples períodos: tarjeta expandible #}
+        <details class="sci-form-tab sci-form-tab--{{ item.clave_estado }} sci-form-tab--multiperiodo" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}">
+            <summary>
+                <strong class="sci-form-tab__number">{{ item.numero }}</strong>
+                <span class="sci-form-tab__content">
+                    <b>SCI-{{ item.codigo }}</b>
+                    <strong class="sci-form-tab__name">{{ item.nombre }}</strong>
+                    <small>{{ item.etapa_orden }}</small>
+                    <em>{{ periodos_sci201|length }} período{{ periodos_sci201|length|pluralize }}</em>
+                </span>
+                <i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i>
+            </summary>
+            <div class="sci-periodos-list">
+                {% for p in periodos_sci201 %}
+                <div class="sci-periodo-item sci-periodo-item--{% if p.estado == 'finalizado' %}complete{% else %}incomplete{% endif %}">
+                    <span class="sci-periodo-badge">P{{ p.numero_periodo }}</span>
+                    <span class="sci-periodo-label">
+                        Período {{ p.numero_periodo }}
+                        <small>{% if p.estado == 'finalizado' %}Finalizado{% else %}Borrador{% endif %}</small>
+                    </span>
+                    <div class="sci-periodo-actions">
+                        <a href="{% url 'emergencias:sci_visualizar_periodo' '201' emergencia.pk p.numero_periodo %}" target="_blank" rel="noopener" title="Ver período {{ p.numero_periodo }}"><i class="ti ti-eye" aria-hidden="true"></i></a>
+                        {% if p.estado != 'finalizado' and puede_editar_sci %}
+                        <a href="{% url 'emergencias:sci_editar_periodo' '201' emergencia.pk p.numero_periodo %}" title="Editar período {{ p.numero_periodo }}"><i class="ti ti-pencil" aria-hidden="true"></i></a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if puede_editar_sci and not emergencia.esta_terminada %}
+                {% with ultimo=periodos_sci201|last %}
+                {% if ultimo.estado == 'finalizado' %}
+                <form method="post" action="{% url 'emergencias:sci_nuevo_periodo' '201' emergencia.pk %}" class="sci-nuevo-periodo-form">
+                    {% csrf_token %}
+                    <button type="submit" class="sci-nuevo-periodo-btn">
+                        <i class="ti ti-plus" aria-hidden="true"></i> Activar período {{ periodos_sci201|length|add:1 }}
+                    </button>
+                </form>
+                {% endif %}
+                {% endwith %}
+                {% endif %}
+            </div>
+        </details>
+    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>

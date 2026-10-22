@@ -351,3 +351,253 @@ def construir_dashboard(usuario, limite_actividad=8, parametros=None):
         ),
         "puede_gestionar_instituciones": puede_gestionar_instituciones(usuario),
     }
+
+
+# ==========================================
+# MÓDULO: INFORME DE EMERGENCIAS FINALIZADAS
+# ==========================================
+
+def emergencias_finalizadas(estaciones, limite=20, desde=None, hasta=None):
+    """Emergencias cerradas o canceladas del ámbito, con datos relacionados precargados."""
+    consulta = (
+        emergencias_del_ambito(estaciones)
+        .filter(estado__in=ESTADOS_TERMINADOS)
+        .select_related(
+            "estacion_responsable",
+            "estacion_responsable__cuerpo_bomberos",
+            "estacion_responsable__cuerpo_bomberos__canton",
+            "registrado_por",
+        )
+        .prefetch_related("despliegues__unidad__tipo__categoria", "despliegues__estacion_procedencia")
+        .order_by("-fecha_cierre", "-fecha_reporte", "-pk")
+    )
+    if desde:
+        consulta = consulta.filter(fecha_reporte__date__gte=desde)
+    if hasta:
+        consulta = consulta.filter(fecha_reporte__date__lte=hasta)
+    return list(consulta[:limite])
+
+
+def _sci_datos(emergencia, codigo):
+    """Devuelve el JSONField datos del primer FormularioSCI encontrado, o {}."""
+    from emergencias.models import FormularioSCI
+    formulario = (
+        FormularioSCI.objects
+        .filter(emergencia=emergencia, codigo_sci=codigo)
+        .order_by("numero_periodo")
+        .first()
+    )
+    return formulario.datos if formulario else {}
+
+
+def _sci_preparado_por(emergencia, codigo):
+    """Devuelve el campo preparado_por del formulario, o cadena vacía."""
+    from emergencias.models import FormularioSCI
+    formulario = (
+        FormularioSCI.objects
+        .filter(emergencia=emergencia, codigo_sci=codigo)
+        .order_by("numero_periodo")
+        .first()
+    )
+    return formulario.preparado_por if formulario else ""
+
+
+def _fmt_dt(dt):
+    """Fecha y hora en formato legible, o 'No registrado'."""
+    if dt is None:
+        return "No registrado"
+    from django.utils.timezone import localtime
+    return localtime(dt).strftime("%d/%m/%Y %H:%M")
+
+
+def _duracion(inicio, fin):
+    """Calcula horas y minutos entre dos datetime, o None si falta alguno."""
+    if not inicio or not fin:
+        return None
+    delta = fin - inicio
+    if delta.total_seconds() < 0:
+        return None
+    total = int(delta.total_seconds())
+    horas, resto = divmod(total, 3600)
+    minutos = resto // 60
+    if horas:
+        return f"{horas} h {minutos:02d} min"
+    return f"{minutos} min"
+
+
+def datos_informe_emergencia(emergencia):
+    """
+    Reúne toda la información disponible de una emergencia finalizada
+    para construir el resumen operativo y el PDF institucional.
+
+    Extrae datos reales del modelo y los formularios SCI relacionados.
+    No inventa valores: usa 'No registrado' cuando el dato falta.
+    """
+    # ── Despliegues ──────────────────────────────────────────────────
+    despliegues = list(
+        emergencia.despliegues
+        .select_related(
+            "unidad", "unidad__tipo", "unidad__tipo__categoria",
+            "estacion_procedencia", "estacion_procedencia__cuerpo_bomberos",
+            "despachado_por",
+        )
+        .order_by("fecha_asignacion", "pk")
+    )
+    # Primera salida y primera llegada registradas entre todos los despliegues
+    salidas    = [d.fecha_salida   for d in despliegues if d.fecha_salida]
+    llegadas   = [d.fecha_llegada  for d in despliegues if d.fecha_llegada]
+    retornos   = [d.fecha_retorno  for d in despliegues if d.fecha_retorno]
+    primera_salida  = min(salidas)   if salidas   else None
+    primera_llegada = min(llegadas)  if llegadas  else None
+    ultima_retorno  = max(retornos)  if retornos  else None
+
+    # ── Formularios SCI ──────────────────────────────────────────────
+    sci201 = _sci_datos(emergencia, "201")
+    sci203 = _sci_datos(emergencia, "203")
+    sci207 = _sci_datos(emergencia, "207")
+    sci214 = _sci_datos(emergencia, "214")
+    sci221 = _sci_datos(emergencia, "221")
+    ci_nombre = _sci_preparado_por(emergencia, "201")  # campo «preparado_por» = CI
+
+    # Comandante del incidente desde SCI-203 tabla «comando»
+    if not ci_nombre and sci203:
+        for fila in (sci203.get("comando") or []):
+            if isinstance(fila, dict):
+                posicion = str(fila.get("posicion", "")).strip()
+                nombre   = str(fila.get("nombre", "")).strip()
+                if "principal" in posicion.lower() and nombre:
+                    ci_nombre = nombre
+                    break
+
+    # Representantes institucionales (SCI-203)
+    representantes = [
+        f"{r.get('nombre','')} — {r.get('institucion','')}"
+        for r in (sci203.get("representantes") or [])
+        if isinstance(r, dict) and (r.get("nombre") or r.get("institucion"))
+    ]
+
+    # Personal SCI-214
+    personal_sci = [
+        f"{p.get('nombre','')} ({p.get('posicion','')}) — {p.get('institucion','')}"
+        for p in (sci214.get("personal") or [])
+        if isinstance(p, dict) and p.get("nombre")
+    ]
+
+    # Actividades SCI-214
+    actividades = [
+        {"hora": a.get("hora", ""), "evento": a.get("evento", "")}
+        for a in (sci214.get("actividades") or [])
+        if isinstance(a, dict) and a.get("evento")
+    ]
+
+    # Acciones cronológicas SCI-201
+    acciones_201 = [
+        {"fecha_hora": a.get("fecha_hora", ""), "accion": a.get("accion", "")}
+        for a in (sci201.get("acciones") or [])
+        if isinstance(a, dict) and a.get("accion")
+    ]
+
+    # Pacientes SCI-207
+    pacientes = [
+        p for p in (sci207.get("pacientes") or [])
+        if isinstance(p, dict) and p.get("nombre")
+    ]
+    total_pacientes = len(pacientes)
+    fallecidos   = sum(1 for p in pacientes if "rojo" in str(p.get("clasificacion","")).lower()
+                       and "fallecido" in str(p.get("lugar_traslado","")).lower())
+    evacuados    = sum(1 for p in pacientes if p.get("lugar_traslado"))
+
+    # ── Cronología ───────────────────────────────────────────────────
+    hora_notificacion  = emergencia.fecha_reporte
+    hora_cierre        = emergencia.fecha_cierre
+    hora_desmoviliz    = None
+    if sci221.get("tiempo_conclusion"):
+        from django.utils.dateparse import parse_datetime
+        from django.utils.timezone import make_aware, is_naive
+        dt_raw = parse_datetime(sci221["tiempo_conclusion"])
+        if dt_raw:
+            hora_desmoviliz = make_aware(dt_raw) if is_naive(dt_raw) else dt_raw
+
+    tiempo_respuesta      = _duracion(hora_notificacion, primera_llegada)
+    duracion_operaciones  = _duracion(primera_llegada,   hora_cierre)
+    duracion_total        = _duracion(hora_notificacion, hora_cierre)
+
+    # ── Institución ──────────────────────────────────────────────────
+    estacion = emergencia.estacion_responsable
+    try:
+        cuerpo = estacion.cuerpo_bomberos
+        canton = cuerpo.canton
+        institucion_nombre = cuerpo.nombre
+        provincia = getattr(canton, "provincia", None) or "Cotopaxi"
+        canton_nombre = canton.nombre if canton else "No registrado"
+    except Exception:
+        institucion_nombre = "No registrado"
+        provincia = "Cotopaxi"
+        canton_nombre = "No registrado"
+
+    # ── SCI-211 ──────────────────────────────────────────────────────
+    sci211 = getattr(emergencia, "formulario_sci_211", None)
+    registros_211 = []
+    if sci211:
+        registros_211 = list(
+            sci211.registros
+            .select_related("recurso_inventario__tipo__categoria")
+            .order_by("orden", "pk")
+        )
+
+    return {
+        # Identificación
+        "emergencia":          emergencia,
+        "codigo":              emergencia.codigo,
+        "tipo":                emergencia.tipo_emergencia,
+        "prioridad":           emergencia.get_prioridad_display(),
+        "estado":              emergencia.get_estado_display(),
+        "descripcion":         emergencia.descripcion or "No registrado",
+        "institucion":         institucion_nombre,
+        "provincia":           str(provincia),
+        "canton":              canton_nombre,
+        "estacion":            estacion.nombre,
+        # Ubicación
+        "direccion":           emergencia.direccion or "No registrado",
+        "latitud":             str(emergencia.latitud)  if emergencia.latitud  else None,
+        "longitud":            str(emergencia.longitud) if emergencia.longitud else None,
+        "coordenadas":         (f"{emergencia.latitud}, {emergencia.longitud}"
+                                if emergencia.latitud and emergencia.longitud else "No registrado"),
+        # Mando
+        "ci_nombre":           ci_nombre or "No registrado",
+        "registrado_por":      emergencia.registrado_por.get_full_name()
+                               or emergencia.registrado_por.username,
+        "representantes":      representantes,
+        "personal_sci":        personal_sci,
+        # Cronología
+        "hora_notificacion":   _fmt_dt(hora_notificacion),
+        "hora_primera_salida": _fmt_dt(primera_salida),
+        "hora_primera_llegada":_fmt_dt(primera_llegada),
+        "hora_cierre":         _fmt_dt(hora_cierre),
+        "hora_desmoviliz":     _fmt_dt(hora_desmoviliz),
+        "tiempo_respuesta":    tiempo_respuesta    or "No calculable",
+        "duracion_operaciones":duracion_operaciones or "No calculable",
+        "duracion_total":      duracion_total       or "No calculable",
+        # Descripción operativa (SCI-201)
+        "evaluacion_inicial":  sci201.get("evaluacion_inicial")  or "No registrado",
+        "objetivos":           sci201.get("objetivos_iniciales") or "No registrado",
+        "estrategias":         sci201.get("estrategias")         or "No registrado",
+        "tacticas":            sci201.get("tacticas")            or "No registrado",
+        "mensaje_seguridad":   sci201.get("mensaje_seguridad")   or "No registrado",
+        "organigrama":         sci201.get("organigrama")         or "No registrado",
+        "ubicacion_pc":        sci201.get("ubicacion_pc")        or "No registrado",
+        "acciones_201":        acciones_201,
+        # Recursos
+        "despliegues":         despliegues,
+        "total_unidades":      len(despliegues),
+        "registros_211":       registros_211,
+        "sci211":              sci211,
+        # Afectaciones (SCI-207)
+        "pacientes":           pacientes,
+        "total_pacientes":     total_pacientes,
+        "evacuados":           evacuados,
+        "fallecidos":          fallecidos,
+        # Actividades (SCI-214)
+        "actividades":         actividades,
+        "representantes_inst": representantes,
+    }
