@@ -169,28 +169,6 @@ td a { color: var(--color-red-700); }
    no a medias, y no interrumpen el orden de los demás formularios. */
 .incident-open-logs{display:inline-flex;align-items:center;gap:.25rem;margin-top:.3rem;padding:.2rem .45rem;border-radius:999px;color:#1d3f9e;background:#e8eefc;font-size:.63rem;font-weight:800}
 
-/* ── Múltiples períodos SCI-201 ────────────────────────────────────── */
-.sci-form-tab--multiperiodo{display:flex;flex-direction:column;cursor:pointer;padding:0}
-.sci-form-tab--multiperiodo summary{display:flex;align-items:center;gap:.45rem;padding:.55rem .65rem;list-style:none;cursor:pointer;width:100%}
-.sci-form-tab--multiperiodo summary::-webkit-details-marker{display:none}
-.sci-form-tab--multiperiodo[open] summary{border-bottom:1px solid var(--color-slate-200)}
-.sci-periodos-list{display:grid;gap:.3rem;padding:.5rem .6rem}
-.sci-periodo-item{display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:.4rem;background:var(--color-slate-50);border:1px solid var(--color-slate-200)}
-.sci-periodo-item--complete{border-color:#a7f3d0;background:#f0fdf9}
-.sci-periodo-item--incomplete{border-color:#fde68a;background:#fffbeb}
-.sci-periodo-badge{display:grid;place-items:center;min-width:1.75rem;height:1.75rem;border-radius:.35rem;background:var(--color-navy-900);color:#fff;font-size:.62rem;font-weight:900;flex-shrink:0}
-.sci-periodo-item--complete .sci-periodo-badge{background:#059669}
-.sci-periodo-item--incomplete .sci-periodo-badge{background:#d97706}
-.sci-periodo-label{flex:1;display:grid;gap:.1rem;font-size:.72rem;font-weight:800;color:var(--color-navy-950)}
-.sci-periodo-label small{font-size:.62rem;font-weight:600;color:var(--color-slate-500)}
-.sci-periodo-actions{display:flex;gap:.3rem}
-.sci-periodo-actions a{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:.35rem;border:1px solid var(--color-slate-300);color:var(--color-slate-600);text-decoration:none;font-size:.85rem;transition:background 150ms,color 150ms,border-color 150ms}
-.sci-periodo-actions a:hover{color:var(--color-red-700);border-color:var(--color-red-400);background:#fff5f5}
-.sci-nuevo-periodo-form{margin-top:.3rem}
-.sci-nuevo-periodo-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.45rem .6rem;border:1.5px dashed var(--color-red-400);border-radius:.45rem;background:#fff5f5;color:var(--color-red-700);font:inherit;font-size:.72rem;font-weight:800;cursor:pointer;transition:background 150ms,border-color 150ms}
-.sci-nuevo-periodo-btn:hover{background:var(--color-red-700);color:#fff;border-style:solid}
-.sci-nuevo-periodo-btn .ti{font-size:.9rem}
-
 /* ── Periodos operacionales: historial y reactivación ──────────────── */
 .periodos-historial { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--color-slate-200); }
 .periodos-historial__titulo {

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=22"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -144,44 +144,14 @@
     </div>
     <p class="sci-order-help"><i class="ti ti-list-numbers" aria-hidden="true"></i> Orden recomendado según las fases de planificación operativa del SCI.</p>
     <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>
-    {% elif item.codigo == "201" and periodos_sci201|length > 0 %}
-        {# SCI-201 con múltiples períodos: tarjeta expandible #}
-        <details class="sci-form-tab sci-form-tab--{{ item.clave_estado }} sci-form-tab--multiperiodo" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}">
-            <summary>
-                <strong class="sci-form-tab__number">{{ item.numero }}</strong>
-                <span class="sci-form-tab__content">
-                    <b>SCI-{{ item.codigo }}</b>
-                    <strong class="sci-form-tab__name">{{ item.nombre }}</strong>
-                    <small>{{ item.etapa_orden }}</small>
-                    <em>{{ periodos_sci201|length }} período{{ periodos_sci201|length|pluralize }}</em>
-                </span>
-                <i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i>
-            </summary>
-            <div class="sci-periodos-list">
-                {% for p in periodos_sci201 %}
-                <div class="sci-periodo-item sci-periodo-item--{% if p.estado == 'finalizado' %}complete{% else %}incomplete{% endif %}">
-                    <span class="sci-periodo-badge">P{{ p.periodo__numero }}</span>
-                    <span class="sci-periodo-label">
-                        Período {{ p.periodo__numero }}
-                        <small>{% if p.estado == 'finalizado' %}Finalizado{% else %}Borrador{% endif %}</small>
-                    </span>
-                    <div class="sci-periodo-actions">
-                        <a href="{% url 'emergencias:sci_visualizar_periodo' '201' emergencia.pk p.periodo__numero %}" title="Ver período {{ p.periodo__numero }}"><i class="ti ti-eye" aria-hidden="true"></i></a>
-                        {% if p.estado != 'finalizado' and not p.periodo__fin and puede_editar_sci %}
-                        <a href="{% url 'emergencias:sci_editar_periodo' '201' emergencia.pk p.periodo__numero %}" title="Editar período {{ p.periodo__numero }}"><i class="ti ti-pencil" aria-hidden="true"></i></a>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-                {% comment %}
-                El botón de abrir periodo vivía aquí, dentro del SCI-201, y abría
-                un periodo solo para ese formulario. El periodo es del incidente,
-                así que ahora se abre desde la reactivación, en la cabecera de la
-                ficha. Aquí solo queda el historial.
-                {% endcomment %}
-            </div>
-        </details>
-    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
+    {% comment %}
+    El SCI-201 tenía aquí una tarjeta que se desplegaba en una lista de
+    períodos, cada uno con su propio enlace de ver y de editar. Eran «versiones»
+    del formulario y el Cuerpo de Bomberos de Latacunga las rechazó: el
+    documento es uno, con sus periodos dentro. Ahora todos los formularios
+    entran por el mismo sitio y los periodos se recorren dentro del documento.
+    {% endcomment %}
+    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}{% if item.periodos > 1 %} · {{ item.periodos }} periodos en un documento{% endif %}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>

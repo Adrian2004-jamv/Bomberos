@@ -37,7 +37,7 @@ from .permissions import (conduce_el_despliegue, despliegues_asignados,
                           puede_gestionar_emergencias)
 from .codigos import generar_codigo_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
-                          ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO,
+                          ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO, TABLA,
                           campos_periodo, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
@@ -735,10 +735,14 @@ def detalle(request, pk):
         raise PermissionDenied
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
     sci211 = getattr(emergencia, "formulario_sci_211", None)
-    genericos = {
-        formulario.codigo_sci: formulario
-        for formulario in emergencia.formularios_sci.all()
-    }
+    # Un mismo código puede tener un registro por periodo operacional. La
+    # ficha ofrece una sola entrada —el documento continuo— y dice cuántos
+    # periodos lleva dentro; el estado que pinta es el del periodo más
+    # reciente, que es el que se está llenando.
+    por_codigo = defaultdict(list)
+    for formulario in emergencia.formularios_sci.all():
+        por_codigo[formulario.codigo_sci].append(formulario)
+    genericos = {codigo: hojas[-1] for codigo, hojas in por_codigo.items()}
     catalogo_sci_estado = []
     finalizados = formularios_sci_finalizados(emergencia)
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
@@ -775,6 +779,7 @@ def detalle(request, pk):
             "etapa_orden": ETAPA_FORMULARIO_SCI[item["codigo"]],
             "bloqueado": not desbloqueado_con(item["codigo"], finalizados),
             "en_curso": en_curso,
+            "periodos": len(por_codigo.get(item["codigo"], ())),
         })
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
@@ -837,13 +842,6 @@ def detalle(request, pk):
         # El historial del incidente: todos sus periodos, abiertos y cerrados.
         "periodos_operacionales": list(emergencia.periodos.order_by("numero")),
         "periodo_vigente": periodo_actual(emergencia),
-        "periodos_sci201": list(
-            FormularioSCI.objects
-            .filter(emergencia=emergencia, codigo_sci="201")
-            .order_by("periodo__numero")
-            .values("periodo__numero", "periodo__fin", "estado",
-                    "fecha_actualizacion", "fecha_finalizacion")
-        ),
     }
 
     return render(request, "emergencias/detalle.html", contexto)
@@ -1029,6 +1027,68 @@ def periodo_heredado(emergencia, codigo):
             break
     return heredado
 
+def periodos_anteriores_del_documento(emergencia, codigo, esquema, periodo):
+    """Lo escrito en este mismo formulario en los periodos ya cerrados.
+
+    El periodo nació como «otra versión» del documento: cada uno tenía su
+    pantalla y para leer el periodo 1 había que salir del 2. El Cuerpo de
+    Bomberos de Latacunga lo rechazó con una frase que describe el papel mejor
+    que el programa: «queremos un solo documento continuo». En la hoja real el
+    periodo nuevo se escribe debajo del anterior, no en otra carpeta.
+
+    La base de datos no cambia —sigue habiendo un registro por periodo, que es
+    justo lo que mantiene intacto lo anterior—; cambia lo que llega a la
+    pantalla: todos los periodos previos, en orden y resueltos a texto, de modo
+    que no haya un solo control capaz de reenviarlos.
+    """
+    if periodo is None or getattr(emergencia, "pk", None) is None:
+        return []
+    hasta = periodo.numero if periodo.esta_abierto else periodo.numero + 1
+    anteriores = (
+        FormularioSCI.objects
+        .filter(emergencia=emergencia, codigo_sci=codigo,
+                periodo__numero__lt=hasta)
+        .select_related("periodo")
+        .order_by("periodo__numero")
+    )
+    return [hoja_de_solo_lectura(esquema, formulario) for formulario in anteriores]
+
+
+def hoja_de_solo_lectura(esquema, formulario):
+    """Un periodo resuelto a texto plano, sin un «name» que pueda reenviarse.
+
+    Las filas vacías de una tabla existen en el editor para poder escribir. En
+    un periodo cerrado solo serían renglones en blanco entre dos cosas que sí
+    se dijeron, de modo que no se traen. Las de etiqueta fija —«Agua»,
+    «Alimentación»— sí, porque ahí el renglón vacío significa que ese recurso
+    no se pidió.
+    """
+    datos = formulario.datos or {}
+    secciones = []
+    for seccion in secciones_con_valores(esquema, datos):
+        if seccion["tipo"] == TABLA:
+            if not seccion.get("filas_fijas"):
+                seccion["filas"] = [
+                    fila for fila in seccion["filas"]
+                    if any(str(celda["valor"] or "").strip()
+                           for celda in fila["celdas"])
+                ]
+            seccion["vacia"] = not seccion["filas"]
+        else:
+            seccion["vacia"] = not str(seccion.get("valor") or "").strip()
+        secciones.append(seccion)
+    return {
+        "periodo": formulario.periodo,
+        "formulario": formulario,
+        "finalizado": formulario.estado == FormularioSCI.Estado.FINALIZADO,
+        "campos_periodo": [
+            dict(campo, valor=datos.get(campo["nombre"], ""))
+            for campo in campos_periodo(esquema)
+        ],
+        "secciones": secciones,
+    }
+
+
 def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
@@ -1070,6 +1130,25 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
         # no ofrecer el boton de guardar en uno cerrado.
         "periodo": periodo,
         "periodo_cerrado": periodo is not None and not periodo.esta_abierto,
+        # Los periodos ya cerrados de este mismo documento, para leerlos sin
+        # salir de él. Cuando el incidente no tiene ningún periodo abierto
+        # entra también el vigente: no hay nada que escribir y la hoja se
+        # consulta completa.
+        "periodos_anteriores": periodos_anteriores_del_documento(
+            emergencia, codigo, esquema, periodo
+        ),
+        # Los periodos que tienen hoja de este formulario. El documento continuo
+        # los lleva dentro, pero la hoja de impresión es por periodo —el papel
+        # oficial lo es— y necesita decir cuáles hay y cómo llegar a ellos.
+        "periodos_del_documento": (
+            list(
+                FormularioSCI.objects
+                .filter(emergencia=emergencia, codigo_sci=codigo)
+                .order_by("periodo__numero")
+                .values_list("periodo__numero", flat=True)
+            )
+            if getattr(emergencia, "pk", None) else []
+        ),
         # El «min» de cada control de fecha. Es el mismo instante que rechaza el
         # servidor, de modo que el navegador no deja escribir lo que luego se
         # rechazaría: el error se evita en vez de explicarse.
@@ -1265,26 +1344,39 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
     if not puede_editar_sci(request.user, emergencia):
         raise PermissionDenied
     el_periodo = periodo_pedido(emergencia, periodo)
-    formulario, _ = FormularioSCI.objects.get_or_create(
-        emergencia=emergencia, codigo_sci=codigo, periodo=el_periodo,
-        defaults={"creado_por": request.user, "modificado_por": request.user},
-    )
-    if not formulario.es_editable:
-        if not el_periodo.esta_abierto:
-            messages.info(
-                request,
-                f"El SCI-{codigo} del periodo operacional {el_periodo.numero} "
-                "pertenece a un periodo cerrado: queda como se escribió y solo "
-                "puede consultarse.",
-            )
-        else:
+    vigente = periodo_actual(emergencia)
+    # Las rutas «…/periodo/<n>/…» siguen existiendo —hay enlaces y marcadores
+    # con ellas—, pero ya no abren «otra versión» del formulario: llevan al
+    # documento continuo, anclado en el periodo que piden. Que un periodo viejo
+    # tenga su propia pantalla es justo lo que el Cuerpo de Bomberos rechazó.
+    if el_periodo.pk != vigente.pk:
+        return redirect(
+            reverse("emergencias:sci_editar", args=[codigo, emergencia.pk])
+            + f"#periodo-{el_periodo.numero}"
+        )
+    formulario = None
+    if el_periodo.esta_abierto:
+        formulario, _ = FormularioSCI.objects.get_or_create(
+            emergencia=emergencia, codigo_sci=codigo, periodo=el_periodo,
+            defaults={"creado_por": request.user, "modificado_por": request.user},
+        )
+        if not formulario.es_editable:
             messages.info(
                 request,
                 f"El formulario SCI-{codigo} está finalizado y es de solo lectura.",
             )
-        return redirect("emergencias:sci_visualizar_periodo", codigo=codigo,
-                        emergencia_pk=emergencia.pk, periodo=el_periodo.numero)
-    if request.method == "POST":
+            return redirect("emergencias:sci_visualizar_periodo", codigo=codigo,
+                            emergencia_pk=emergencia.pk, periodo=el_periodo.numero)
+    # Sin periodo abierto no se crea registro ninguno y el documento se abre
+    # completo pero bajo llave: todo lo escrito, nada donde escribir.
+    if request.method == "POST" and not el_periodo.esta_abierto:
+        messages.error(
+            request,
+            f"El periodo operacional {el_periodo.numero} está cerrado: lo que "
+            "se escribió en él no se modifica. Reactive la emergencia para "
+            "abrir el periodo siguiente.",
+        )
+    elif request.method == "POST":
         recursos = recursos_disponibles_verificados(request.user)
         try:
             post_validado = normalizar_recursos_sci(

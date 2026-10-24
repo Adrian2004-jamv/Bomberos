@@ -214,19 +214,29 @@ class RutasDelPeriodoTests(BaseDelPeriodo):
                 ))
                 self.assertEqual(respuesta.status_code, 200)
 
-    def test_editar_el_periodo_cerrado_redirige_a_la_consulta(self):
+    def test_editar_un_periodo_cerrado_abre_el_documento_continuo(self):
+        """La ruta vieja sigue viva, pero ya no abre una pantalla propia.
+
+        Antes llevaba a «la versión» del periodo 1. Ahora lleva al único
+        documento del formulario, anclado en ese periodo, que es donde se lee:
+        las versiones separadas son justo lo que el Cuerpo de Bomberos rechazó.
+        """
         emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA)
         self.crear_formulario(emergencia, "202")
         reactivar_emergencia(emergencia, self.usuario, "Rebrote")
         self.client.force_login(self.usuario)
+        documento = reverse("emergencias:sci_editar", args=["202", emergencia.pk])
         respuesta = self.client.get(
             reverse("emergencias:sci_editar_periodo",
                     kwargs={"codigo": "202", "emergencia_pk": emergencia.pk,
                             "periodo": 1}),
-            follow=True,
         )
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, "periodo operacional 1, cerrado")
+        self.assertRedirects(
+            respuesta, f"{documento}#periodo-1", fetch_redirect_response=False
+        )
+        self.assertContains(
+            self.client.get(documento), "Periodo operacional 1, cerrado"
+        )
 
     def test_editar_el_periodo_abierto_funciona(self):
         emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA)
@@ -406,3 +416,168 @@ class TerminarLaEmergenciaDesdeLaFichaTests(BaseDelPeriodo):
         self.assertEqual(
             confirman, {"controlada": False, "cerrada": True, "cancelada": True}
         )
+
+
+class DocumentoContinuoTests(BaseDelPeriodo):
+    """Un documento con sus periodos dentro, no un documento por periodo.
+
+    El Cuerpo de Bomberos de Latacunga rechazó las versiones separadas con una
+    frase que describe el papel mejor que el programa: «queremos un solo
+    documento continuo». Si la emergencia se reactiva no quieren buscar otro
+    archivo: abren el mismo formulario, leen arriba lo que pusieron en el
+    periodo 1 —bloqueado— y escriben debajo el periodo 2.
+
+    La base de datos no cambió: sigue habiendo un registro por periodo, que es
+    lo que mantiene intacto lo anterior. Cambió lo que llega a la pantalla.
+    """
+
+    def incidente_reactivado(self, codigo="202", **datos):
+        datos = datos or {"objetivos": "Confinar el fuego en el ala norte"}
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-CONT")
+        self.crear_formulario(
+            emergencia, codigo, datos=datos, preparado_por="Capitán Vaca",
+        )
+        nuevo = reactivar_emergencia(
+            emergencia, self.usuario, "Rebrote en el ala norte"
+        )
+        self.client.force_login(self.usuario)
+        return emergencia, nuevo
+
+    def test_un_solo_documento_trae_lo_cerrado_y_lo_que_se_escribe(self):
+        emergencia, _ = self.incidente_reactivado()
+        respuesta = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", emergencia.pk])
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        html = respuesta.content.decode()
+        # Arriba, el periodo 1 tal como quedó.
+        self.assertIn("Confinar el fuego en el ala norte", html)
+        self.assertIn("Periodo operacional 1, cerrado", html)
+        self.assertIn("Rebrote en el ala norte", html)
+        # Debajo, el periodo 2 y dónde escribirlo, en la misma página.
+        self.assertIn('id="periodo-2"', html)
+        self.assertIn("Inicio del periodo operacional 2", html)
+        self.assertIn('name="objetivos"', html)
+
+    def test_lo_cerrado_se_lee_pero_no_tiene_un_solo_control(self):
+        """Ni un «name» en lo cerrado: no hay nada que pueda reenviarse.
+
+        Un campo deshabilitado seguiría pareciendo escribible —sobre todo con
+        guante— y dentro del formulario que se envía sería peor, porque el
+        navegador no manda el valor de un campo deshabilitado. Lo cerrado se
+        dibuja con texto.
+        """
+        import re as _re
+
+        emergencia, _ = self.incidente_reactivado()
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["202", emergencia.pk])
+        ).content.decode()
+        bloques = _re.findall(
+            r'<details class="sci-periodo-cerrado".*?</details>', html, _re.S
+        )
+        self.assertEqual(len(bloques), 1)
+        for prohibido in ("<input", "<textarea", "<select", "name="):
+            self.assertNotIn(prohibido, bloques[0])
+
+    def test_escribir_el_periodo_abierto_no_toca_el_anterior(self):
+        emergencia, nuevo = self.incidente_reactivado()
+        respuesta = self.client.post(
+            reverse("emergencias:sci_editar", args=["202", emergencia.pk]),
+            {"objetivos": "Enfriar y vigilar el rescoldo",
+             "preparado_por": "Capitán Vaca"},
+        )
+        self.assertEqual(respuesta.status_code, 302)
+        viejo = FormularioSCI.objects.get(
+            emergencia=emergencia, codigo_sci="202", periodo__numero=1
+        )
+        reciente = FormularioSCI.objects.get(
+            emergencia=emergencia, codigo_sci="202", periodo=nuevo
+        )
+        self.assertEqual(viejo.datos["objetivos"], "Confinar el fuego en el ala norte")
+        self.assertEqual(reciente.datos["objetivos"], "Enfriar y vigilar el rescoldo")
+
+    def test_el_201_tambien_es_un_solo_documento(self):
+        """El 201 es el que más veces se vuelve a llenar, y el que lo motivó."""
+        emergencia, _ = self.incidente_reactivado(
+            "201", evaluacion_inicial="Incendio declarado en la bodega",
+        )
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+        self.assertIn("Incendio declarado en la bodega", html)
+        self.assertIn("Periodo operacional 1, cerrado", html)
+        self.assertIn('name="evaluacion_inicial"', html)
+
+    def test_sin_periodo_abierto_el_documento_se_lee_y_nada_mas(self):
+        """Caso defensivo: ningún periodo abierto.
+
+        Pasa si el último periodo quedó cerrado sin abrir el siguiente. El
+        documento se abre completo, sin dónde escribir y sin crear registros, y
+        dice qué hacer: reactivar la emergencia.
+        """
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-SOLO")
+        self.crear_formulario(emergencia, "202", datos={"objetivos": "Lo que se hizo"})
+        periodo = periodo_actual(emergencia)
+        periodo.fin = timezone.now()
+        periodo.save(update_fields=["fin"])
+        self.client.force_login(self.usuario)
+        direccion = reverse("emergencias:sci_editar", args=["202", emergencia.pk])
+
+        respuesta = self.client.get(direccion)
+        self.assertEqual(respuesta.status_code, 200)
+        html = respuesta.content.decode()
+        self.assertIn("Lo que se hizo", html)
+        self.assertIn("no tiene ningún periodo operacional abierto", html)
+        self.assertNotIn('id="sci-document-form"', html)
+
+        self.client.post(direccion, {"objetivos": "Reescribir lo cerrado"})
+        self.assertEqual(
+            FormularioSCI.objects.filter(
+                emergencia=emergencia, codigo_sci="202"
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            FormularioSCI.objects.get(
+                emergencia=emergencia, codigo_sci="202"
+            ).datos["objetivos"],
+            "Lo que se hizo",
+        )
+
+    def test_la_ficha_ofrece_una_sola_entrada_por_formulario(self):
+        """La tarjeta que se desplegaba en una lista de versiones ya no está."""
+        emergencia, nuevo = self.incidente_reactivado("201")
+        self.crear_formulario(emergencia, "201", periodo=nuevo, datos={})
+        html = self.client.get(
+            reverse("emergencias:detalle", args=[emergencia.pk])
+        ).content.decode()
+        self.assertNotIn("sci-periodo-item", html)
+        self.assertNotIn("/periodo/1/editar/", html)
+        self.assertNotIn("/periodo/2/editar/", html)
+        # En su lugar, una sola entrada que avisa de lo que lleva dentro.
+        self.assertIn("2 periodos en un documento", html)
+
+    def test_la_hoja_de_impresion_lleva_a_los_demas_periodos(self):
+        """Quien solo consulta no entra al documento continuo.
+
+        El documento vive en la vista de edición, y a esa no entra quien solo
+        tiene permiso de consulta. Como la ficha dejó de ofrecer un enlace por
+        periodo, sin esta lista se quedaría sin manera de abrir el periodo 1.
+        La hoja de impresión sí es por periodo —el papel oficial lo es— y es el
+        sitio natural para decir cuáles hay.
+        """
+        emergencia, nuevo = self.incidente_reactivado()
+        self.crear_formulario(
+            emergencia, "202", periodo=nuevo, datos={"objetivos": "Enfriamiento"},
+        )
+        html = self.client.get(
+            reverse("emergencias:sci_visualizar", args=["202", emergencia.pk])
+        ).content.decode()
+        self.assertIn(
+            reverse("emergencias:sci_visualizar_periodo",
+                    kwargs={"codigo": "202", "emergencia_pk": emergencia.pk,
+                            "periodo": 1}),
+            html,
+        )
+        self.assertIn("periodo 2 (este)", html)

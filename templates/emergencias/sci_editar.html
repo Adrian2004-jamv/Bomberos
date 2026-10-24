@@ -1,16 +1,35 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=22"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=11">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=12">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
-    <div><strong>SCI-{{ codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }} · Periodo {{ periodo.numero }}</span></div>
+    <div><strong>SCI-{{ codigo }}</strong><span>{{ emergencia.codigo }} · {% if periodos_anteriores %}{{ periodos_anteriores|length|add:1 }} periodos en un solo documento{% else %}periodo operacional {{ periodo.numero }}{% endif %}{% if periodo_cerrado %} · solo lectura{% endif %}</span></div>
     <div>
       <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>
       <a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>
-      <button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>
+      {% if not periodo_cerrado %}<button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>{% endif %}
     </div>
   </div>
+
+  {% comment %}
+  El documento es uno y se recorre con el dedo: primero lo que quedó escrito en
+  los periodos cerrados y debajo el que está en curso. Antes cada periodo era
+  una pantalla aparte y para leer el primero había que salir del segundo; el
+  Cuerpo de Bomberos de Latacunga lo rechazó y tiene razón: en el papel el
+  periodo nuevo se escribe debajo del anterior.
+  {% endcomment %}
+  {% if periodos_anteriores %}
+  <section class="sci-timeline" aria-label="Periodos operacionales anteriores de este documento">
+    <p class="sci-timeline__intro"><i class="ti ti-history" aria-hidden="true"></i> <strong>Un solo documento.</strong> Arriba, lo que se escribió en los periodos ya cerrados: no se modifica. Al final, el periodo en curso, donde sí se escribe.</p>
+    {% for bloque in periodos_anteriores %}{% include "emergencias/fragmentos/sci_periodo_cerrado.html" %}{% endfor %}
+  </section>
+  {% endif %}
+
+  {% if periodo_cerrado %}
+  <p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">reactívela desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de este, sin tocar lo anterior.</p>
+  {% else %}
+  {% if periodos_anteriores %}<p class="sci-separador-periodo" id="periodo-{{ periodo.numero }}"><span>Inicio del periodo operacional {{ periodo.numero }}{% if periodo.motivo %} · se reactivó por: {{ periodo.motivo }}{% endif %}</span></p>{% endif %}
 
   <form method="post" id="sci-document-form" data-guardar-sin-conexion="Formulario SCI" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %} sci-paper--word">{% csrf_token %}
     <header class="sci-paper__header">
@@ -139,6 +158,7 @@
     <p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar.</p>
     <button class="button" type="submit">Finalizar formulario SCI-{{ codigo }}</button>
   </form>
+  {% endif %}
   {% endif %}
 </div>
 {% endblock %}

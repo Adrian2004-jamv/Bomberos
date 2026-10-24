@@ -42,6 +42,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .tbl-acciones td{border:1px solid #1a237e;padding:3px 5px;height:20px;vertical-align:middle}
 @media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.page-break{border-top:none;margin:0}}
 .periodo-sello{width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #475569;background:#e2e8f0;color:#1e293b;font:11px Arial;font-weight:700}
+.periodo-nav{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #0b4ea2;background:#eef2f8;color:#1f2d4a;font:11px Arial}.periodo-nav a{color:#0b4ea2;font-weight:700}@media print{.periodo-nav{display:none}}
 </style></head><body>
 
 <nav class="toolbar">
@@ -50,6 +51,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   {% if emergencia.pk %}<a class="ghost" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>{% else %}<a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a>{% endif %}
 </nav>
 {% if periodo_cerrado %}<p class="periodo-sello">Documento del periodo operacional {{ periodo.numero }}, cerrado el {{ periodo.fin|date:"d/m/Y H:i" }}. Es un periodo cerrado y lo escrito en él no se modifica; las versiones posteriores viven en el periodo vigente del incidente.</p>{% endif %}
+{% if periodos_del_documento|length > 1 %}<p class="periodo-nav">Este formulario tiene hoja en {{ periodos_del_documento|length }} periodos operacionales: {% for numero in periodos_del_documento %}{% if numero == periodo.numero %}<b>periodo {{ numero }} (este)</b>{% else %}<a href="{% url 'emergencias:sci_visualizar_periodo' codigo emergencia.pk numero %}">periodo {{ numero }}</a>{% endif %}{% endfor %}</p>{% endif %}
 
 {% if codigo == '201' %}
 {# ════════════════════════════════════════════════════════════════════ #}
