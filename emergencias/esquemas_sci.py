@@ -449,20 +449,32 @@ def campos_periodo(esquema):
 def limpiar(valor):
     return str(valor or "").strip()[:LIMITE_TEXTO]
 
-def secciones_con_valores(esquema, datos, imprimir=False):
+# Cómo se dibuja una tabla según para qué sea la pantalla:
+#
+# * EDICION: una sola fila vacía para empezar y el botón de agregar las demás.
+# * LECTURA: solo las filas que tienen datos, ni una más. Es la hoja impresa y
+#   también todo documento de solo lectura: un expediente no lleva renglones de
+#   relleno, y una estrategia registrada se imprime como una fila, no como una
+#   fila entre seis vacías.
+# * BLANCO: los renglones que declara ``filas_impresion``, para el formulario en
+#   blanco del catálogo, que no pertenece a ningún incidente y se imprime para
+#   escribirlo a mano.
+MODO_EDICION = "edicion"
+MODO_LECTURA = "lectura"
+MODO_BLANCO = "blanco"
+
+def secciones_con_valores(esquema, datos, modo=MODO_EDICION):
     """Combina el esquema con los datos guardados para renderizar el formulario.
 
-    ``imprimir`` decide cuántas filas vacías lleva cada tabla. En pantalla,
-    ninguna de más: una fila para empezar y el botón de agregar las demás. En la
-    hoja impresa, las que declara ``filas_impresion``, porque un formulario en
-    papel trae sus renglones para escribirlos a mano.
+    ``modo`` decide qué filas lleva cada tabla; ver ``MODO_EDICION``,
+    ``MODO_LECTURA`` y ``MODO_BLANCO``.
     """
     resultado = []
     for seccion in esquema["secciones"]:
         item = dict(seccion)
         if seccion["tipo"] == TABLA:
             item["filas"] = filas_para_render(
-                seccion, datos.get(seccion["nombre"]), imprimir
+                seccion, datos.get(seccion["nombre"]), modo
             )
             item["firma_valor"] = datos.get(f"{seccion['nombre']}__firma", "")
         else:
@@ -487,7 +499,36 @@ def _celda(columna, valor):
 # Cuántas líneas lleva una tabla impresa si el esquema no lo dice.
 FILAS_IMPRESION_POR_DEFECTO = 5
 
-def filas_para_render(seccion, guardadas, imprimir=False):
+# Los selectores del editor nombran cada recurso y, si no está libre, añaden por qué:
+# «AB-01 - Autobomba (Estación Central) · ya asignada a otra emergencia». Esa cadena
+# se guarda tal cual como valor de la celda —cambiar lo guardado dejaría sin selección
+# los formularios ya llenos—, de modo que el aviso del editor acaba impreso en un
+# documento oficial y la celda se desborda. Solo se quita al mostrar; lo guardado no
+# se toca. El aviso nunca lleva paréntesis ni otro punto medio, de modo que se corta
+# justo detrás del paréntesis de la estación.
+_AVISO_DE_DISPONIBILIDAD = re.compile(r"^(.*\)) · [^·()]+$")
+
+def sin_aviso_de_disponibilidad(valor):
+    return _AVISO_DE_DISPONIBILIDAD.sub(r"\1", str(valor or ""))
+
+def limpiar_avisos(filas):
+    """Quita el aviso de disponibilidad de las celdas de recursos (solo al mostrar)."""
+    for fila in filas:
+        for celda in fila["celdas"]:
+            if celda["columna"].get("recurso_inventario"):
+                celda["valor"] = sin_aviso_de_disponibilidad(celda["valor"])
+    return filas
+
+def fila_con_datos(fila, ignorar_primera=False):
+    """Si alguna celda de la fila tiene algo escrito.
+
+    En las tablas de filas fijas la primera celda es el nombre oficial de la
+    posición, que está siempre: no cuenta como dato.
+    """
+    celdas = fila["celdas"][1:] if ignorar_primera else fila["celdas"]
+    return any(str(celda["valor"] or "").strip() for celda in celdas)
+
+def filas_para_render(seccion, guardadas, modo=MODO_EDICION):
     columnas = seccion["columnas"]
     guardadas = guardadas if isinstance(guardadas, list) else []
     fijas = seccion.get("filas_fijas")
@@ -499,20 +540,31 @@ def filas_para_render(seccion, guardadas, imprimir=False):
             celdas[0]["fija"] = etiqueta
             celdas[0]["valor"] = etiqueta
             filas.append({"celdas": celdas})
+        if modo == MODO_LECTURA:
+            # Una posición sin nadie asignado es un renglón vacío con nombre.
+            return limpiar_avisos(
+                [fila for fila in filas if fila_con_datos(fila, ignorar_primera=True)]
+            )
         return filas
     # En pantalla, una sola fila vacía. Antes se precargaban 24 en el SCI-201 y
     # entre 4 y 14 en los demás: nadie las iba a llenar todas, ensuciaban la
     # hoja, obligaban a desplazarse en el teléfono y daban a entender que había
     # que completarlas. Lo que falta se agrega con el botón.
-    minimas = (
-        seccion.get("filas_impresion", FILAS_IMPRESION_POR_DEFECTO) if imprimir else 1
-    )
+    # En lectura no hay mínimo: solo las filas que existen y tienen algo escrito.
+    if modo == MODO_LECTURA:
+        minimas = 0
+    elif modo == MODO_BLANCO:
+        minimas = seccion.get("filas_impresion", FILAS_IMPRESION_POR_DEFECTO)
+    else:
+        minimas = 1
     total = max(minimas, len(guardadas))
     filas = []
     for indice in range(total):
         origen = guardadas[indice] if indice < len(guardadas) and isinstance(guardadas[indice], dict) else {}
         filas.append({"celdas": [_celda(columna, origen.get(columna["nombre"], ""))
                                  for columna in columnas]})
+    if modo == MODO_LECTURA:
+        filas = limpiar_avisos([fila for fila in filas if fila_con_datos(fila)])
     return filas
 
 def extraer_datos(esquema, post):

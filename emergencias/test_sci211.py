@@ -1501,6 +1501,22 @@ class ImprimibleDel211Tests(SCI211Tests):
             reverse("emergencias:sci211_imprimir", args=[formulario.pk])
         )
 
+    def test_la_hoja_imprime_solo_los_recursos_registrados(self):
+        """Antes se completaba hasta 24 filas con renglones vacíos."""
+        formulario = self.crear_formulario()  # un recurso
+        html = self.imprimir(formulario).content.decode()
+        self.assertEqual(html.count('class="blank-row"'), 0)
+        cuerpo = html[html.index("<tbody>"):html.index("</tbody>")]
+        self.assertEqual(cuerpo.count("<tr>"), 1)
+        self.assertNotIn("Sin recursos registrados", html)
+
+    def test_sin_recursos_la_hoja_lo_dice_en_una_fila(self):
+        formulario = self.crear_formulario(completo=False)
+        html = self.imprimir(formulario).content.decode()
+        cuerpo = html[html.index("<tbody>"):html.index("</tbody>")]
+        self.assertEqual(cuerpo.count("<tr>"), 1)
+        self.assertIn("Sin recursos registrados", cuerpo)
+
     def test_un_borrador_ofrece_volver_a_editar(self):
         formulario = self.crear_formulario(completo=False)
         respuesta = self.imprimir(formulario)

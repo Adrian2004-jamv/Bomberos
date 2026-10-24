@@ -605,7 +605,9 @@ class TablasDinamicasTests(BaseValidacion):
     y 14. Nadie las iba a llenar: ensuciaban la hoja, obligaban a desplazarse en
     el teléfono y daban a entender que había que completarlas. Ahora la pantalla
     abre con una sola fila y se agregan las que hagan falta. El papel es otra
-    cosa: la hoja impresa conserva sus renglones, porque se escribe a mano.
+    cosa: la hoja impresa y la de lectura no llevan relleno —solo las filas con
+    datos— y el formulario en blanco del catálogo conserva sus renglones, que
+    es el único que se imprime para escribirlo a mano.
     """
 
     def editar(self, codigo, emergencia):
@@ -714,23 +716,6 @@ class TablasDinamicasTests(BaseValidacion):
 
     # -- la hoja impresa ------------------------------------------------------------
 
-    def test_la_hoja_impresa_conserva_sus_renglones(self):
-        """En papel se escribe a mano: el formulario impreso lleva sus líneas."""
-        import re as _re
-
-        emergencia = self.crear_emergencia("DIN-HOJA")
-        self.crear_formulario(emergencia, "201", {"acciones": [
-            {"fecha_hora": "", "accion": "Única acción"},
-        ]})
-        self.client.force_login(self.usuario)
-        html = self.client.get(
-            reverse("emergencias:sci_visualizar", args=["201", emergencia.pk])
-        ).content.decode()
-        tabla = html[html.index('class="sci201-actions"'):]
-        tabla = tabla[:tabla.index("</table>")]
-        self.assertEqual(len(_re.findall(r"<tr>", tabla)) - 1, 24)  # menos el encabezado
-        self.assertNotIn("sci-tabla__agregar", html)
-
     # -- la guarda -------------------------------------------------------------------
 
     def test_los_dos_editores_cargan_el_comportamiento_de_agregar_y_quitar(self):
@@ -752,3 +737,185 @@ class TablasDinamicasTests(BaseValidacion):
         # «Ahora» copiado, cuyo evento no viaja con el clon.
         self.assertIn("renumerar()", fragmento)
         self.assertIn("campo-con-ahora", fragmento)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 6. La hoja impresa y la de lectura: solo las filas con datos
+# ──────────────────────────────────────────────────────────────────────
+
+class HojaDeLecturaTests(BaseValidacion):
+    """Un documento oficial no lleva renglones de relleno.
+
+    En el editor la tabla abría con una fila y crecía con el botón de agregar,
+    pero la hoja impresa seguía dibujando entre 5 y 24 filas vacías con bordes:
+    una estrategia registrada salía como una fila entre seis en blanco. El
+    documento impreso y toda vista de solo lectura se dibujan ahora con las filas
+    que existen, sean 1 o 20.
+    """
+
+    def con_datos(self, esquema, filas_llenas, vacias=2):
+        """Una tabla guardada con ``filas_llenas`` filas escritas y alguna vacía."""
+        datos = {}
+        for seccion in esquema["secciones"]:
+            if seccion["tipo"] != TABLA or seccion.get("filas_fijas"):
+                continue
+            columnas = [c["nombre"] for c in seccion["columnas"]]
+            llenas = [
+                {nombre: (f"valor {n}" if indice == 0 else "") for indice, nombre in enumerate(columnas)}
+                for n in range(filas_llenas)
+            ]
+            datos[seccion["nombre"]] = llenas + [{nombre: "" for nombre in columnas}] * vacias
+        return datos
+
+    def test_en_lectura_cada_tabla_tiene_exactamente_las_filas_guardadas(self):
+        """Los 12 esquemas, con 1 y con 7 filas escritas y dos vacías de paso."""
+        from .esquemas_sci import MODO_LECTURA, secciones_con_valores
+
+        mal = []
+        for codigo, esquema in ESQUEMAS_SCI.items():
+            for escritas in (1, 7):
+                datos = self.con_datos(esquema, escritas)
+                for seccion in secciones_con_valores(esquema, datos, MODO_LECTURA):
+                    if seccion["tipo"] != TABLA or seccion.get("filas_fijas"):
+                        continue
+                    if len(seccion["filas"]) != escritas:
+                        mal.append(f"SCI-{codigo}/{seccion['nombre']}: {len(seccion['filas'])} != {escritas}")
+        self.assertEqual(mal, [], mal)
+
+    def test_una_tabla_sin_datos_se_lee_vacia_y_no_con_renglones(self):
+        from .esquemas_sci import MODO_LECTURA, secciones_con_valores
+
+        for codigo, esquema in ESQUEMAS_SCI.items():
+            for seccion in secciones_con_valores(esquema, {}, MODO_LECTURA):
+                if seccion["tipo"] == TABLA:
+                    self.assertEqual(seccion["filas"], [], f"SCI-{codigo}/{seccion['nombre']}")
+
+    def test_en_lectura_una_posicion_fija_sin_nadie_asignado_no_se_imprime(self):
+        """SCI-203: el listado de asignación solo muestra a quien está asignado."""
+        from .esquemas_sci import MODO_EDICION, MODO_LECTURA, secciones_con_valores
+
+        esquema = ESQUEMAS_SCI["203"]
+        comando = next(s for s in esquema["secciones"] if s["nombre"] == "comando")
+        columnas = [c["nombre"] for c in comando["columnas"]]
+        posiciones = comando["filas_fijas"]
+        datos = {"comando": [
+            {columnas[0]: posiciones[0], columnas[1]: "Mayor Andrade"},
+        ] + [{columnas[0]: p, columnas[1]: ""} for p in posiciones[1:]]}
+
+        en_lectura = next(
+            s for s in secciones_con_valores(esquema, datos, MODO_LECTURA)
+            if s["nombre"] == "comando"
+        )
+        self.assertEqual(len(en_lectura["filas"]), 1)
+        self.assertEqual(en_lectura["filas"][0]["celdas"][0]["valor"], posiciones[0])
+        # En el editor siguen todas: ahí hay que poder escribir en cualquiera.
+        en_edicion = next(
+            s for s in secciones_con_valores(esquema, datos, MODO_EDICION)
+            if s["nombre"] == "comando"
+        )
+        self.assertEqual(len(en_edicion["filas"]), len(posiciones))
+
+    def test_el_formulario_en_blanco_del_catalogo_conserva_sus_renglones(self):
+        """El único que se imprime para escribirlo a mano."""
+        from .esquemas_sci import MODO_BLANCO, secciones_con_valores
+
+        esquema = ESQUEMAS_SCI["202"]
+        plan = next(
+            s for s in secciones_con_valores(esquema, {}, MODO_BLANCO) if s["nombre"] == "plan"
+        )
+        tabla = next(s for s in esquema["secciones"] if s["nombre"] == "plan")
+        self.assertEqual(len(plan["filas"]), tabla["filas_impresion"])
+        self.assertGreater(len(plan["filas"]), 1)
+
+    # -- las hojas de verdad -----------------------------------------------------------
+
+    def hoja(self, codigo, emergencia):
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_visualizar", args=[codigo, emergencia.pk])
+        ).content.decode()
+
+    def test_la_hoja_del_201_imprime_solo_las_acciones_guardadas(self):
+        import re as _re
+
+        emergencia = self.crear_emergencia("LEC-201")
+        self.crear_formulario(emergencia, "201", {"acciones": [
+            {"fecha_hora": "", "accion": "Arribo"},
+            {"fecha_hora": "", "accion": "Extricación"},
+        ]})
+        html = self.hoja("201", emergencia)
+        tabla = html[html.index('class="sci201-actions"'):]
+        tabla = tabla[:tabla.index("</table>")]
+        self.assertEqual(len(_re.findall(r"<tr>", tabla)) - 1, 2)  # menos el encabezado
+        self.assertIn("Arribo", tabla)
+        self.assertIn("Extricación", tabla)
+
+    def test_sin_acciones_la_hoja_del_201_lo_dice_en_una_fila(self):
+        import re as _re
+
+        emergencia = self.crear_emergencia("LEC-201-VACIO")
+        self.crear_formulario(emergencia, "201", {})
+        html = self.hoja("201", emergencia)
+        tabla = html[html.index('class="sci201-actions"'):]
+        tabla = tabla[:tabla.index("</table>")]
+        self.assertEqual(len(_re.findall(r"<tr>", tabla)) - 1, 1)
+        self.assertIn("Sin acciones registradas", tabla)
+
+    def test_la_hoja_generica_imprime_solo_las_filas_guardadas(self):
+        """SCI-214: una persona y una actividad son una fila cada una, no seis y catorce."""
+        import re as _re
+
+        emergencia = self.crear_emergencia("LEC-214")
+        self.crear_formulario(emergencia, "214", {
+            "personal": [{"nombre": "Cap. Vaca", "posicion": "Jefe", "institucion": "CB"}],
+            "actividades": [{"hora": "10:15", "evento": "Arribo de la primera unidad"}],
+        })
+        html = self.hoja("214", emergencia)
+        self.assertEqual(len(_re.findall(r"<tbody>.*?</tbody>", html, _re.S)), 2)
+        for tbody in _re.findall(r"<tbody>.*?</tbody>", html, _re.S):
+            self.assertEqual(tbody.count("<tr>"), 1, tbody[:200])
+        self.assertIn("Cap. Vaca", html)
+        self.assertIn("Arribo de la primera unidad", html)
+        self.assertNotIn("Sin registros", html)
+
+    def test_sin_filas_la_hoja_generica_dice_sin_registros(self):
+        import re as _re
+
+        emergencia = self.crear_emergencia("LEC-214-VACIO")
+        self.crear_formulario(emergencia, "214", {})
+        html = self.hoja("214", emergencia)
+        for tbody in _re.findall(r"<tbody>.*?</tbody>", html, _re.S):
+            self.assertEqual(tbody.count("<tr>"), 1)
+            self.assertIn("Sin registros", tbody)
+
+    # -- el aviso de disponibilidad no es parte del documento --------------------------
+
+    def test_el_aviso_del_editor_no_se_imprime_pero_tampoco_se_borra(self):
+        from .esquemas_sci import MODO_EDICION, MODO_LECTURA, secciones_con_valores
+
+        guardado = "AB-01 - Autobomba (Estación Central) · ya asignada a otra emergencia"
+        datos = {"plan": [{
+            "estrategia": "Ataque", "tactica": "Línea", "recursos_lugar": "",
+            "recursos_solicitar": guardado, "asignacion": "Norte",
+        }]}
+        esquema = ESQUEMAS_SCI["202"]
+
+        def celda(modo):
+            plan = next(s for s in secciones_con_valores(esquema, datos, modo) if s["nombre"] == "plan")
+            columnas = [c["columna"]["nombre"] for c in plan["filas"][0]["celdas"]]
+            return plan["filas"][0]["celdas"][columnas.index("recursos_solicitar")]["valor"]
+
+        self.assertEqual(celda(MODO_LECTURA), "AB-01 - Autobomba (Estación Central)")
+        # En el editor la cadena guardada sigue siendo la misma: es lo que
+        # selecciona la opción del desplegable al reabrir el formulario.
+        self.assertEqual(celda(MODO_EDICION), guardado)
+        # Y lo guardado no se tocó.
+        self.assertIn("ya asignada a otra emergencia", datos["plan"][0]["recursos_solicitar"])
+
+    def test_una_celda_sin_aviso_o_con_punto_medio_en_el_nombre_queda_igual(self):
+        from .esquemas_sci import sin_aviso_de_disponibilidad as limpio
+
+        self.assertEqual(limpio("AMB-1 - Ambulancia (Estación Sur)"), "AMB-1 - Ambulancia (Estación Sur)")
+        self.assertEqual(limpio("Rescate · norte (Base)"), "Rescate · norte (Base)")
+        self.assertEqual(limpio(""), "")
+        self.assertEqual(limpio(None), "")

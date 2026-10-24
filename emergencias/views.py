@@ -38,7 +38,7 @@ from .permissions import (conduce_el_despliegue, despliegues_asignados,
 from .codigos import generar_codigo_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO, TABLA,
-                          EVALUACION_INICIAL, campos_periodo, conservar_campos_retirados,
+                          EVALUACION_INICIAL, MODO_BLANCO, MODO_EDICION, MODO_LECTURA, campos_periodo, conservar_campos_retirados,
                           evaluacion_heredada, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
@@ -966,7 +966,7 @@ def formulario_sci_catalogo_visualizar(request, codigo):
         "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": None,
         "campos_periodo": [dict(campo, valor="") for campo in campos_periodo(esquema)],
-        "secciones": secciones_con_valores(esquema, {}, imprimir=True),
+        "secciones": secciones_con_valores(esquema, {}, MODO_BLANCO),
         "solo_vista": True,
     }
 
@@ -984,11 +984,11 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk, periodo=None):
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
-    # La hoja de impresión sí lleva los renglones en blanco del formulario en
-    # papel; el editor, en cambio, empieza con una sola fila.
+    # La hoja de impresión lleva solo las filas con datos: sin renglones de
+    # relleno. El editor, en cambio, empieza con una sola fila vacía.
     contexto = contexto_documento_sci(
         request.user, emergencia, codigo, periodo_pedido(emergencia, periodo),
-        imprimir=True,
+        modo=MODO_LECTURA,
     )
     contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
     plantilla = (
@@ -1069,14 +1069,8 @@ def hoja_de_solo_lectura(esquema, formulario):
     """
     datos = formulario.datos or {}
     secciones = []
-    for seccion in secciones_con_valores(esquema, datos):
+    for seccion in secciones_con_valores(esquema, datos, MODO_LECTURA):
         if seccion["tipo"] == TABLA:
-            if not seccion.get("filas_fijas"):
-                seccion["filas"] = [
-                    fila for fila in seccion["filas"]
-                    if any(str(celda["valor"] or "").strip()
-                           for celda in fila["celdas"])
-                ]
             seccion["vacia"] = not seccion["filas"]
         else:
             seccion["vacia"] = not str(seccion.get("valor") or "").strip()
@@ -1096,7 +1090,7 @@ def hoja_de_solo_lectura(esquema, formulario):
     }
 
 
-def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, imprimir=False):
+def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_EDICION):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
     # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
@@ -1184,7 +1178,7 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, imprimir=F
                  and bool(heredado.get(campo["nombre"])))
             for campo in campos_periodo(esquema)
         ],
-        "secciones": secciones_con_valores(esquema, datos_con_ofrecido, imprimir),
+        "secciones": secciones_con_valores(esquema, datos_con_ofrecido, modo),
         # Lo que el sistema sabe del incidente, para que la plantilla pueda
         # enseñarlo junto al campo que lo aprovecha.
         "estado_incidente": estado,
@@ -1633,7 +1627,6 @@ def sci211_imprimir(request, pk):
         return bloqueado
     contexto = {
         "formulario": formulario,
-        "filas_vacias": range(max(0, 24 - formulario.registros.count())),
         # La vista imprimible es también donde se descubre que el formulario
         # quedó a medias, así que desde aquí se vuelve a llenarlo. El de los
         # formularios genéricos ya ofrecía este camino; el SCI-211 no.
