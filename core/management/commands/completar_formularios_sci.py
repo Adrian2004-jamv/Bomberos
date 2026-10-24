@@ -609,7 +609,7 @@ def completar_sci_para_emergencia(emergencia, usuario, stdout=None):
 
     for codigo in ORDEN_FORMULARIOS_SCI:
         if codigo == "211":
-            sci211 = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+            sci211 = emergencia.formulario_sci_211
             if sci211 is None:
                 sci211 = crear_sci211_desde_emergencia(emergencia, usuario)
                 log(f"  ✓ SCI-211 creado")

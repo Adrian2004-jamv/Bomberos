@@ -11,6 +11,7 @@ Se conservan además las validaciones de servicio y una restricción única
 parcial en la base de datos.
 """
 
+import logging
 from math import asin, cos, radians, sin, sqrt
 
 from django.contrib.auth import get_user_model
@@ -155,6 +156,93 @@ def retirar_emergencias(identificadores):
     DespliegueUnidad.objects.filter(emergencia_id__in=identificadores).delete()
     Emergencia.objects.filter(pk__in=identificadores).delete()
     return liberadas
+
+logger = logging.getLogger(__name__)
+
+
+def _exigir_que_se_pueda_eliminar(emergencia):
+    """Un incidente que no existió se puede borrar; uno con historia, no.
+
+    Eliminar no se deshace y no deja rastro en la base, de modo que se reserva para
+    lo que de verdad no fue: un aviso falso al que quizá salió una unidad. Si el
+    incidente ya tiene documentos finalizados o más de un periodo operacional hubo
+    trabajo real que consta, y borrarlo por error sería destruir un expediente.
+    """
+    if emergencia.periodos.count() > 1:
+        raise ValidationError(
+            "Este incidente ya pasó por más de un periodo operacional: hubo actividad "
+            "real y debe conservarse. Cancélelo indicando un error de despacho u otro "
+            "motivo, en lugar de eliminarlo."
+        )
+    from .models import FormularioSCI, FormularioSCI211
+
+    finalizados = (
+        FormularioSCI.objects.filter(
+            emergencia=emergencia, estado=FormularioSCI.Estado.FINALIZADO
+        ).exists()
+        or FormularioSCI211.objects.filter(
+            emergencia=emergencia, estado=FormularioSCI211.Estado.FINALIZADO
+        ).exists()
+    )
+    if finalizados:
+        raise ValidationError(
+            "Este incidente ya tiene formularios finalizados: es un expediente y no se "
+            "puede eliminar. Cancélelo indicando el motivo."
+        )
+
+
+@transaction.atomic
+def cancelar_o_eliminar_emergencia(emergencia, usuario_responsable, motivo, detalle=""):
+    """Descarta un incidente que no llegó a ser una emergencia.
+
+    «Falsa alarma» y «broma» lo ELIMINAN: no queda en los registros operativos ni
+    cuenta en las estadísticas, porque nunca hubo nada que registrar. «Error de
+    despacho» y «otro motivo» lo dejan cancelado, con la razón anotada.
+
+    Devuelve la emergencia si quedó cancelada y ``None`` si se eliminó.
+
+    Eliminar reutiliza ``retirar_emergencias``, que desmonta lo que cuelga del
+    incidente en el orden que exigen sus ``PROTECT`` —registros del 211, formulario,
+    formularios genéricos, despliegues— y devuelve al inventario las unidades que
+    seguían asignadas, de modo que no queda nada huérfano.
+    """
+    validar_usuario(usuario_responsable)
+    if motivo not in Emergencia.MotivoCancelacion.values:
+        raise ValidationError("Elija el motivo de la cancelación.")
+    detalle = (detalle or "").strip()
+    if motivo == Emergencia.MotivoCancelacion.OTRO and not detalle:
+        raise ValidationError("Describa el motivo de la cancelación.")
+    if not isinstance(emergencia, Emergencia) or not emergencia.pk:
+        raise ValidationError("La emergencia no existe.")
+    try:
+        actual = Emergencia.objects.select_for_update().get(pk=emergencia.pk)
+    except Emergencia.DoesNotExist as error:
+        raise ValidationError("La emergencia no existe.") from error
+
+    if not estacion_autorizada(usuario_responsable, actual.estacion_responsable_id):
+        raise ValidationError("La emergencia está fuera del ámbito autorizado.")
+    if actual.esta_terminada:
+        raise ValidationError(
+            "La emergencia ya terminó: no puede cancelarse ni eliminarse."
+        )
+
+    if motivo in Emergencia.MotivoCancelacion.que_eliminan():
+        _exigir_que_se_pueda_eliminar(actual)
+        codigo, etiqueta = actual.codigo, Emergencia.MotivoCancelacion(motivo).label
+        liberadas = retirar_emergencias([actual.pk])
+        # Lo único que queda de un incidente eliminado es esta línea del registro del
+        # servidor: quién lo hizo y por qué, para poder responder si alguien pregunta.
+        logger.warning(
+            "Emergencia %s eliminada por %s (%s): motivo %s; %s unidad(es) liberadas.",
+            codigo, usuario_responsable.username, usuario_responsable.pk, etiqueta, liberadas,
+        )
+        return None
+
+    actual = cambiar_estado_emergencia(actual, Emergencia.Estado.CANCELADA, usuario_responsable)
+    actual.motivo_cancelacion = motivo
+    actual.detalle_cancelacion = detalle[:200]
+    actual.save(update_fields=["motivo_cancelacion", "detalle_cancelacion"])
+    return actual
 
 @transaction.atomic
 def desplegar_unidad(emergencia, unidad, usuario_responsable, observaciones=""):

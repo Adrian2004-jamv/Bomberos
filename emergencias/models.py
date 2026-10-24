@@ -12,6 +12,25 @@ class Emergencia(models.Model):
         ALTA = "alta", "Alta"
         CRITICA = "critica", "Crítica"
 
+    class MotivoCancelacion(models.TextChoices):
+        """Por qué se descarta un incidente que no llegó a ser una emergencia.
+
+        Los dos primeros —un aviso falso y una broma— no son un incidente que se
+        atendió mal sino uno que no existió, y no deben figurar en los registros
+        operativos ni en las estadísticas: se eliminan. Los otros dos sí ocurrieron
+        como trámite —hubo un error al despachar, o un motivo distinto— y quedan
+        como «cancelado» con su razón.
+        """
+
+        FALSA_ALARMA = "falsa_alarma", "Falsa alarma"
+        BROMA = "broma", "Broma"
+        ERROR_DESPACHO = "error_despacho", "Error de despacho"
+        OTRO = "otro", "Otro motivo"
+
+        @classmethod
+        def que_eliminan(cls):
+            return {cls.FALSA_ALARMA.value, cls.BROMA.value}
+
     class Estado(models.TextChoices):
         REPORTADA = "reportada", "Reportada"
         EN_ATENCION = "en_atencion", "En atención"
@@ -30,6 +49,13 @@ class Emergencia(models.Model):
     )
     fecha_reporte = models.DateTimeField("fecha y hora del reporte", default=timezone.now)
     fecha_cierre = models.DateTimeField("fecha y hora de cierre", null=True, blank=True)
+    motivo_cancelacion = models.CharField(
+        "motivo de la cancelación", max_length=20, choices=MotivoCancelacion.choices,
+        blank=True,
+    )
+    detalle_cancelacion = models.CharField(
+        "detalle de la cancelación", max_length=200, blank=True,
+    )
     direccion = models.CharField("dirección o referencia", max_length=255)
     latitud = models.DecimalField(
         "latitud",
@@ -106,15 +132,48 @@ class Emergencia(models.Model):
         periodo fuera una tabla, las nuevas, y cualquier otra vía —una carga de
         escenarios, una restauración parcial— sin que ninguna se quede sin él.
         """
+        existente = self.periodo_vigente_si_existe()
+        if existente is not None:
+            return existente
+        return self.periodos.create(numero=1, inicio=self.fecha_reporte)
+
+    def periodo_vigente_si_existe(self):
+        """Lo mismo, pero sin crear el periodo 1 si todavía no hay ninguno.
+
+        Para leer. Mostrar una ficha no debe escribir en la base, y a este
+        método se le puede pedir el periodo de cien emergencias de un listado
+        sin una consulta por cada una cuando los periodos vienen precargados.
+        """
+        precargados = getattr(self, "_prefetched_objects_cache", {})
+        if "periodos" in precargados:
+            periodos = list(self.periodos.all())
+            if not periodos:
+                return None
+            abiertos = [periodo for periodo in periodos if periodo.fin is None]
+            return max(abiertos or periodos, key=lambda periodo: periodo.numero)
         abierto = self.periodos.filter(fin__isnull=True).order_by("-numero").first()
         if abierto is not None:
             return abierto
         # Sin ninguno abierto —la emergencia se cerró— el último sigue siendo
         # aquel al que pertenece el expediente.
-        ultimo = self.periodos.order_by("-numero").first()
-        if ultimo is not None:
-            return ultimo
-        return self.periodos.create(numero=1, inicio=self.fecha_reporte)
+        return self.periodos.order_by("-numero").first()
+
+    @property
+    def formulario_sci_211(self):
+        """El SCI-211 del periodo vigente, o ``None`` si todavía no se abrió.
+
+        Antes era la relación inversa de un ``OneToOneField``. Se conserva el
+        nombre porque es como lo lee el resto del código, pero ahora responde por
+        el periodo en curso: en un incidente reactivado, el del periodo anterior
+        sigue existiendo —finalizado, en su historial— y no es el que se llena.
+        """
+        vigente = self.periodo_vigente_si_existe()
+        if vigente is None:
+            return None
+        for formulario in self.formularios_sci_211.all():
+            if formulario.periodo_id == vigente.pk:
+                return formulario
+        return None
 
     def __str__(self):
         return f"{self.codigo} - {self.tipo_emergencia}"
@@ -287,15 +346,26 @@ class PosicionUnidad(models.Model):
         return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"
 
 class FormularioSCI211(models.Model):
-    """Encabezado único del Registro y Control de Recursos de una emergencia."""
+    """Encabezado del Registro y Control de Recursos de una emergencia, por periodo.
+
+    Era uno por emergencia. Al reactivar un incidente cerrado el del periodo 1
+    seguía finalizado y bloqueado, y no había forma de crear otro: en el periodo
+    2 no se podían registrar los recursos que llegaban. Es un documento del
+    periodo, como los demás: cada periodo operacional tiene el suyo y el
+    anterior queda como quedó.
+    """
 
     class Estado(models.TextChoices):
         BORRADOR = "borrador", "Borrador"
         FINALIZADO = "finalizado", "Finalizado"
 
-    emergencia = models.OneToOneField(
-        Emergencia, on_delete=models.PROTECT, related_name="formulario_sci_211",
+    emergencia = models.ForeignKey(
+        Emergencia, on_delete=models.PROTECT, related_name="formularios_sci_211",
         verbose_name="emergencia",
+    )
+    periodo = models.ForeignKey(
+        "PeriodoOperacional", on_delete=models.PROTECT,
+        related_name="formularios_sci_211", verbose_name="periodo operacional",
     )
     codigo = models.CharField("número del formulario", max_length=40, unique=True)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
@@ -333,13 +403,47 @@ class FormularioSCI211(models.Model):
         verbose_name = "formulario SCI-211"
         verbose_name_plural = "formularios SCI-211"
         ordering = ("-fecha_creacion",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("emergencia", "periodo"), name="sci211_unico_por_periodo"
+            ),
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.emergencia.codigo}"
 
+    def save(self, *args, **kwargs):
+        # Un formulario sin periodo no debe poder existir; si no se dice a cuál
+        # pertenece, es el del periodo vigente.
+        if self.periodo_id is None and self.emergencia_id is not None:
+            self.periodo = self.emergencia.periodo_vigente()
+        super().save(*args, **kwargs)
+
+    @property
+    def numero_periodo(self):
+        return self.periodo.numero
+
     @property
     def es_editable(self):
+        """El candado del periodo manda sobre el del documento, como en los demás."""
+        if not self.periodo.esta_abierto:
+            return False
         return self.estado == self.Estado.BORRADOR
+
+def numero_de_periodo_vigente():
+    """Subconsulta: el número del periodo vigente de la emergencia de la fila.
+
+    Para anotar listados. Con ella un formulario «cuenta» solo si es del periodo
+    en curso: en un incidente reactivado los del periodo anterior siguen en el
+    historial, pero no son lo que falta por llenar.
+    """
+    from django.db.models import OuterRef, Subquery
+
+    return Subquery(
+        PeriodoOperacional.objects.filter(emergencia_id=OuterRef("pk"))
+        .order_by("-numero").values("numero")[:1]
+    )
+
 
 class PeriodoOperacional(models.Model):
     """Cada tramo de trabajo en que se divide la atención de un incidente.

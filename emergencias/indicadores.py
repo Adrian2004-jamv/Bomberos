@@ -61,7 +61,7 @@ def anotar_indicadores(emergencias):
         primera_llegada=Min("despliegues__fecha_llegada"),
         personal_comprometido=Subquery(personal, output_field=IntegerField()),
         recursos_registrados=Count(
-            "formulario_sci_211__registros", distinct=True
+            "formularios_sci_211__registros", distinct=True
         ),
         formularios_genericos=Count("formularios_sci", distinct=True),
     )

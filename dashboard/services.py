@@ -8,7 +8,8 @@ from emergencias.esquemas_sci import evaluacion_en_partes, evaluacion_heredada
 from emergencias.forms import TIPOS_EMERGENCIA
 from emergencias.indicadores import anotar_indicadores, preparar_indicadores
 
-from emergencias.models import DespliegueUnidad, Emergencia, FormularioSCI211
+from emergencias.models import (DespliegueUnidad, Emergencia, FormularioSCI211,
+                                numero_de_periodo_vigente)
 from emergencias.permissions import puede_consultar_emergencias, puede_gestionar_emergencias
 from instituciones.permissions import puede_gestionar_instituciones
 from inventario.models import HistorialEstadoRecurso, Recurso
@@ -145,8 +146,14 @@ def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None,
                 filter=Q(despliegues__estado__in=DespliegueUnidad.ESTADOS_ACTIVOS),
                 distinct=True,
             ),
+            periodo_vigente_numero=numero_de_periodo_vigente(),
+        )
+        .annotate(
             tiene_sci211=Exists(
-                FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk"))
+                FormularioSCI211.objects.filter(
+                    emergencia_id=OuterRef("pk"),
+                    periodo__numero=OuterRef("periodo_vigente_numero"),
+                )
             ),
         )
         .order_by("-fecha_reporte", "-pk")
@@ -198,8 +205,13 @@ def resumen_operativo(estaciones):
         .count(),
         # Un incidente abierto sin SCI-211 es documentación pendiente: ese
         # formulario es el registro maestro de recursos del incidente.
-        "sin_documentar": en_curso.filter(
-            ~Exists(FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk")))
+        "sin_documentar": en_curso.annotate(
+            periodo_vigente_numero=numero_de_periodo_vigente()
+        ).filter(
+            ~Exists(FormularioSCI211.objects.filter(
+                emergencia_id=OuterRef("pk"),
+                periodo__numero=OuterRef("periodo_vigente_numero"),
+            ))
         ).count(),
     }
 

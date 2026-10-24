@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import (Case, Count, Exists, IntegerField, OuterRef,
+from django.db.models import (Case, Count, Exists, F, IntegerField, Max, OuterRef,
                               ProtectedError, Q, Value, When)
 from django.http import Http404, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,7 +25,8 @@ from inventario.permissions import estaciones_permitidas, recursos_permitidos
 
 from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
                     FiltroIncidentesForm)
-from .models import DespliegueUnidad, Emergencia, PeriodoOperacional
+from .models import (DespliegueUnidad, Emergencia, PeriodoOperacional,
+                     numero_de_periodo_vigente)
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import (FormularioSCI211Form, RegistroRecursoSCI211FormSet,
                         agrupar_recursos, etiqueta_de_recurso)
@@ -43,7 +44,7 @@ from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
-                       cambiar_estado_despliegue,
+                       cambiar_estado_despliegue, cancelar_o_eliminar_emergencia,
                        cerrar_despliegue_conducido, detener_transmision,
                        cambiar_estado_emergencia, desplegar_unidad,
                        periodo_actual, reactivar_emergencia,
@@ -165,13 +166,26 @@ def emergencias_permitidas(usuario):
         "estacion_responsable__cuerpo_bomberos",
         "registrado_por",
     ).annotate(
-        cantidad_formularios_genericos=Count("formularios_sci", distinct=True),
+        # Los formularios que cuentan son los del periodo vigente: en un incidente
+        # reactivado los del periodo anterior siguen en su historial, pero no son
+        # lo que falta por llenar, y contarlos mostraba el avance como completo.
+        periodo_vigente_numero=numero_de_periodo_vigente(),
+    ).annotate(
+        cantidad_formularios_genericos=Count(
+            "formularios_sci",
+            filter=Q(formularios_sci__periodo__numero=F("periodo_vigente_numero")),
+            distinct=True,
+        ),
         tiene_sci211=Exists(
-            FormularioSCI211.objects.filter(emergencia_id=OuterRef("pk"))
+            FormularioSCI211.objects.filter(
+                emergencia_id=OuterRef("pk"),
+                periodo__numero=OuterRef("periodo_vigente_numero"),
+            )
         ),
         sci211_finalizado=Exists(
             FormularioSCI211.objects.filter(
                 emergencia_id=OuterRef("pk"),
+                periodo__numero=OuterRef("periodo_vigente_numero"),
                 estado=FormularioSCI211.Estado.FINALIZADO,
             )
         ),
@@ -179,7 +193,11 @@ def emergencias_permitidas(usuario):
         # El total de formularios se calcula en la base porque la etapa
         # documental es ahora un filtro, y filtrar en Python obligaria a traer
         # el padron completo para descartar casi todo.
-        formularios_registrados=Count("formularios_sci", distinct=True) + Case(
+        formularios_registrados=Count(
+            "formularios_sci",
+            filter=Q(formularios_sci__periodo__numero=F("periodo_vigente_numero")),
+            distinct=True,
+        ) + Case(
             When(tiene_sci211=True, then=Value(1)),
             default=Value(0),
             output_field=IntegerField(),
@@ -235,20 +253,31 @@ def estado_documental_por_emergencia(emergencias):
     if not identificadores:
         return finalizados, borradores, bitacoras
 
-    for emergencia_id, codigo, estado, datos in FormularioSCI.objects.filter(
+    # Solo cuenta lo del periodo vigente de cada emergencia.
+    vigentes = dict(
+        PeriodoOperacional.objects.filter(emergencia_id__in=identificadores)
+        .values("emergencia_id").annotate(numero=Max("numero"))
+        .values_list("emergencia_id", "numero")
+    )
+
+    for emergencia_id, codigo, estado, datos, numero in FormularioSCI.objects.filter(
         emergencia_id__in=identificadores
-    ).values_list("emergencia_id", "codigo_sci", "estado", "datos"):
+    ).values_list("emergencia_id", "codigo_sci", "estado", "datos", "periodo__numero"):
+        if numero != vigentes.get(emergencia_id):
+            continue
         destino = (finalizados if estado == FormularioSCI.Estado.FINALIZADO
                    else borradores)
         destino[emergencia_id].add(codigo)
         if codigo in FORMULARIOS_SCI_CONTINUOS and tiene_contenido(datos):
             bitacoras[emergencia_id].add(codigo)
 
-    for emergencia_id, estado, registros in FormularioSCI211.objects.filter(
+    for emergencia_id, estado, registros, numero in FormularioSCI211.objects.filter(
         emergencia_id__in=identificadores
     ).annotate(registros_anotados=Count("registros")).values_list(
-        "emergencia_id", "estado", "registros_anotados"
+        "emergencia_id", "estado", "registros_anotados", "periodo__numero"
     ):
+        if numero != vigentes.get(emergencia_id):
+            continue
         destino = (finalizados if estado == FormularioSCI211.Estado.FINALIZADO
                    else borradores)
         destino[emergencia_id].add("211")
@@ -664,6 +693,45 @@ def cambiar_estado(request, pk):
         )
     return redirect("emergencias:detalle", pk=emergencia.pk)
 
+@login_required
+@require_POST
+def cancelar_emergencia(request, pk):
+    """Descarta un incidente: lo elimina si no existió, lo cancela si fue un error."""
+    emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
+    motivo = request.POST.get("motivo", "")
+    detalle = request.POST.get("detalle", "")
+    codigo = emergencia.codigo
+    elimina = motivo in Emergencia.MotivoCancelacion.que_eliminan()
+    # Eliminar no se deshace: además del motivo se pide haber leído el aviso. El
+    # navegador ya lo exige, pero este extremo atiende peticiones de cualquiera.
+    if elimina and request.POST.get("confirmo") != "1":
+        messages.error(
+            request,
+            "Para eliminar el incidente confirme que entiende que no se puede deshacer.",
+        )
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    try:
+        resultado = cancelar_o_eliminar_emergencia(
+            emergencia, request.user, motivo, detalle
+        )
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+        return redirect("emergencias:detalle", pk=emergencia.pk)
+    if resultado is None:
+        messages.success(
+            request,
+            f"La emergencia {codigo} se eliminó "
+            f"({Emergencia.MotivoCancelacion(motivo).label.lower()}). No quedó en los "
+            "registros ni cuenta en las estadísticas.",
+        )
+        return redirect("emergencias:lista")
+    messages.success(
+        request,
+        f"La emergencia {codigo} quedó cancelada "
+        f"({Emergencia.MotivoCancelacion(motivo).label.lower()}).",
+    )
+    return redirect("emergencias:detalle", pk=resultado.pk)
+
 # ==========================================
 # MÓDULO: DESPACHO DE UNIDADES
 # ==========================================
@@ -735,15 +803,25 @@ def detalle(request, pk):
     if not puede_consultar_emergencias(request.user):
         raise PermissionDenied
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
-    sci211 = getattr(emergencia, "formulario_sci_211", None)
-    # Un mismo código puede tener un registro por periodo operacional. La
-    # ficha ofrece una sola entrada —el documento continuo— y dice cuántos
-    # periodos lleva dentro; el estado que pinta es el del periodo más
-    # reciente, que es el que se está llenando.
+    vigente = periodo_actual(emergencia)
+    sci211 = emergencia.formulario_sci_211
+    # Un mismo código puede tener un registro por periodo operacional. La ficha
+    # ofrece una sola entrada —el documento continuo— y dice cuántos periodos
+    # lleva dentro. El estado que pinta es SOLO el del periodo vigente: en un
+    # incidente reactivado todos los formularios del periodo anterior seguían
+    # apareciendo en verde, lo que hacía creer que la emergencia de ahora ya
+    # había terminado cuando en realidad es una fase nueva. Lo del periodo
+    # anterior sigue en su historial y se anota aparte.
     por_codigo = defaultdict(list)
     for formulario in emergencia.formularios_sci.all():
         por_codigo[formulario.codigo_sci].append(formulario)
-    genericos = {codigo: hojas[-1] for codigo, hojas in por_codigo.items()}
+    for formulario in emergencia.formularios_sci_211.all():
+        por_codigo["211"].append(formulario)
+    genericos = {
+        codigo: formulario
+        for codigo, hojas in por_codigo.items() if codigo != "211"
+        for formulario in hojas if formulario.periodo_id == vigente.pk
+    }
     catalogo_sci_estado = []
     finalizados = formularios_sci_finalizados(emergencia)
     for numero, item in enumerate(CATALOGO_FORMULARIOS_SCI, start=1):
@@ -781,6 +859,16 @@ def detalle(request, pk):
             "bloqueado": not desbloqueado_con(item["codigo"], finalizados),
             "en_curso": en_curso,
             "periodos": len(por_codigo.get(item["codigo"], ())),
+            # Lo que quedó hecho en periodos anteriores, para anotarlo junto al
+            # estado del actual sin pintarlo como si fuera de ahora.
+            "anteriores": [
+                f"P{hoja.periodo.numero} "
+                f"{'finalizado' if hoja.estado == 'finalizado' else 'borrador'}"
+                for hoja in sorted(
+                    por_codigo.get(item["codigo"], ()), key=lambda h: h.periodo.numero
+                )
+                if hoja.periodo_id != vigente.pk
+            ],
         })
     puede_gestionar = estacion_autorizada(request.user, emergencia.estacion_responsable_id)
     despliegues = list(emergencia.despliegues.select_related(
@@ -817,12 +905,27 @@ def detalle(request, pk):
         # y como el SCI-211 y el SCI-214 son bitácoras que solo se cierran
         # cuando la emergencia termina, la documentación entera se quedaba
         # abierta sin remedio.
+        # La cancelación tiene su propio flujo —pide el motivo y, según cuál sea,
+        # elimina el incidente—, de modo que no figura entre los botones de fase.
         "transiciones_emergencia": (
-            transiciones_disponibles(
-                TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
-            )
+            [
+                transicion for transicion in transiciones_disponibles(
+                    TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
+                )
+                if transicion["valor"] != Emergencia.Estado.CANCELADA
+            ]
             if puede_gestionar else []
         ),
+        "puede_cancelar": (
+            puede_gestionar
+            and Emergencia.Estado.CANCELADA
+            in TRANSICIONES_EMERGENCIA.get(emergencia.estado, set())
+        ),
+        "motivos_cancelacion": [
+            {"valor": valor, "etiqueta": etiqueta,
+             "elimina": valor in Emergencia.MotivoCancelacion.que_eliminan()}
+            for valor, etiqueta in Emergencia.MotivoCancelacion.choices
+        ],
         "sci211": sci211,
         "sci211_bloqueado": not formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
@@ -864,14 +967,18 @@ def emergencia_para_visualizar(usuario):
 def preparar_expedientes_sci(usuario):
     emergencias = list(
         emergencias_permitidas(usuario)
-        .select_related("formulario_sci_211")
-        .prefetch_related("formularios_sci")
+        .prefetch_related("formularios_sci", "formularios_sci_211", "periodos")
     )
     preparar_avance_documental(emergencias)
     catalogo = {item["codigo"]: item for item in CATALOGO_FORMULARIOS_SCI}
     for emergencia in emergencias:
-        genericos = {formulario.codigo_sci: formulario for formulario in emergencia.formularios_sci.all()}
-        sci211 = getattr(emergencia, "formulario_sci_211", None)
+        vigente = emergencia.periodo_vigente_si_existe()
+        genericos = {
+            formulario.codigo_sci: formulario
+            for formulario in emergencia.formularios_sci.all()
+            if vigente is not None and formulario.periodo_id == vigente.pk
+        }
+        sci211 = emergencia.formulario_sci_211
         documentos = []
         for item in CATALOGO_FORMULARIOS_SCI:
             codigo = item["codigo"]
@@ -981,7 +1088,9 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk, periodo=None):
     if bloqueado:
         return bloqueado
     if codigo == "211":
-        formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+        formulario = FormularioSCI211.objects.filter(
+            emergencia=emergencia, periodo=periodo_pedido(emergencia, periodo)
+        ).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
     # La hoja de impresión lleva solo las filas con datos: sin renglones de
@@ -1288,7 +1397,7 @@ def trasladar_solicitudes_al_sci211(request, emergencia, codigo, esquema, post_v
         request,
         f"{creadas} recurso(s) solicitado(s) quedaron anotados en el SCI-211.",
     )
-    formulario_211 = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+    formulario_211 = emergencia.formulario_sci_211
     if formulario_211 is None:
         return
     despachadas, avisos = desplegar_recursos_del_sci211(formulario_211, request.user)
@@ -1365,7 +1474,7 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
     if bloqueado:
         return bloqueado
     if codigo == "211":
-        formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+        formulario = emergencia.formulario_sci_211
         if formulario is None:
             formulario = crear_sci211_desde_emergencia(emergencia, request.user)
         return redirect("emergencias:sci211_editar", pk=formulario.pk)
@@ -1548,7 +1657,7 @@ def sci211_crear(request, emergencia_pk):
         return bloqueado
     if not puede_editar_sci(request.user, emergencia):
         raise PermissionDenied
-    formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+    formulario = emergencia.formulario_sci_211
     if formulario is None:
         formulario = crear_sci211_desde_emergencia(emergencia, request.user)
         messages.success(request, "Formulario SCI-211 creado como borrador.")

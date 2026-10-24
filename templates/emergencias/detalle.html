@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -20,6 +20,7 @@
         <div><dt>Dirección</dt><dd>{{ emergencia.direccion }}</dd></div>
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
         {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
+        {% if emergencia.estado == 'cancelada' %}<div><dt>Motivo de la cancelación</dt><dd>{{ emergencia.get_motivo_cancelacion_display|default:"Sin motivo registrado" }}{% if emergencia.detalle_cancelacion %} · {{ emergencia.detalle_cancelacion }}{% endif %}</dd></div>{% endif %}
         <div><dt>Periodo operacional</dt><dd>{{ periodo_vigente.numero|default:"1" }}{% if periodos_operacionales|length > 1 %} <small>(de {{ periodos_operacionales|length }})</small>{% endif %}</dd></div>
     </dl>
 
@@ -44,7 +45,7 @@
     </div>
     {% endif %}
 
-    {% if transiciones_emergencia %}
+    {% if transiciones_emergencia or puede_cancelar %}
     {% comment %}
     La fase del incidente. Son botones y no un desplegable con «Guardar» a
     propósito: cada uno dice lo que va a pasar y se pulsa una sola vez, que es lo
@@ -70,6 +71,11 @@
                 </button>
             </form>
             {% endfor %}
+            {% if puede_cancelar %}
+            <button type="button" class="fase-boton fase-boton--cancelar" data-abrir-dialogo="dialogo-cancelar" aria-haspopup="dialog">
+                <i class="ti ti-ban" aria-hidden="true"></i> Cancelar / Falsa alarma
+            </button>
+            {% endif %}
         </div>
         {% if emergencia.estado == 'en_atencion' or emergencia.estado == 'controlada' %}
         <p class="fase-incidente__nota">
@@ -151,7 +157,7 @@
     documento es uno, con sus periodos dentro. Ahora todos los formularios
     entran por el mismo sitio y los periodos se recorren dentro del documento.
     {% endcomment %}
-    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}{% if item.periodos > 1 %} · {{ item.periodos }} periodos en un documento{% endif %}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
+    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}{% if item.periodos > 1 %} · {{ item.periodos }} periodos en un documento{% endif %}</em>{% if item.anteriores %}<small class="sci-form-tab__previo">Antes: {{ item.anteriores|join:" · " }}</small>{% endif %}</span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>
@@ -175,4 +181,94 @@
         </tr>{% endfor %}</tbody>
     </table></div>{% else %}<div class="empty-state"><p>No hay unidades desplegadas. Las unidades se despachan al registrarlas en el formulario SCI-211.</p></div>{% endif %}
 </section>
+{% if puede_cancelar %}
+{% comment %}
+Cancelar pide el motivo, y el motivo decide qué pasa: una falsa alarma o una broma
+no son un incidente mal atendido sino uno que no existió, así que se ELIMINAN y no
+quedan en los registros ni en las estadísticas; un error de despacho u otro motivo
+dejan el incidente cancelado, con la razón anotada. Eliminar no se deshace, de modo
+que además del motivo pide marcar que se entiende. El servidor lo vuelve a exigir.
+{% endcomment %}
+<dialog id="dialogo-cancelar" class="dialogo-confirmar dialogo-cancelar" aria-labelledby="cancelar-titulo">
+    <form method="post" action="{% url 'emergencias:cancelar' emergencia.pk %}" class="dialogo-confirmar__cuerpo">
+        {% csrf_token %}
+        <h2 id="cancelar-titulo" class="dialogo-confirmar__titulo">Cancelar la emergencia {{ emergencia.codigo }}</h2>
+        <fieldset class="cancelar-motivos">
+            <legend>¿Por qué se cancela?</legend>
+            {% for motivo in motivos_cancelacion %}
+            <label class="cancelar-motivo">
+                <input type="radio" name="motivo" value="{{ motivo.valor }}" data-elimina="{% if motivo.elimina %}1{% else %}0{% endif %}" required>
+                <span>{{ motivo.etiqueta }}{% if motivo.elimina %} <small>· se elimina</small>{% endif %}</span>
+            </label>
+            {% endfor %}
+        </fieldset>
+        <label class="cancelar-detalle" for="cancelar-detalle">Detalle <small data-detalle-requerido hidden>(obligatorio)</small></label>
+        <textarea id="cancelar-detalle" name="detalle" rows="2" maxlength="200" placeholder="Opcional salvo en «Otro motivo»"></textarea>
+        <div class="cancelar-aviso cancelar-aviso--eliminar" data-aviso-eliminar hidden>
+            <p><strong>Se eliminará el incidente.</strong> No quedará en los registros operativos ni en las estadísticas, y no se puede deshacer. Las unidades asignadas volverán al inventario.</p>
+            <label class="cancelar-confirmo"><input type="checkbox" name="confirmo" value="1" data-confirmo> Entiendo que se elimina definitivamente</label>
+        </div>
+        <div class="cancelar-aviso" data-aviso-cancelar hidden>
+            <p>Quedará <strong>cancelada</strong>, con el motivo anotado, y saldrá de «En atención». Seguirá en el historial.</p>
+        </div>
+        <div class="dialogo-confirmar__acciones">
+            <button type="button" class="button" data-dialogo-cerrar autofocus>Volver</button>
+            <button type="submit" class="button button--primary" data-dialogo-enviar disabled>
+                <span class="dialogo-confirmar__spinner" aria-hidden="true" hidden></span>
+                <span data-etiqueta>Elija un motivo</span>
+            </button>
+        </div>
+    </form>
+</dialog>
+{% endif %}
 {% endblock %}
+{% block extra_js %}{% if puede_cancelar %}<script>
+(() => {
+    "use strict";
+    const dialogo = document.getElementById("dialogo-cancelar");
+    if (!dialogo) return;
+    const formulario = dialogo.querySelector("form");
+    const enviar = formulario.querySelector("[data-dialogo-enviar]");
+    const etiqueta = enviar.querySelector("[data-etiqueta]");
+    const spinner = enviar.querySelector(".dialogo-confirmar__spinner");
+    const confirmo = formulario.querySelector("[data-confirmo]");
+    const detalle = formulario.querySelector("textarea[name=detalle]");
+    const avisoEliminar = formulario.querySelector("[data-aviso-eliminar]");
+    const avisoCancelar = formulario.querySelector("[data-aviso-cancelar]");
+    const requerido = formulario.querySelector("[data-detalle-requerido]");
+
+    // Lo que dice el botón y lo que se pide dependen del motivo elegido.
+    const actualizar = () => {
+        const elegido = formulario.querySelector("input[name=motivo]:checked");
+        const elimina = Boolean(elegido) && elegido.dataset.elimina === "1";
+        const otro = Boolean(elegido) && elegido.value === "otro";
+        avisoEliminar.hidden = !elimina;
+        avisoCancelar.hidden = !elegido || elimina;
+        confirmo.required = elimina;
+        if (!elimina) confirmo.checked = false;
+        detalle.required = otro;
+        requerido.hidden = !otro;
+        enviar.disabled = !elegido;
+        enviar.classList.toggle("button--peligro", elimina);
+        etiqueta.textContent = !elegido ? "Elija un motivo"
+            : (elimina ? "Eliminar incidente" : "Cancelar emergencia");
+    };
+
+    formulario.addEventListener("change", actualizar);
+    document.querySelectorAll("[data-abrir-dialogo=dialogo-cancelar]").forEach((boton) => {
+        boton.addEventListener("click", () => {
+            formulario.reset();
+            actualizar();
+            dialogo.showModal();
+        });
+    });
+    formulario.querySelector("[data-dialogo-cerrar]").addEventListener("click", () => dialogo.close());
+    // Un solo envío: una segunda pulsación no debe intentar eliminar dos veces.
+    formulario.addEventListener("submit", () => {
+        enviar.disabled = true;
+        spinner.hidden = false;
+        etiqueta.textContent = "Procesando…";
+    });
+})();
+</script>{% endif %}{% endblock %}
+

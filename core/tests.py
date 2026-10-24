@@ -590,3 +590,94 @@ class UnaSolaPestanaTests(TestCase):
             "«window.close()» no hace nada en una pestaña que no abrió un guion. "
             f"Use un enlace de vuelta: {culpables}",
         )
+
+
+class BotonesDeNavegacionTests(TestCase):
+    """Un enlace que se usa como botón tiene que verse y tocarse como botón.
+
+    «Volver al listado» salía como un enlace azul subrayado: la clase ``button`` solo
+    definía alto, padding y radio, así que un ``<button>`` se salvaba por el aspecto
+    que le pone el navegador, pero un ``<a>`` heredaba el de un enlace. Y «Nueva
+    cuenta», en Usuarios, usaba una clase que solo se definía en la hoja de otro
+    módulo y se veía sin ningún estilo. Estas guardas leen las hojas porque el
+    proyecto no tiene un navegador en las pruebas; el aspecto se verificó a mano.
+    """
+
+    FAMILIAS = (".button", ".action", ".inventory-action", ".capacity-button")
+
+    def reglas(self, ruta):
+        css = (Path(settings.BASE_DIR) / "static" / ruta).read_text(encoding="utf-8")
+        # Sin comentarios: el que precede a una regla se pegaría a su selector.
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        return [
+            ([s.strip() for s in selector.split(",")], cuerpo)
+            for selector, cuerpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+        ]
+
+    def cuerpo_de(self, ruta, selector):
+        for selectores, cuerpo in self.reglas(ruta):
+            if selector in selectores:
+                return cuerpo
+        self.fail(f"No hay una regla para {selector} en {ruta}")
+
+    def test_las_cuatro_familias_comparten_una_base_en_la_hoja_comun(self):
+        """Está en componentes.css, que carga toda página: no depende de otro módulo."""
+        for selectores, cuerpo in self.reglas("css/componentes.css"):
+            if all(familia in selectores for familia in self.FAMILIAS):
+                break
+        else:
+            self.fail("Ninguna regla agrupa las cuatro familias de botones.")
+        for requisito in ("text-decoration: none", "background:", "border:", "color:",
+                          "min-height: 2.75rem"):
+            self.assertIn(requisito, cuerpo, requisito)
+
+    def test_el_boton_primario_de_cada_familia_se_define_en_la_hoja_comun(self):
+        primarios = (".button--primary", ".action--primary", ".inventory-action--primary",
+                     ".capacity-button--primary")
+        for selectores, _ in self.reglas("css/componentes.css"):
+            if all(primario in selectores for primario in primarios):
+                return
+        self.fail("El botón primario de las cuatro familias no está en la hoja común.")
+
+    def test_los_enlaces_que_vuelven_atras_son_botones(self):
+        """Ningún «Volver…» ni «Cancelar» queda como texto suelto."""
+        raiz = Path(settings.BASE_DIR) / "templates"
+        clases_de_boton = re.compile(
+            r"\b(button|action|inventory-action|capacity-button|gps-button|ghost)\b"
+        )
+        # Dos páginas autónomas, sin la hoja común, que estilizan sus enlaces por su
+        # cuenta: la de «sin conexión» (pwa.css) y la imprimible del SCI-211 (en línea).
+        autonomas = {"core/sin_conexion.html", "emergencias/sci211/pdf.html"}
+        sueltos = []
+        for plantilla in raiz.rglob("*.html"):
+            if plantilla.relative_to(raiz).as_posix() in autonomas:
+                continue
+            fuente = plantilla.read_text(encoding="utf-8")
+            for etiqueta in re.findall(
+                r"<a\s[^>]*>[^<]*(?:Volver|Cancelar|Regresar)[^<]*</a>", fuente
+            ):
+                clase = re.search(r'class="([^"]*)"', etiqueta)
+                if not clase or not clases_de_boton.search(clase.group(1)):
+                    sueltos.append(f"{plantilla.relative_to(raiz).as_posix()}: {etiqueta[:70]}")
+        self.assertEqual(sueltos, [], f"Enlaces de navegación sin aspecto de botón: {sueltos}")
+
+    def test_los_enlaces_de_accion_con_estilo_propio_miden_44_px(self):
+        """Los que no usan la clase común y por eso no los cubre la guarda general."""
+        casos = (
+            ("dashboard/css/dashboard.css", ".dashboard-panel-heading > a"),
+            ("dashboard/css/dashboard.css", ".dashboard-evaluation > a"),
+            ("dashboard/css/dashboard.css", ".incident-board > article > a"),
+            ("operaciones/css/capacidades.css", ".capacity-card__links a"),
+        )
+        for ruta, selector in casos:
+            cuerpo = self.cuerpo_de(ruta, selector)
+            medida = re.search(r"min-height:\s*([0-9.]+)rem", cuerpo)
+            self.assertIsNotNone(medida, f"{selector} no declara min-height")
+            self.assertGreaterEqual(float(medida.group(1)) * 16, 44, selector)
+        cta = self.cuerpo_de("emergencias/css/emergencias.css", ".sci-next-step__cta")
+        self.assertIn("min-height:2.75rem", cta.replace(" ", ""))
+
+    def test_los_enlaces_de_ver_todas_no_van_subrayados_como_texto(self):
+        cuerpo = self.cuerpo_de("dashboard/css/dashboard.css", ".dashboard-panel-heading > a")
+        self.assertIn("text-decoration: none", cuerpo)
+        self.assertIn("border:", cuerpo)

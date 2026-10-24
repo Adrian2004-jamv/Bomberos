@@ -298,27 +298,85 @@
     .tour-btn span { display: none; }
 }
 
-.button {
+/* El botón de la aplicación, igual en <button> y en <a>, y en las cuatro familias que
+   el proyecto fue acumulando (.button, .action, .inventory-action, .capacity-button):
+   cada módulo definía la suya en su propia hoja, de modo que una página que usaba la
+   clase de otro módulo —«Nueva cuenta» en Usuarios— mostraba un enlace azul sin estilo.
+   Aquí vive lo común; las hojas de cada módulo solo ajustan lo suyo.
+   La regla solo definía alto,
+   padding y radio: un <button> se salvaba porque el navegador le pone su propio
+   aspecto, pero un <a class="button"> —«Volver al listado», «Volver al incidente»—
+   heredaba el de un enlace: azul, subrayado y sin fondo, y no se leía como algo que
+   se toca. Aquí se le da todo lo que hace un botón: color, fondo, borde, sin
+   subrayado y un área de toque de 44 px. */
+.button,
+.action,
+.inventory-action,
+.capacity-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    box-sizing: border-box;
     min-height: 2.75rem;
+    min-width: 2.75rem;
     padding: 0.55rem 0.9rem;
-    border: 1px solid transparent;
+    color: var(--color-navy-900);
+    background: var(--color-white);
+    border: 1px solid var(--color-slate-300);
     border-radius: var(--radius-sm);
+    font: inherit;
     font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
     cursor: pointer;
+    transition: background-color 150ms, border-color 150ms, color 150ms;
+}
+
+.button:hover,
+.action:hover,
+.inventory-action:hover,
+.capacity-button:hover {
+    border-color: var(--color-slate-500);
+    background: var(--color-slate-100);
+    text-decoration: none;
+}
+
+.button:disabled,
+.action:disabled,
+.inventory-action:disabled,
+.capacity-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 /* La acción principal de cada pantalla. La clase se usaba en varias
    plantillas sin que existiera la regla, de modo que «Guardar borrador» o
    «Despachar unidad» se veían igual que un botón secundario. */
-.button--primary {
+.button--primary,
+.action--primary,
+.inventory-action--primary,
+.capacity-button--primary {
     color: var(--color-white);
     border-color: var(--color-red-700);
     background: var(--color-red-700);
 }
 
-.button--primary:hover {
+.button--primary:hover,
+.action--primary:hover,
+.inventory-action--primary:hover,
+.capacity-button--primary:hover {
+    color: var(--color-white);
     border-color: #a20d16;
     background: #a20d16;
+}
+
+.button--peligro,
+.button--peligro:hover {
+    color: var(--color-white);
+    border-color: #8a1017;
+    background: #8a1017;
 }
 
 .button--ghost {

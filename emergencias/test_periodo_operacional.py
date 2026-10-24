@@ -324,11 +324,11 @@ class TerminarLaEmergenciaDesdeLaFichaTests(BaseDelPeriodo):
         respuesta = self.client.get(reverse("emergencias:detalle", args=[emergencia.pk]))
         self.assertContains(respuesta, "Fase del incidente")
         ofrecidas = {t["valor"] for t in respuesta.context["transiciones_emergencia"]}
+        # La cancelación no es una fase: tiene su propio flujo con el motivo.
         self.assertEqual(
-            ofrecidas,
-            {Emergencia.Estado.CONTROLADA, Emergencia.Estado.CERRADA,
-             Emergencia.Estado.CANCELADA},
+            ofrecidas, {Emergencia.Estado.CONTROLADA, Emergencia.Estado.CERRADA},
         )
+        self.assertTrue(respuesta.context["puede_cancelar"])
         self.assertContains(
             respuesta, reverse("emergencias:cambiar_estado", args=[emergencia.pk])
         )
@@ -392,7 +392,7 @@ class TerminarLaEmergenciaDesdeLaFichaTests(BaseDelPeriodo):
         self.assertNotContains(respuesta, "Fase del incidente")
 
     def test_lo_que_cuesta_deshacer_pide_confirmacion(self):
-        """Terminar y cancelar avisan; pasar a controlada no.
+        """Terminar avisa; pasar a controlada no. (Cancelar tiene su propio diálogo.)
 
         Controlada es un paso intermedio del que se vuelve —el propio mapa de
         transiciones permite regresar a «en atención»—, así que pedir
@@ -413,9 +413,9 @@ class TerminarLaEmergenciaDesdeLaFichaTests(BaseDelPeriodo):
         ):
             estado = _re.search(r'value="(\w+)"', bloque).group(1)
             confirman[estado] = "data-confirmar" in bloque
-        self.assertEqual(
-            confirman, {"controlada": False, "cerrada": True, "cancelada": True}
-        )
+        # «Cancelada» ya no es un botón de fase: tiene su propio flujo, que pide el
+        # motivo y según cuál sea elimina el incidente o lo cancela.
+        self.assertEqual(confirman, {"controlada": False, "cerrada": True})
 
 
 class DocumentoContinuoTests(BaseDelPeriodo):

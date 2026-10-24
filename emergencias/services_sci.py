@@ -15,19 +15,30 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
     # dónde está el PC ya lo declaró el campo 8 del SCI-201. Volver a pedirlo era
     # pedir por segunda vez un dato que consta, con el riesgo de que las dos
     # copias no coincidan. Si el 201 aún no lo dice, queda el valor de siempre.
-    del_201 = estado_del_incidente(emergencia)
+    periodo = emergencia.periodo_vigente()
+    del_201 = estado_del_incidente(emergencia, periodo)
     punto = (del_201.get("ubicacion_pc") or "").strip() or "Puesto de Comando"
     formulario = FormularioSCI211.objects.create(
         emergencia=emergencia,
-        codigo=f"SCI-211-{emergencia.codigo}",
+        periodo=periodo,
+        # El número del formulario es único: el de un periodo posterior lleva su sufijo.
+        codigo=(
+            f"SCI-211-{emergencia.codigo}" if periodo.numero == 1
+            else f"SCI-211-{emergencia.codigo}-P{periodo.numero}"
+        ),
         punto_registro=punto,
         registrador_1=nombre_usuario(usuario),
         creado_por=usuario,
         modificado_por=usuario,
     )
-    for orden, despliegue in enumerate(emergencia.despliegues.select_related(
+    despliegues = emergencia.despliegues.select_related(
         "unidad__tipo__categoria", "estacion_procedencia__cuerpo_bomberos", "despachado_por"
-    ), start=1):
+    )
+    if periodo.numero > 1:
+        # Las unidades despachadas en un periodo anterior ya constan en su 211; este
+        # empieza con las que se mandaron desde que el periodo se abrió.
+        despliegues = despliegues.filter(fecha_asignacion__gte=periodo.inicio)
+    for orden, despliegue in enumerate(despliegues, start=1):
         unidad = despliegue.unidad
         estado = RegistroRecursoSCI211.EstadoRecurso.DISPONIBLE
         if unidad.estado_operativo == "fuera_servicio":
@@ -150,7 +161,7 @@ def registrar_solicitud_en_sci211(emergencia, recursos, usuario):
     if not recursos:
         return 0
 
-    formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
+    formulario = emergencia.formulario_sci_211
     if formulario is None:
         formulario = crear_sci211_desde_emergencia(emergencia, usuario)
     if not formulario.es_editable:
