@@ -80,9 +80,12 @@ def _textos_por_tipo(emergencia):
 
     # Determinar contexto según tipo de emergencia
     if "forestal" in tipo:
-        eval_inicial   = (f"Incendio forestal activo en {dir_}. Frente de fuego aproximado de 2 ha. "
-                          "Viento del NE empuja las llamas hacia área poblada. Sin víctimas reportadas. "
-                          "Vegetación seca favorece la propagación rápida.")
+        eval_inicial   = {
+            "naturaleza": f"Incendio forestal activo en {dir_}. Frente de fuego aproximado de 2 ha.",
+            "amenazas": "Viento del NE empuja las llamas hacia área poblada. Vegetación seca favorece la propagación rápida.",
+            "areas": "Ladera con vegetación y viviendas dispersas en el sector norte.",
+            "aislamiento": "Sin víctimas reportadas. Se cierra el acceso al sector por la vía lateral.",
+        }
         objetivo_ini   = ("Controlar el frente de fuego activo en un radio de 500 m. "
                           "Evitar que el incendio alcance viviendas en el sector norte.")
         estrategias    = ("Ataque indirecto con cortafuegos perimetral. "
@@ -102,9 +105,12 @@ def _textos_por_tipo(emergencia):
                           "Of. Información: Sgt. Jorge Mena\nJSO: Cap. Pablo Ríos\n"
                           "JSL: Lt. Carmen Suárez")
     elif "rescate" in tipo or "vehicular" in tipo or "accidente" in tipo:
-        eval_inicial   = (f"Accidente de tránsito en {dir_}. Colisión frontal entre dos vehículos. "
-                          "Dos personas atrapadas en el habitáculo. Una persona con traumatismo leve "
-                          "evacuada por sus propios medios. Riesgo de derrame de combustible.")
+        eval_inicial   = {
+            "naturaleza": f"Accidente de tránsito en {dir_}. Colisión frontal entre dos vehículos.",
+            "amenazas": "Dos personas atrapadas en el habitáculo. Riesgo de derrame de combustible.",
+            "areas": "Calzada completa y berma de ambos sentidos.",
+            "aislamiento": "Una persona con traumatismo leve evacuada por sus propios medios. Vía cerrada al tránsito.",
+        }
         objetivo_ini   = ("Excarcelar a las personas atrapadas sin agravar sus lesiones. "
                           "Controlar el derrame de combustible y prevenir incendio secundario.")
         estrategias    = ("Estabilización de vehículos. Excarcelación con herramienta hidráulica. "
@@ -120,9 +126,12 @@ def _textos_por_tipo(emergencia):
         organigrama_0  = ("CI: Cap. Hernán Villacís\nOf. Seguridad: Sgt. Ana Molina\n"
                           "JSO: Lt. Marco Espín\nJSL: Sgt. Patricia Lema")
     elif "médic" in tipo or "medic" in tipo:
-        eval_inicial   = (f"Emergencia médica en {dir_}. Paciente masculino 58 años con "
-                          "dolor precordial irradiado al brazo izquierdo. Diaforesis y disnea. "
-                          "Familiar refiere antecedente de hipertensión arterial.")
+        eval_inicial   = {
+            "naturaleza": f"Emergencia médica en {dir_}. Paciente masculino de 58 años con dolor precordial irradiado al brazo izquierdo.",
+            "amenazas": "Diaforesis y disnea. Familiar refiere antecedente de hipertensión arterial.",
+            "areas": "Domicilio del paciente, planta baja.",
+            "aislamiento": "No aplica.",
+        }
         objetivo_ini   = ("Estabilizar al paciente y transportarlo al centro hospitalario más cercano "
                           "en el menor tiempo posible.")
         estrategias    = ("Evaluación primaria y secundaria in situ. "
@@ -135,9 +144,12 @@ def _textos_por_tipo(emergencia):
         croquis        = f"Emergencia médica en {dir_}. PC en vía de acceso. ACV junto a la escena."
         organigrama_0  = ("CI: Lt. Verónica Pazmiño\nOf. Seguridad: Sgt. Roberto Alba\nJSO: Cap. Diego Toro")
     elif "inundación" in tipo or "inundacion" in tipo:
-        eval_inicial   = (f"Inundación en {dir_} por desbordamiento del cause principal. "
-                          "Nivel del agua: 0,80 m en calzada. Tres familias aisladas en planta alta. "
-                          "Sin víctimas en el agua. Lluvia intensa continúa.")
+        eval_inicial   = {
+            "naturaleza": f"Inundación en {dir_} por desbordamiento del cauce principal.",
+            "amenazas": "Lluvia intensa continúa. Nivel del agua de 0,80 m en calzada.",
+            "areas": "Calzada y viviendas de planta baja. Tres familias aisladas en planta alta.",
+            "aislamiento": "Sin víctimas en el agua. Perímetro de seguridad en zona de riesgo.",
+        }
         objetivo_ini   = ("Evacuar a las tres familias aisladas y prevenir pérdidas humanas. "
                           "Establecer perímetro de seguridad en zona de riesgo.")
         estrategias    = ("Rescate con bote de goma. Evacuación a punto seguro.")
@@ -149,9 +161,12 @@ def _textos_por_tipo(emergencia):
         organigrama_0  = ("CI: Mayor Carlos Gutiérrez\nJSO: Cap. Norma Vásquez\nJSL: Lt. Esteban Cruz")
     else:
         # Incendio estructural (caso por defecto)
-        eval_inicial   = (f"Incendio estructural en {dir_}. Involucra planta baja y parte del entrepiso. "
-                          "Humo denso y negro visible a 500 m. Cuatro personas evacuadas por sus propios medios. "
-                          "Sin víctimas atrapadas confirmadas. Riesgo de colapso en sector de cubierta.")
+        eval_inicial   = {
+            "naturaleza": f"Incendio estructural en {dir_}. Involucra planta baja y parte del entrepiso.",
+            "amenazas": "Humo denso y negro visible a 500 m. Riesgo de colapso en sector de cubierta.",
+            "areas": "Planta baja y entrepiso. Edificaciones adyacentes expuestas.",
+            "aislamiento": "Cuatro personas evacuadas por sus propios medios. Sin víctimas atrapadas confirmadas.",
+        }
         objetivo_ini   = ("Extinguir el incendio en el menor tiempo posible y evitar su propagación "
                           "a las edificaciones adyacentes.")
         estrategias    = ("Ataque directo con dos líneas de manguera de 38 mm. "
@@ -172,7 +187,10 @@ def _textos_por_tipo(emergencia):
 
     return {
         # SCI-201
-        "evaluacion_inicial":   eval_inicial,
+        "evaluacion_naturaleza":      eval_inicial["naturaleza"],
+        "evaluacion_amenazas":        eval_inicial["amenazas"],
+        "evaluacion_areas_afectadas": eval_inicial["areas"],
+        "evaluacion_aislamiento":     eval_inicial["aislamiento"],
         "objetivos_iniciales":  objetivo_ini,
         "estrategias":          estrategias,
         "tacticas":             tacticas,

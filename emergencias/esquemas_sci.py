@@ -56,6 +56,33 @@ def _columna(nombre, etiqueta, ancho="", recurso_inventario=False, tipo=TEXTO,
         "origen": origen,
     }
 
+# El punto 4 del SCI-201 enumera cuatro cosas distintas —naturaleza, amenazas,
+# áreas afectadas y aislamiento— y el formulario oficial las lista como viñetas
+# de un mismo renglón. Se guardaban en un solo texto, y ese texto no se puede
+# consultar: no hay manera de preguntar «cuántos incidentes tuvieron áreas
+# afectadas con riesgo de colapso» sobre un párrafo donde alguien mezcló las
+# cuatro cosas a su manera. Cada una es ahora su propio campo, con su propia
+# clave en ``datos``, de modo que los reportes y las estadísticas puedan leerla.
+EVALUACION_INICIAL = (
+    ("evaluacion_naturaleza", "Naturaleza del incidente"),
+    ("evaluacion_amenazas", "Amenazas"),
+    ("evaluacion_areas_afectadas", "Áreas afectadas"),
+    ("evaluacion_aislamiento", "Aislamiento"),
+)
+
+# La clave antigua, de cuando el punto 4 era una sola casilla. No se migra a los
+# cuatro campos porque no hay manera de saber dónde acaba la naturaleza y dónde
+# empiezan las amenazas en un párrafo escrito a mano, y repartirlo por
+# adivinación sería inventar datos en un expediente. Se conserva tal cual y se
+# muestra mientras los cuatro campos nuevos sigan vacíos.
+EVALUACION_INICIAL_HEREDADA = "evaluacion_inicial"
+
+# Campos que un formulario tuvo y ya no tiene. Al guardar se vuelven a escribir
+# tal como estaban: ``extraer_datos`` solo conoce el esquema vigente y sin esto
+# el primer guardado borraría en silencio lo que alguien escribió con el esquema
+# anterior.
+CAMPOS_RETIRADOS = {"201": (EVALUACION_INICIAL_HEREDADA,)}
+
 ESQUEMAS_SCI = {
     "201": {
         "nombre": "Resumen del Incidente",
@@ -71,10 +98,16 @@ ESQUEMAS_SCI = {
             # Campo 3 — Lugar del incidente (fila completa, auto-completado)
             {"numero": 3, "nombre": "lugar_incidente", "obligatorio": True, "etiqueta": "Lugar del incidente", "tipo": TEXTO,
              "ayuda": "Se completa automáticamente con la dirección registrada en la emergencia."},
-            # Campo 4 — Evaluación inicial con sub-ítems
-            {"numero": 4, "nombre": "evaluacion_inicial", "obligatorio": True, "etiqueta": "Evaluación inicial", "tipo": TEXTAREA,
-             "ayuda": "Incluya: - Naturaleza del incidente.  - Amenazas.  - Áreas afectadas.  - Aislamiento.",
-             "filas": 8},
+            # Campo 4 — Evaluación inicial: un campo por cada sub-punto. Todos son
+            # obligatorios para finalizar; si uno no aplica se escribe «No aplica»,
+            # que también es una respuesta.
+            *[
+                {"numero": 4, "nombre": nombre, "grupo": "evaluacion_inicial",
+                 "obligatorio": True,
+                 "etiqueta": f"Evaluación inicial — {etiqueta}", "tipo": TEXTAREA,
+                 "filas": 3}
+                for nombre, etiqueta in EVALUACION_INICIAL
+            ],
             # Campos 5, 6, 7 en una misma sección (se renderizan en 3 columnas en el preview)
             {"numero": 5, "nombre": "objetivos_iniciales", "obligatorio": True, "etiqueta": "Objetivo(s) inicial(es)", "tipo": TEXTAREA, "filas": 6},
             {"numero": 6, "nombre": "estrategias", "etiqueta": "Estrategias", "tipo": TEXTAREA, "filas": 6},
@@ -498,6 +531,34 @@ def indices_enviados(post, nombre, seccion):
             if crudo.isdigit():
                 indices.add(int(crudo))
     return sorted(indices)[:LIMITE_FILAS]
+
+def evaluacion_heredada(datos):
+    """El texto del punto 4 escrito cuando era una sola casilla, si sigue vigente.
+
+    Solo se devuelve mientras los cuatro campos nuevos estén vacíos: en cuanto
+    alguien empieza a repartirlo, lo antiguo deja de mostrarse (se conserva en
+    los datos, no en pantalla) para no enseñar la misma información dos veces.
+    """
+    datos = datos or {}
+    if any(str(datos.get(nombre) or "").strip() for nombre, _ in EVALUACION_INICIAL):
+        return ""
+    return str(datos.get(EVALUACION_INICIAL_HEREDADA) or "").strip()
+
+def evaluacion_en_partes(datos):
+    """El punto 4 como pares (etiqueta, texto), solo con los que tienen contenido."""
+    datos = datos or {}
+    return [
+        (etiqueta, str(datos.get(nombre)).strip())
+        for nombre, etiqueta in EVALUACION_INICIAL
+        if str(datos.get(nombre) or "").strip()
+    ]
+
+def conservar_campos_retirados(codigo, anteriores, nuevos):
+    """Devuelve ``nuevos`` con los campos retirados tal como estaban."""
+    for nombre in CAMPOS_RETIRADOS.get(codigo, ()):
+        if nombre in (anteriores or {}) and nombre not in nuevos:
+            nuevos[nombre] = anteriores[nombre]
+    return nuevos
 
 def secciones_completadas(esquema, datos):
     """Cuenta cuántas secciones del formulario tienen datos reales.

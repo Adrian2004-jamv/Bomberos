@@ -98,10 +98,9 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
     <tr>
       <td colspan="6" class="celda-grande" style="min-height:220px">
         <span class="lbl">4. Evaluación Inicial:</span>
-        <div style="padding-left:6px;margin-top:3px;font-size:10px;color:#1a237e">- Naturaleza del incidente.&nbsp;&nbsp; - Amenazas.&nbsp;&nbsp; - Áreas afectadas.&nbsp;&nbsp; - Aislamiento.</div>
-        <span class="val" style="display:block;margin-top:4px">
-          {% for sec in secciones %}{% if sec.nombre == "evaluacion_inicial" %}{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente de completar</span>{% endif %}{% endif %}{% endfor %}
-        </span>
+        {% for sec in secciones %}{% if sec.grupo == "evaluacion_inicial" %}
+        <span class="val" style="display:block;margin-top:4px;padding-left:6px"><b style="font-size:10px;color:#1a237e">- {{ sec.etiqueta|cut:"Evaluación inicial — " }}.</b><br>{% if sec.valor %}{{ sec.valor }}{% else %}<span class="val--vacio">Pendiente de completar</span>{% endif %}</span>
+        {% endif %}{% endfor %}
       </td>
     </tr>
     {# Fila: 5. Objetivos | 6. Estrategias | 7. Tácticas #}

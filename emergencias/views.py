@@ -38,7 +38,8 @@ from .permissions import (conduce_el_despliegue, despliegues_asignados,
 from .codigos import generar_codigo_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO, TABLA,
-                          campos_periodo, extraer_datos, obtener_esquema,
+                          EVALUACION_INICIAL, campos_periodo, conservar_campos_retirados,
+                          evaluacion_heredada, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
 from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
@@ -1080,6 +1081,9 @@ def hoja_de_solo_lectura(esquema, formulario):
     return {
         "periodo": formulario.periodo,
         "formulario": formulario,
+        # Lo que el punto 4 decía cuando era una sola casilla: un periodo cerrado
+        # no se reescribe y tampoco se oculta.
+        "evaluacion_heredada": evaluacion_heredada(datos),
         "finalizado": formulario.estado == FormularioSCI.Estado.FINALIZADO,
         "campos_periodo": [
             dict(campo, valor=datos.get(campo["nombre"], ""))
@@ -1157,6 +1161,16 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
             if getattr(emergencia, "pk", None) else ""
         ),
         "datos_sci": datos,
+        # El texto del punto 4 de cuando era una sola casilla, mientras los cuatro
+        # campos nuevos sigan vacíos. Solo el SCI-201 lo tiene.
+        "evaluacion_heredada": evaluacion_heredada(datos) if codigo == "201" else "",
+        # Los cuatro sub-puntos del punto 4 con su valor, para que el editor y la
+        # hoja de impresión los recorran en un bucle y no los repitan a mano.
+        "evaluacion_items": [
+            {"nombre": nombre, "etiqueta": etiqueta,
+             "valor": datos.get(nombre, "")}
+            for nombre, etiqueta in EVALUACION_INICIAL
+        ] if codigo == "201" else [],
         # Un campo vacío se ofrece con lo que ya se escribió en otro formulario
         # de esta emergencia; uno con valor propio no se toca.
         "campos_periodo": [
@@ -1386,7 +1400,9 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            datos = extraer_datos(esquema, post_validado)
+            datos = conservar_campos_retirados(
+                codigo, formulario.datos, extraer_datos(esquema, post_validado)
+            )
             try:
                 exigir_fechas_coherentes(emergencia, esquema, datos)
             except ValidationError as error:

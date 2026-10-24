@@ -507,7 +507,9 @@ class DocumentoContinuoTests(BaseDelPeriodo):
         ).content.decode()
         self.assertIn("Incendio declarado en la bodega", html)
         self.assertIn("Periodo operacional 1, cerrado", html)
-        self.assertIn('name="evaluacion_inicial"', html)
+        # Y el punto 4 ya no es una casilla: cada sub-punto tiene la suya. Lo que
+        # el periodo 1 escribió con la casilla única se conserva a la vista.
+        self.assertIn('name="evaluacion_naturaleza"', html)
 
     def test_sin_periodo_abierto_el_documento_se_lee_y_nada_mas(self):
         """Caso defensivo: ningún periodo abierto.

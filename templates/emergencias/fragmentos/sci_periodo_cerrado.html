@@ -28,6 +28,13 @@ Espera «bloque» (lo arma ``hoja_de_solo_lectura`` en las vistas) y toma
     </dl>
     {% endif %}
 
+    {% if bloque.evaluacion_heredada %}
+    <article class="sci-periodo-cerrado__seccion">
+      <h4>4. Evaluación inicial <small>(escrita en una sola casilla, antes de separarla en cuatro)</small></h4>
+      <p class="sci-periodo-cerrado__texto">{{ bloque.evaluacion_heredada }}</p>
+    </article>
+    {% endif %}
+
     {% for seccion in bloque.secciones %}
     <article class="sci-periodo-cerrado__seccion">
       <h4>{{ seccion.numero }}. {{ seccion.etiqueta }}</h4>

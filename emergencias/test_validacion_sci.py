@@ -124,7 +124,10 @@ class ObligatoriosTests(BaseValidacion):
         emergencia = self.crear_emergencia("VAL-OK")
         formulario = self.crear_formulario(emergencia, "201", {
             "lugar_incidente": "Av. Amazonas y Quito",
-            "evaluacion_inicial": "Incendio en planta baja, sin heridos.",
+            "evaluacion_naturaleza": "Incendio en planta baja.",
+            "evaluacion_amenazas": "Humo denso, riesgo de colapso de cubierta.",
+            "evaluacion_areas_afectadas": "Planta baja y entrepiso.",
+            "evaluacion_aislamiento": "Sin heridos. Calle cerrada al tránsito.",
             "objetivos_iniciales": "Confinar el fuego y proteger expuestos.",
         }, preparado_por="Mayor Andrade")
         finalizar_sci(formulario, self.usuario)
@@ -159,7 +162,7 @@ class ObligatoriosTests(BaseValidacion):
         self.client.force_login(self.usuario)
         respuesta = self.client.post(
             reverse("emergencias:sci_editar", args=["201", emergencia.pk]),
-            {"evaluacion_inicial": "Humo denso en el segundo piso."},
+            {"evaluacion_amenazas": "Humo denso en el segundo piso."},
             follow=True,
         )
         self.assertEqual(respuesta.status_code, 200)
@@ -419,3 +422,173 @@ class LaHoraExactaDeAperturaTests(BaseValidacion):
         )
         self.assertContains(guardado, "guardado correctamente")
         self.assertNotContains(guardado, "anteriores a la apertura")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 4. El punto 4 del SCI-201, un campo por cada sub-punto
+# ──────────────────────────────────────────────────────────────────────
+
+SUBPUNTOS = {
+    "evaluacion_naturaleza": "Incendio estructural con propagación al entrepiso.",
+    "evaluacion_amenazas": "Riesgo de colapso de la cubierta.",
+    "evaluacion_areas_afectadas": "Planta baja, entrepiso y bodega contigua.",
+    "evaluacion_aislamiento": "Perímetro de 50 m, calle cerrada.",
+}
+
+
+class EvaluacionInicialSeparadaTests(BaseValidacion):
+    """Naturaleza, amenazas, áreas afectadas y aislamiento, cada una en su campo.
+
+    El punto 4 del formulario oficial las lista como viñetas y se guardaban
+    como un solo párrafo, que no se puede consultar: nadie puede preguntarle a
+    un texto libre cuántos incidentes tuvieron riesgo de colapso. Con una clave
+    por sub-punto, los reportes y las estadísticas pueden leerlas.
+    """
+
+    def editor(self, emergencia):
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+
+    def test_el_editor_ofrece_un_campo_por_sub_punto(self):
+        import re as _re
+
+        html = self.editor(self.crear_emergencia("EVA-EDIT"))
+        for nombre in SUBPUNTOS:
+            self.assertEqual(
+                len(_re.findall(rf'<textarea name="{nombre}"', html)), 1, nombre
+            )
+        # Y ya no la casilla única en la que se mezclaban.
+        self.assertNotIn('name="evaluacion_inicial"', html)
+
+    def test_cada_sub_punto_se_guarda_en_su_propia_clave(self):
+        emergencia = self.crear_emergencia("EVA-GUARDA")
+        self.client.force_login(self.usuario)
+        self.client.post(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk]),
+            dict(SUBPUNTOS),
+        )
+        datos = FormularioSCI.objects.get(emergencia=emergencia, codigo_sci="201").datos
+        for nombre, texto in SUBPUNTOS.items():
+            self.assertEqual(datos[nombre], texto)
+        # Las claves no se contaminan entre sí: cada texto vive solo en la suya.
+        for nombre, texto in SUBPUNTOS.items():
+            otros = [v for k, v in datos.items() if k != nombre and isinstance(v, str)]
+            self.assertNotIn(texto, otros, nombre)
+
+    def test_cada_sub_punto_vacio_se_pide_por_su_nombre(self):
+        """El aviso dice cuál falta, no un genérico «evaluación inicial»."""
+        emergencia = self.crear_emergencia("EVA-FALTA")
+        formulario = self.crear_formulario(
+            emergencia, "201",
+            {"lugar_incidente": "Av. Amazonas", "objetivos_iniciales": "Confinar",
+             "evaluacion_naturaleza": "Incendio", "evaluacion_amenazas": "Colapso"},
+            preparado_por="Mayor Andrade",
+        )
+        faltan = " | ".join(campos_obligatorios_vacios(formulario))
+        self.assertIn("Áreas afectadas", faltan)
+        self.assertIn("Aislamiento", faltan)
+        self.assertNotIn("Naturaleza", faltan)
+        self.assertNotIn("Amenazas", faltan)
+
+    def test_la_hoja_de_impresion_rotula_cada_sub_punto(self):
+        emergencia = self.crear_emergencia("EVA-HOJA")
+        self.crear_formulario(emergencia, "201", dict(SUBPUNTOS))
+        self.client.force_login(self.usuario)
+        html = self.client.get(
+            reverse("emergencias:sci_visualizar", args=["201", emergencia.pk])
+        ).content.decode()
+        for titulo in ("Naturaleza del incidente", "Amenazas", "Áreas afectadas",
+                       "Aislamiento"):
+            self.assertIn(f"• {titulo}.", html)
+        for texto in SUBPUNTOS.values():
+            self.assertIn(texto, html)
+
+    # -- lo escrito cuando era una sola casilla ---------------------------------
+
+    def test_lo_antiguo_se_ve_y_se_conserva_al_guardar(self):
+        """Un borrador de cuando era una casilla no pierde su texto.
+
+        No se reparte solo —no hay forma de saber dónde acaba la naturaleza y
+        empiezan las amenazas en un párrafo— pero tampoco se borra: se muestra
+        mientras los cuatro campos estén vacíos, y el primer guardado lo deja
+        donde estaba.
+        """
+        emergencia = self.crear_emergencia("EVA-ANTIGUO")
+        self.crear_formulario(
+            emergencia, "201", {"evaluacion_inicial": "Humo denso y dos heridos."},
+        )
+        self.assertIn("Humo denso y dos heridos.", self.editor(emergencia))
+
+        self.client.post(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk]),
+            {"evaluacion_naturaleza": "Incendio en bodega"},
+        )
+        datos = FormularioSCI.objects.get(emergencia=emergencia, codigo_sci="201").datos
+        self.assertEqual(datos["evaluacion_inicial"], "Humo denso y dos heridos.")
+        self.assertEqual(datos["evaluacion_naturaleza"], "Incendio en bodega")
+        # Con un sub-punto ya escrito, lo antiguo deja de mostrarse en el editor.
+        self.assertNotIn("Texto escrito antes de separar", self.editor(emergencia))
+
+    def test_el_periodo_cerrado_conserva_a_la_vista_lo_antiguo(self):
+        from .services import reactivar_emergencia
+
+        emergencia = self.crear_emergencia("EVA-CERRADO")
+        self.crear_formulario(
+            emergencia, "201", {"evaluacion_inicial": "Texto de una sola casilla."},
+        )
+        Emergencia.objects.filter(pk=emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA, fecha_cierre=timezone.now(),
+        )
+        emergencia.refresh_from_db()
+        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+        self.assertIn("Texto de una sola casilla.", self.editor(emergencia))
+
+    # -- la guarda -------------------------------------------------------------
+
+    def test_ningun_campo_enumera_conceptos_distintos_en_su_ayuda(self):
+        """El antipatrón: «Incluya: - A. - B. - C.» sobre una sola casilla.
+
+        Si la ayuda de un campo lista varios conceptos, cada uno es un dato
+        distinto y merece su campo. Esta guarda lo busca en todos los esquemas
+        para que no vuelva a colarse.
+        """
+        import re as _re
+
+        enumera = _re.compile(r"(?:^|\s)[-•]\s*\w[^-•]*[-•]\s*\w")
+        culpables = [
+            f"SCI-{codigo} · {seccion['etiqueta']}"
+            for codigo, esquema in ESQUEMAS_SCI.items()
+            for seccion in esquema["secciones"]
+            if enumera.search(seccion.get("ayuda", ""))
+        ]
+        self.assertEqual(culpables, [], culpables)
+
+    # -- el panel y el PDF ------------------------------------------------------
+
+    def test_el_panel_y_el_pdf_leen_los_cuatro_campos(self):
+        from dashboard.pdf import generar_pdf_emergencia
+        from dashboard.services import datos_informe_emergencia
+
+        emergencia = self.crear_emergencia("EVA-INFORME")
+        self.crear_formulario(emergencia, "201", dict(SUBPUNTOS))
+        datos = datos_informe_emergencia(emergencia)
+        self.assertEqual(
+            [etiqueta for etiqueta, _ in datos["evaluacion_items"]],
+            ["Naturaleza del incidente", "Amenazas", "Áreas afectadas", "Aislamiento"],
+        )
+        self.assertTrue(generar_pdf_emergencia(datos).startswith(b"%PDF"))
+
+    def test_el_panel_sigue_mostrando_el_texto_antiguo(self):
+        from dashboard.services import datos_informe_emergencia
+
+        emergencia = self.crear_emergencia("EVA-INFORME-VIEJO")
+        self.crear_formulario(
+            emergencia, "201", {"evaluacion_inicial": "Evaluación de una casilla."},
+        )
+        datos = datos_informe_emergencia(emergencia)
+        self.assertEqual(
+            datos["evaluacion_items"],
+            [("Evaluación inicial", "Evaluación de una casilla.")],
+        )

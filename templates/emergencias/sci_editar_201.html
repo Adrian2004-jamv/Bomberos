@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-201{% endblock %}{% block page_title %}Editar SCI-201{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=12">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=13">{% endblock %}
 {% block content %}
 <div class="sci-workspace sci201-workspace"><div class="sci-workspace__toolbar"><div><strong>SCI-201</strong><span>{{ emergencia.codigo }} · {% if periodos_anteriores %}{{ periodos_anteriores|length|add:1 }} periodos en un solo documento{% else %}periodo operacional {{ periodo.numero }}{% endif %}{% if periodo_cerrado %} · solo lectura{% endif %}</span></div><div><a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a><a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>{% if not periodo_cerrado %}<button class="button button--primary" type="submit" form="sci201-form">Guardar cambios</button>{% endif %}</div></div>
 {% comment %}
@@ -22,7 +22,20 @@ los periodos cerrados arriba y el que está en curso debajo.
   <section class="sci201-page"><header class="sci201-head"><img src="{% static 'emergencias/img/sci-logo.png' %}" alt="Sistema de Comando de Incidentes"><div><strong>Formulario SCI - 201</strong><span>Resumen del Incidente</span></div></header><div class="sci201-grid sci201-grid--p1">
     <label>1. Nombre del Incidente:<input value="{{ emergencia.tipo_emergencia }}" readonly></label><label>2. Fecha y hora de preparación:<input value="{{ emergencia.fecha_reporte|date:'d/m/Y H:i' }}" readonly></label>
     <label class="wide">3. Lugar del Incidente:<input name="lugar_incidente" value="{{ datos_sci.lugar_incidente|default:emergencia.direccion }}" maxlength="5000"></label>
-    <label class="wide sci201-tall">4. Evaluación Inicial:<small>• Naturaleza del Incidente.</small><small>• Amenazas.</small><small>• Áreas afectadas.</small><small>• Aislamiento.</small><textarea name="evaluacion_inicial" rows="8" maxlength="5000">{{ datos_sci.evaluacion_inicial }}</textarea></label>
+    {% comment %}
+    Un solo elemento en la rejilla, como el label que sustituye: el CSS de las
+    filas de abajo cuenta hijos con nth-child y añadir uno desplazaría la
+    ubicación del PC, la del área de espera y las dos rutas. Cada sub-punto es su
+    propio campo, con su propia clave en la base: de otro modo la naturaleza, las
+    amenazas, las áreas y el aislamiento llegarían mezcladas en un párrafo.
+    {% endcomment %}
+    <div class="wide sci201-eval" role="group" aria-labelledby="sci201-eval-titulo">
+      <strong id="sci201-eval-titulo">4. Evaluación Inicial:</strong>
+      {% if evaluacion_heredada %}<p class="sci201-eval__heredado"><b>Texto escrito antes de separar este punto en cuatro:</b> {{ evaluacion_heredada }}<br><em>Repártalo en los cuatro campos de abajo; mientras estén vacíos se sigue mostrando.</em></p>{% endif %}
+      {% for item in evaluacion_items %}
+      <label class="sci201-eval__item"><span>• {{ item.etiqueta }}.</span><textarea name="{{ item.nombre }}" rows="2" maxlength="5000">{{ item.valor }}</textarea></label>
+      {% endfor %}
+    </div>
     <label class="sci201-box">5. Objetivo(s) inicial(es):<textarea name="objetivos_iniciales" rows="6" maxlength="5000">{{ datos_sci.objetivos_iniciales }}</textarea></label><label class="sci201-box">6. Estrategias:<textarea name="estrategias" rows="6" maxlength="5000">{{ datos_sci.estrategias }}</textarea></label><label class="sci201-box">7. Tácticas:<textarea name="tacticas" rows="6" maxlength="5000">{{ datos_sci.tacticas }}</textarea></label>
     <label>8. Ubicación del PC:<input name="ubicacion_pc" value="{{ datos_sci.ubicacion_pc }}" maxlength="5000"></label><label>9. Ubicación del E:<input name="ubicacion_e" value="{{ datos_sci.ubicacion_e }}" maxlength="5000"></label><label>10. Ruta Ingreso:<input name="ruta_ingreso" value="{{ datos_sci.ruta_ingreso }}" maxlength="5000"></label><label>11. Ruta Egreso:<input name="ruta_egreso" value="{{ datos_sci.ruta_egreso }}" maxlength="5000"></label>
     <label class="wide sci201-security">12. Mensaje General de Seguridad:<textarea name="mensaje_seguridad" rows="3" maxlength="5000">{{ datos_sci.mensaje_seguridad }}</textarea></label><div class="sci201-page-no">Página 1 de 4</div><label class="sci201-sign">13. Comandante del Incidente (Nombre , Apellidos) y firma:<input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150"></label>

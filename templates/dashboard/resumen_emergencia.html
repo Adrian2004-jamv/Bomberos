@@ -135,8 +135,14 @@
     <div class="resumen-panel__heading">5. Descripción y acciones operativas (SCI-201)</div>
     <div class="resumen-panel__body">
         {% for etiq, campo in d.items %}{% endfor %}
+        {% for etiqueta, texto in d.evaluacion_items %}
+        <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:{% if forloop.first %}0{% else %}.85rem{% endif %} 0 .3rem">{% if d.evaluacion_items|length > 1 %}Evaluación inicial · {% endif %}{{ etiqueta }}</p>
+        <div class="texto-operativo">{{ texto }}</div>
+        {% empty %}
         <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:0 0 .3rem">Evaluación inicial</p>
-        <div class="texto-operativo">{{ d.evaluacion_inicial }}</div>
+        <div class="texto-operativo">No registrado</div>
+        {% endfor %}
+        <div style="height:.85rem"></div>
         <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Objetivos operativos</p>
         <div class="texto-operativo">{{ d.objetivos }}</div>
         <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Estrategias</p>

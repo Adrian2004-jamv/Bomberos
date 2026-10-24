@@ -390,8 +390,18 @@ def generar_pdf_emergencia(datos: dict) -> bytes:
     historia.append(_seccion("5. Descripción y acciones operativas", est))
     historia.append(Spacer(1, 2 * mm))
 
+    # El punto 4 del SCI-201 va por sub-puntos, cada uno con su título.
+    evaluacion = e.get("evaluacion_items") or [("Evaluación inicial", "No registrado")]
+    for etiq, texto in evaluacion:
+        historia.append(_par(
+            f"Evaluación inicial (SCI-201) — {etiq}:" if len(evaluacion) > 1
+            else "Evaluación inicial (SCI-201):",
+            est, "etiqueta",
+        ))
+        historia.append(_par(texto, est, "normal"))
+        historia.append(Spacer(1, 2 * mm))
+
     for etiq, campo in [
-        ("Evaluación inicial (SCI-201):", "evaluacion_inicial"),
         ("Objetivos operativos (SCI-201):", "objetivos"),
         ("Estrategias (SCI-201):", "estrategias"),
         ("Tácticas (SCI-201):", "tacticas"),

@@ -120,3 +120,15 @@
 .sci-separador-periodo::before,.sci-separador-periodo::after{content:"";flex:1;height:2px;background:repeating-linear-gradient(90deg,#c70012,#c70012 8px,transparent 8px,transparent 14px)}
 .sci-sin-periodo{display:flex;align-items:flex-start;gap:.5rem;width:min(100%,820px);margin:0 auto;padding:.8rem .9rem;border:1px solid #e3c26a;border-left:4px solid #d89b00;border-radius:.5rem;background:#fff7dd;font-size:.8rem;line-height:1.5}
 @media(max-width:760px){.sci-timeline,.sci-separador-periodo,.sci-sin-periodo{width:100%}.sci-periodo-cerrado__periodo{grid-template-columns:1fr}.sci-separador-periodo{font-size:.66rem;letter-spacing:.04em}}
+
+/* SCI-201, punto 4: cuatro campos independientes dentro de la misma celda. En la
+   pantalla ancha cada sub-punto lleva su título a la izquierda y su campo a la
+   derecha, que ocupa lo mismo que el textarea único de antes; en el teléfono se
+   apilan, con el título encima. */
+.sci201-grid>.sci201-eval{box-sizing:border-box;min-width:0;padding:5px;border-right:1px solid #777;border-bottom:1px solid #777;font-size:9px;font-weight:700}
+.sci201-eval>strong{display:block;margin-bottom:2px}
+.sci201-grid .sci201-eval__item{display:grid;grid-template-columns:30% 1fr;gap:6px;align-items:start;min-height:0;padding:3px 0;border:0;border-top:1px dashed #b7bdc5}
+label.sci201-eval__item>span{padding-top:6px;font-weight:700}
+.sci201-grid .sci201-eval__item textarea{min-height:2.75rem;padding:2px 3px;border:1px solid #d3d7dc;border-radius:2px;resize:vertical}
+.sci201-eval__heredado{margin:4px 0;padding:6px 8px;border-left:3px solid #d89b00;background:#fff7dd;font-size:9px;font-weight:400;line-height:1.45;white-space:pre-wrap}
+@media(max-width:760px){.sci201-grid .sci201-eval__item{grid-template-columns:1fr;gap:0}label.sci201-eval__item>span{padding-top:0}}

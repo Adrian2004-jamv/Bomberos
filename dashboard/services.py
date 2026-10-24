@@ -4,6 +4,7 @@ from django.utils.dateparse import parse_date
 
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
+from emergencias.esquemas_sci import evaluacion_en_partes, evaluacion_heredada
 from emergencias.forms import TIPOS_EMERGENCIA
 from emergencias.indicadores import anotar_indicadores, preparar_indicadores
 
@@ -579,7 +580,13 @@ def datos_informe_emergencia(emergencia):
         "duracion_operaciones":duracion_operaciones or "No calculable",
         "duracion_total":      duracion_total       or "No calculable",
         # Descripción operativa (SCI-201)
-        "evaluacion_inicial":  sci201.get("evaluacion_inicial")  or "No registrado",
+        # Cada sub-punto del punto 4 por separado; si el SCI-201 es de cuando
+        # era una sola casilla, ese texto va como único elemento.
+        "evaluacion_items":    (
+            evaluacion_en_partes(sci201)
+            or ([("Evaluación inicial", evaluacion_heredada(sci201))]
+                if evaluacion_heredada(sci201) else [])
+        ),
         "objetivos":           sci201.get("objetivos_iniciales") or "No registrado",
         "estrategias":         sci201.get("estrategias")         or "No registrado",
         "tacticas":            sci201.get("tacticas")            or "No registrado",
