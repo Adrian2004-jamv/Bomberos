@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-201{% endblock %}{% block page_title %}Editar SCI-201{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=9">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=11">{% endblock %}
 {% block content %}
 <div class="sci-workspace sci201-workspace"><div class="sci-workspace__toolbar"><div><strong>SCI-201</strong><span>Borrador editable · {{ emergencia.codigo }}</span></div><div><a class="button" href="{% url 'emergencias:sci211_lista' %}">Cerrar</a><a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a><button class="button button--primary" type="submit" form="sci201-form">Guardar cambios</button></div></div>
 <form method="post" id="sci201-form" data-guardar-sin-conexion="Formulario SCI-201" class="sci201-editor">{% csrf_token %}

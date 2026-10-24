@@ -258,8 +258,14 @@
 .tour-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.4rem;
     margin-left: auto;
+    /* 2.75rem es el minimo que cumple toda la aplicacion desde que se midio con
+       guante puesto. Nacio con 37.9 px, que es el alto que dan 0.45rem de
+       relleno y 0.78rem de letra. */
+    min-width: 2.75rem;
+    min-height: 2.75rem;
     padding: 0.45rem 0.85rem;
     border: 1px solid var(--color-slate-300);
     border-radius: var(--radius-sm);
@@ -768,7 +774,10 @@ body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }
 .inventory-action--guide {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.4rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
     padding: 0.5rem 0.9rem;
     border: 1.5px solid var(--color-slate-300);
     border-radius: var(--radius-sm);

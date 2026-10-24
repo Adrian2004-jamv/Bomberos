@@ -460,3 +460,86 @@ class ComentariosDePlantillaTests(TestCase):
             "Comentarios repartidos en varias líneas; use {% comment %}: "
             + ", ".join(culpables),
         )
+
+
+class CodificacionDeArchivosTests(TestCase):
+    """Un archivo releido con la codificacion equivocada corrompe los acentos.
+
+    Paso de verdad: un editor de Windows abrio «emergencias/views.py» leyendo
+    sus bytes UTF-8 como si fueran cp1252 y lo volvio a guardar. Las 163 lineas
+    que se tocaron perdieron todas sus tildes, y entre ellas estaban las
+    etiquetas del catalogo SCI, que se imprimen en pantalla. El archivo seguia
+    siendo Python valido y la aplicacion arrancaba sin una sola queja: nada
+    falla, solo se lee mal, y por eso hace falta una guarda.
+
+    Se buscan dos rastros. El primero son las parejas que deja esa relectura: el
+    segundo byte de toda secuencia UTF-8 cae entre 0x80 y 0xBF, de modo que un
+    acento releido aparece siempre como uno de los caracteres de 0xC2 a 0xC5 (o
+    0xE2 para los guiones y las comillas tipograficas) seguido de lo que el
+    cp1252 ponga en ese rango. El segundo rastro es la marca de orden de bytes
+    al inicio: inofensiva en apariencia, pero es la huella del mismo editor y
+    ningun otro archivo del proyecto la lleva.
+
+    Esta clase no escribe ni un solo caracter corrompido como ejemplo, a
+    proposito: el primer intento citaba las parejas en el texto y la guarda se
+    denunciaba a si misma.
+    """
+
+    SUFIJOS = {".py", ".html", ".css", ".js", ".json", ".txt", ".md", ".yaml", ".yml"}
+
+    @staticmethod
+    def rastro_de_relectura():
+        """La expresion que reconoce un acento releido como cp1252."""
+        def como_cp1252(primero, ultimo):
+            return "".join(
+                bytes([b]).decode("cp1252", errors="replace")
+                for b in range(primero, ultimo)
+            )
+
+        return re.compile(
+            "[" + re.escape(como_cp1252(0xC2, 0xC6) + chr(0xE2)) + "]"
+            + "[" + re.escape(como_cp1252(0x80, 0xC0)) + "]"
+        )
+
+    def archivos(self):
+        raiz = Path(settings.BASE_DIR)
+        for ruta in raiz.rglob("*"):
+            if ruta.suffix not in self.SUFIJOS or not ruta.is_file():
+                continue
+            partes = ruta.relative_to(raiz).parts
+            # «vendor» son bibliotecas de terceros tal como las publican y
+            # «.venv» no es nuestro codigo; de ninguno respondemos.
+            if {".venv", "vendor", "backups"} & set(partes):
+                continue
+            yield ruta
+
+    def test_ningun_archivo_llega_con_los_acentos_releidos_al_reves(self):
+        rastro = self.rastro_de_relectura()
+        culpables = []
+        for ruta in self.archivos():
+            relativa = ruta.relative_to(settings.BASE_DIR)
+            try:
+                texto = ruta.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                culpables.append(f"{relativa}: no se puede leer como UTF-8")
+                continue
+            hallazgos = len(rastro.findall(texto))
+            if hallazgos:
+                culpables.append(f"{relativa}: {hallazgos} acentos corrompidos")
+        self.assertEqual(
+            culpables, [],
+            "Estos archivos se guardaron releidos en cp1252 y perdieron sus "
+            f"tildes; vuelva a guardarlos en UTF-8: {culpables}",
+        )
+
+    def test_ningun_archivo_empieza_con_marca_de_orden_de_bytes(self):
+        culpables = [
+            str(ruta.relative_to(settings.BASE_DIR))
+            for ruta in self.archivos()
+            if ruta.read_bytes().startswith(b"\xef\xbb\xbf")
+        ]
+        self.assertEqual(
+            culpables, [],
+            "Estos archivos llevan marca de orden de bytes al inicio, que es la "
+            f"huella de un editor guardando en otra codificacion: {culpables}",
+        )

@@ -486,8 +486,13 @@ class TerminologiaTests(BaseRegistroTests):
         respuesta = self.client.get(reverse(
             "emergencias:sci_visualizar", args=["201", emergencia.pk]
         ))
-        self.assertContains(respuesta, "Resumen del Incidente".upper())
-        self.assertContains(respuesta, "Nombre del incidente")
+        # El molde genérico titulaba en mayúsculas; la hoja propia del SCI-201
+        # copia el formulario oficial Rev. 06-2015, que lo escribe «Resumen del
+        # Incidente». Lo que esta guarda vigila es el término, no la caja: si
+        # alguien lo cambia por «Resumen de la emergencia» o por cualquier otra
+        # paráfrasis, el documento deja de coincidir con el oficial.
+        self.assertContains(respuesta, "Resumen del Incidente")
+        self.assertContains(respuesta, "Nombre del Incidente")
 
 
 class FormularioEnCursoDelListadoTests(BaseRegistroTests):

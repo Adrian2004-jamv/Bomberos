@@ -25,6 +25,43 @@ from .views import FORMULARIOS_SCI_CONTINUOS, ORDEN_FORMULARIOS_SCI
 from .services_sci import (desplegar_recursos_del_sci211, finalizar_sci,
                            finalizar_sci211)
 
+# El SCI-201 se rehízo con la estructura del formulario oficial Rev. 06-2015, que
+# titula sus hojas «Formulario SCI - 201», con espacios alrededor del guion. Los
+# demás códigos siguen saliendo del molde genérico, que los escribe sin espacios.
+# Separarlo aquí evita que cada prueba tenga que acordarse de la excepción.
+FORMULARIOS_CON_HOJA_PROPIA = frozenset({"201"})
+
+
+def nombre_impreso(codigo):
+    """Cómo aparece el título del formulario en su hoja de impresión."""
+    if codigo in FORMULARIOS_CON_HOJA_PROPIA:
+        return f"Formulario SCI - {codigo}"
+    return f"Formulario SCI-{codigo}"
+
+
+def comprobar_la_tabla_de_acciones_del_201(caso):
+    """Las dos reglas que impiden que una palabra larga arruine la impresión.
+
+    «table-layout:fixed» sola no basta: con la tabla fijada pero sin
+    «overflow-wrap», una palabra larga no ensancha la tabla —eso lo impide— pero
+    se sale de la celda y se imprime encima del borde. Medido en el navegador
+    antes de corregirlo: 2670 px de texto dentro de una celda de 749 px, y la
+    hoja con barra de desplazamiento horizontal.
+
+    Viven en la hoja del editor y no en la respuesta, así que la guarda lee el
+    archivo. Y las comprueba juntas porque por separado no protegen de nada.
+    """
+    hoja = (
+        Path(settings.BASE_DIR) / "static" / "emergencias" / "css" / "sci_editor.css"
+    ).read_text(encoding="utf-8")
+    tabla = re.search(r"\.sci201-actions\{([^}]*)\}", hoja)
+    celdas = re.search(r"\.sci201-actions th,\.sci201-actions td\{([^}]*)\}", hoja)
+    caso.assertIsNotNone(tabla, "Desapareció la regla de .sci201-actions")
+    caso.assertIsNotNone(celdas, "Desapareció la regla de sus celdas")
+    caso.assertIn("table-layout:fixed", tabla.group(1))
+    caso.assertIn("overflow-wrap:anywhere", celdas.group(1))
+
+
 class SCI211Tests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -310,7 +347,7 @@ class SCI211Tests(TestCase):
         self.assertContains(
             respuesta, 'class="sci-form-tab sci-form-tab--open"', html=False
         )
-        self.assertContains(
+        self.assertNotContains(
             respuesta, 'class="sci-form-tab sci-form-tab--locked"', html=False
         )
         self.assertContains(respuesta, "Paso 1: SCI-201")
@@ -362,35 +399,49 @@ class SCI211Tests(TestCase):
             respuesta, reverse("emergencias:sci211_imprimir", args=[formulario.pk])
         )
 
-    def test_al_comenzar_estan_abiertos_el_primero_y_las_bitacoras(self):
-        """Las bitácoras no esperan turno: el carro sale antes de que nadie
-        redacte el resumen del incidente, y las actividades del periodo
-        empiezan mucho antes de que el plan de acción esté escrito."""
+    def test_al_comenzar_estan_abiertos_todos_los_formularios(self):
+        """Ya no se espera turno para ninguno.
+
+        Antes solo abrían el primero y las bitácoras, y cada uno destrababa al
+        siguiente. En un incidente real el comandante no llena doce formularios
+        en fila: abre el que la escena le pide y vuelve al resto cuando puede.
+        El orden del manual se sigue mostrando como recomendación —eso lo
+        comprueba «test_detalle_presenta_el_orden_operativo_del_manual»— pero
+        dejó de ser una puerta.
+        """
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
             reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
         catalogo = respuesta.context["catalogo_sci"]
         abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
-        self.assertEqual(abiertos, {"201", "211", "214"})
-        self.assertContains(respuesta, 'class="sci-form-tab sci-form-tab--locked"')
-        self.assertNotContains(
+        self.assertEqual(abiertos, set(ORDEN_FORMULARIOS_SCI))
+        self.assertNotContains(respuesta, 'class="sci-form-tab sci-form-tab--locked"')
+        self.assertContains(
             respuesta,
             reverse("emergencias:sci_visualizar", args=["207", self.emergencia.pk]),
         )
 
-    def test_url_directa_no_permite_saltar_el_orden(self):
+    def test_la_url_directa_abre_cualquier_formulario(self):
+        """Lo contrario de lo que comprobaba antes, y a propósito.
+
+        Mientras hubo orden obligatorio, entrar por la URL a un formulario
+        lejano devolvía a la ficha. Sin orden no hay nada que saltarse: el
+        único motivo para rechazar un código sigue siendo que no exista.
+        """
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse(
             "emergencias:sci_editar", args=["202", self.emergencia.pk]
         ))
-        self.assertRedirects(
-            respuesta,
-            reverse("emergencias:detalle", args=[self.emergencia.pk])
-            + "#formularios-sci",
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse(
+                "emergencias:sci_editar", args=["299", self.emergencia.pk]
+            )).status_code,
+            404,
         )
 
-    def test_finalizar_un_paso_desbloquea_solo_el_siguiente(self):
+    def test_finalizar_un_paso_no_cierra_ninguno(self):
         FormularioSCI.objects.create(
             emergencia=self.emergencia, codigo_sci="201", datos={"ok": True},
             estado=FormularioSCI.Estado.FINALIZADO,
@@ -403,9 +454,9 @@ class SCI211Tests(TestCase):
         )
         catalogo = respuesta.context["catalogo_sci"]
         abiertos = {item["codigo"] for item in catalogo if not item["bloqueado"]}
-        # El 201 ya cerrado sigue siendo accesible, el 207 se abre detrás de él
-        # y las bitácoras nunca esperaron. El 202 aguarda al 207 y al 211.
-        self.assertEqual(abiertos, {"201", "207", "211", "214"})
+        # Cerrar uno no cambia el acceso a los demás: ya estaban todos abiertos.
+        # El propio formulario finalizado tampoco desaparece de la lista.
+        self.assertEqual(abiertos, set(ORDEN_FORMULARIOS_SCI))
 
     def test_editor_generico_solo_ofrece_inventario_verificado_del_ambito(self):
         self.finalizar_anteriores("202")
@@ -552,9 +603,13 @@ class SCI211Tests(TestCase):
             with self.subTest(codigo=codigo):
                 respuesta = self.client.get(reverse("emergencias:sci_catalogo_visualizar", args=[codigo]))
                 self.assertEqual(respuesta.status_code, 200)
-                self.assertContains(respuesta, f"Formulario SCI-{codigo}")
+                self.assertContains(respuesta, nombre_impreso(codigo))
                 self.assertContains(respuesta, "VISTA-PREVIA")
-                self.assertContains(respuesta, "Vista de catálogo sin incidente asociado")
+                # Lo que no puede faltar es el aviso de que esto es una hoja en
+                # blanco y no un incidente real; cada maqueta lo redacta a su
+                # manera —la del 201 añade de qué revisión del formulario sale—
+                # y fijar la frase entera solo ataba la prueba a una de ellas.
+                self.assertContains(respuesta, "Vista de catálogo")
 
     def test_todos_los_formularios_tienen_visualizacion_vinculada_a_emergencia(self):
         self.finalizar_anteriores("222")
@@ -564,7 +619,7 @@ class SCI211Tests(TestCase):
                 "emergencias:sci_visualizar", args=[codigo, self.emergencia.pk]
             ))
             self.assertEqual(respuesta.status_code, 200)
-            self.assertContains(respuesta, f"Formulario SCI-{codigo}")
+            self.assertContains(respuesta, nombre_impreso(codigo))
             self.assertContains(respuesta, self.emergencia.tipo_emergencia)
             self.assertContains(respuesta, "Imprimir")
 
@@ -794,7 +849,7 @@ class ControlesDeFechaSCITests(TestCase):
             "emergencias:sci_visualizar", args=["201", self.emergencia.pk]
         ))
         self.assertContains(respuesta, "overflow-wrap:anywhere")
-        self.assertContains(respuesta, "table-layout:fixed")
+        comprobar_la_tabla_de_acciones_del_201(self)
 
 class DespachoDesdeSCI211Tests(SCI211Tests):
     """Registrar una unidad en el SCI-211 es la decisión de despacharla."""
@@ -1339,26 +1394,30 @@ class DespachoSinEsperarTurnoTests(SCI211Tests):
             FormularioSCI211.objects.filter(emergencia=self.emergencia).exists()
         )
 
-    def test_el_202_sigue_esperando_a_los_anteriores(self):
+    def test_el_202_se_abre_sin_esperar_a_nadie(self):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
-            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
-            follow=True,
+            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk])
         )
-        self.assertContains(respuesta, "Finalice primero el formulario")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, "Finalice primero el formulario")
 
-    def test_cerrar_el_211_solo_no_abre_el_202(self):
-        formulario = self.crear_formulario()
-        FormularioSCI211.objects.filter(pk=formulario.pk).update(
-            estado=FormularioSCI211.Estado.FINALIZADO,
-            finalizado_por=self.usuario, fecha_finalizacion=timezone.now(),
-        )
+    def test_nadie_recibe_la_instruccion_de_finalizar_otro_formulario(self):
+        """Ese aviso ya no puede aparecer en ninguna pantalla.
+
+        Era la única instrucción que el sistema daba sobre el orden; sin orden
+        obligatorio, volver a verla significaría que quedó un candado suelto.
+        """
         self.client.force_login(self.usuario)
-        respuesta = self.client.get(
-            reverse("emergencias:sci_editar", args=["202", self.emergencia.pk]),
-            follow=True,
-        )
-        self.assertContains(respuesta, "Finalice primero el formulario")
+        for codigo in ORDEN_FORMULARIOS_SCI:
+            if codigo == "211":
+                continue
+            with self.subTest(codigo=codigo):
+                respuesta = self.client.get(
+                    reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk]),
+                    follow=True,
+                )
+                self.assertNotContains(respuesta, "Finalice primero el formulario")
 
     def test_el_211_no_muestra_candado_en_la_ficha(self):
         self.client.force_login(self.usuario)
@@ -1960,45 +2019,46 @@ class BitacorasSinEsperarTurnoTests(SCI211Tests):
         )
         self.assertFalse(tarjeta["bloqueado"])
 
-    def test_los_que_no_son_bitacora_siguen_esperando(self):
+    def test_los_que_no_son_bitacora_tampoco_esperan_ya(self):
         self.client.force_login(self.usuario)
         for codigo in ("202", "203", "205", "221", "222"):
-            respuesta = self.client.get(
-                reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk]),
-                follow=True,
-            )
-            self.assertContains(
-                respuesta, "Finalice primero el formulario",
-                msg_prefix=f"El SCI-{codigo} no debería abrirse todavía",
-            )
+            with self.subTest(codigo=codigo):
+                respuesta = self.client.get(
+                    reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk])
+                )
+                self.assertEqual(
+                    respuesta.status_code, 200,
+                    f"El SCI-{codigo} debería abrirse sin condiciones",
+                )
 
     def test_ningun_formulario_queda_esperando_a_una_bitacora(self):
-        """Ninguna instrucción de la pantalla puede ser imposible de cumplir:
-        una bitácora no se finaliza hasta que la emergencia termina."""
+        """Ninguna instrucción de la pantalla puede ser imposible de cumplir.
+
+        El bloqueo secuencial llegó a dejar al SCI-221 con un candado y el
+        mensaje «finalice el paso anterior», cuando el paso anterior era una
+        bitácora, y una bitácora no se cierra hasta que la emergencia termina:
+        no había forma de obedecer. Se corrigió exceptuando a las bitácoras y
+        después desapareció el bloqueo entero, que es la versión que rige hoy.
+
+        La comprobación antigua recorría los formularios bloqueados y, sin
+        ninguno, pasaba sin mirar nada. Ahora afirma directamente lo que impide
+        que el problema vuelva: que no queda ni un candado.
+        """
         self.client.force_login(self.usuario)
         respuesta = self.client.get(
             reverse("emergencias:detalle", args=[self.emergencia.pk])
         )
-        estados = {
-            tarjeta["codigo"]: tarjeta["clave_estado"]
-            for tarjeta in respuesta.context["catalogo_sci"]
-        }
-        for tarjeta in respuesta.context["catalogo_sci"]:
-            if not tarjeta["bloqueado"]:
-                continue
-            # Un formulario espera a todos los anteriores, no solo al de al
-            # lado. Lo que no puede pasar es que lo único pendiente sea una
-            # bitácora: eso dejaría al usuario sin nada que pueda terminar.
-            posicion = ORDEN_FORMULARIOS_SCI.index(tarjeta["codigo"])
-            pendientes = [
-                codigo for codigo in ORDEN_FORMULARIOS_SCI[:posicion]
-                if estados[codigo] != "complete"
-            ]
-            self.assertTrue(
-                [c for c in pendientes if c not in FORMULARIOS_SCI_CONTINUOS],
-                f"El SCI-{tarjeta['codigo']} solo espera bitácoras: "
-                f"{pendientes}. Nadie puede desbloquearlo.",
-            )
+        bloqueados = [
+            tarjeta["codigo"] for tarjeta in respuesta.context["catalogo_sci"]
+            if tarjeta["bloqueado"]
+        ]
+        self.assertEqual(
+            bloqueados, [],
+            "Volvió a haber formularios bloqueados. Si el orden obligatorio "
+            "regresa, compruebe que ninguno quede esperando solo a una "
+            f"bitácora ({sorted(FORMULARIOS_SCI_CONTINUOS)}): esa instrucción "
+            "no se puede obedecer.",
+        )
 
 
 class MenosTecleoTests(ConUnidadDesplegable, SCI211Tests):
