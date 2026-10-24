@@ -966,7 +966,7 @@ def formulario_sci_catalogo_visualizar(request, codigo):
         "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": None,
         "campos_periodo": [dict(campo, valor="") for campo in campos_periodo(esquema)],
-        "secciones": secciones_con_valores(esquema, {}),
+        "secciones": secciones_con_valores(esquema, {}, imprimir=True),
         "solo_vista": True,
     }
 
@@ -984,8 +984,11 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk, periodo=None):
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
+    # La hoja de impresión sí lleva los renglones en blanco del formulario en
+    # papel; el editor, en cambio, empieza con una sola fila.
     contexto = contexto_documento_sci(
-        request.user, emergencia, codigo, periodo_pedido(emergencia, periodo)
+        request.user, emergencia, codigo, periodo_pedido(emergencia, periodo),
+        imprimir=True,
     )
     contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
     plantilla = (
@@ -1093,7 +1096,7 @@ def hoja_de_solo_lectura(esquema, formulario):
     }
 
 
-def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
+def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, imprimir=False):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
     # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
@@ -1181,7 +1184,7 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
                  and bool(heredado.get(campo["nombre"])))
             for campo in campos_periodo(esquema)
         ],
-        "secciones": secciones_con_valores(esquema, datos_con_ofrecido),
+        "secciones": secciones_con_valores(esquema, datos_con_ofrecido, imprimir),
         # Lo que el sistema sabe del incidente, para que la plantilla pueda
         # enseñarlo junto al campo que lo aprovecha.
         "estado_incidente": estado,

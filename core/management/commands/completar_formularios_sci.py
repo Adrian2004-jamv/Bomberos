@@ -533,7 +533,7 @@ def _filas_tabla(seccion, emergencia, textos):
     # -----------------------------------------------------------------------
     # Tabla genérica: genera filas con datos coherentes
     # -----------------------------------------------------------------------
-    minimas = max(seccion.get("filas_minimas", 3), 3)
+    minimas = max(seccion.get("filas_impresion", 3), 3)
     filas = []
     for idx in range(min(minimas, 4)):
         fila = {}

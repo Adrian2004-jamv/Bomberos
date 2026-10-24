@@ -27,10 +27,12 @@
 .sci-tabla td input{width:100%;padding:6px;border:0;background:transparent;font:inherit}
 .sci-tabla td input:focus{outline:2px solid #c70012;outline-offset:-2px}
 .sci-tabla__fija{display:block;padding:6px;font-size:11px;font-weight:700;color:#334155}
-.sci-tabla__acciones{width:34px;text-align:center}
-.sci-tabla__quitar{width:26px;height:26px;border:0;border-radius:4px;background:#fee2e2;color:#991b1b;font-size:15px;font-weight:700;cursor:pointer}
+.sci-tabla__acciones{width:3.25rem;text-align:center}
+.sci-tabla__quitar{display:inline-grid;place-items:center;width:2.75rem;min-height:2.75rem;border:0;border-radius:4px;background:#fee2e2;color:#991b1b;font-size:1.15rem;cursor:pointer}
 .sci-tabla__quitar:hover{background:#fecaca}
-.sci-tabla__agregar{font-size:12px}
+.sci-tabla__quitar:focus-visible,.sci-tabla__agregar:focus-visible{outline:2px solid #c70012;outline-offset:2px}
+.sci-tabla__agregar{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.75rem;padding:0 1rem;border:1.5px dashed #c70012;border-radius:.45rem;background:#fff5f5;color:#8a1017;font-size:12px;font-weight:800;cursor:pointer}
+.sci-tabla__agregar:hover{background:#c70012;color:#fff;border-style:solid}
 .sci-firma{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:11px;font-weight:700;color:#374151}
 .sci-firma input{padding:7px;border:1px solid #94a3b8;border-radius:4px;font:inherit}
 .sci-paper__footer input{width:100%;padding:5px;border:0;border-bottom:1px solid #475569;background:transparent;font:inherit}
@@ -132,3 +134,23 @@ label.sci201-eval__item>span{padding-top:6px;font-weight:700}
 .sci201-grid .sci201-eval__item textarea{min-height:2.75rem;padding:2px 3px;border:1px solid #d3d7dc;border-radius:2px;resize:vertical}
 .sci201-eval__heredado{margin:4px 0;padding:6px 8px;border-left:3px solid #d89b00;background:#fff7dd;font-size:9px;font-weight:400;line-height:1.45;white-space:pre-wrap}
 @media(max-width:760px){.sci201-grid .sci201-eval__item{grid-template-columns:1fr;gap:0}label.sci201-eval__item>span{padding-top:0}}
+
+/* SCI-201, punto 16: tabla dinámica. Una fila para empezar y «Agregar acción»; en el
+   teléfono cada fila es una tarjeta —fecha, acción y el botón de quitar— en lugar de
+   una tabla de tres columnas que no cabe, y se acabó el desplazamiento lateral. */
+.sci201-acciones{margin-bottom:6px}
+.sci201-acciones .sci-tabla__agregar{margin-top:8px}
+.sci201-actions td.sci-tabla__acciones{width:3.25rem;vertical-align:middle}
+.sci201-actions th.sci-tabla__acciones{width:3.25rem}
+.sci201-actions td{vertical-align:middle}
+@media(max-width:760px){
+.sci201-actions,.sci201-actions tbody,.sci201-actions tr,.sci201-actions td{display:block;box-sizing:border-box}
+.sci201-actions thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.sci201-actions tr{position:relative;margin:0 0 .6rem;padding:.4rem 3.6rem .4rem .5rem;border:1px solid #777;border-radius:.3rem;background:#fff}
+.sci201-actions td,.sci201-actions td:first-child{width:100%;height:auto;border:0;padding:0 0 .35rem}
+.sci201-actions td::before{content:attr(data-label);display:block;margin-bottom:2px;color:#14245d;font:700 9px Arial}
+.sci201-actions td.sci-tabla__acciones{position:absolute;top:.4rem;right:.4rem;width:2.75rem;padding:0}
+.sci201-actions td.sci-tabla__acciones::before{content:none}
+.sci201-actions input{height:2.75rem;font-size:13px}
+.sci201-acciones .sci-tabla__agregar{width:100%}
+}

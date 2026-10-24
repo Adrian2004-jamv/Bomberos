@@ -592,3 +592,163 @@ class EvaluacionInicialSeparadaTests(BaseValidacion):
             datos["evaluacion_items"],
             [("Evaluación inicial", "Evaluación de una casilla.")],
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 5. Tablas dinámicas: una fila para empezar, y solo se guarda lo escrito
+# ──────────────────────────────────────────────────────────────────────
+
+class TablasDinamicasTests(BaseValidacion):
+    """Nada de 24 filas en blanco: una para empezar y un botón para las demás.
+
+    El SCI-201 precargaba 24 filas de acciones y los demás formularios entre 4
+    y 14. Nadie las iba a llenar: ensuciaban la hoja, obligaban a desplazarse en
+    el teléfono y daban a entender que había que completarlas. Ahora la pantalla
+    abre con una sola fila y se agregan las que hagan falta. El papel es otra
+    cosa: la hoja impresa conserva sus renglones, porque se escribe a mano.
+    """
+
+    def editar(self, codigo, emergencia):
+        self.client.force_login(self.usuario)
+        return self.client.get(
+            reverse("emergencias:sci_editar", args=[codigo, emergencia.pk])
+        ).content.decode()
+
+    def guardar(self, codigo, emergencia, datos):
+        self.client.force_login(self.usuario)
+        return self.client.post(
+            reverse("emergencias:sci_editar", args=[codigo, emergencia.pk]), datos
+        )
+
+    def test_toda_tabla_dinamica_abre_con_una_sola_fila(self):
+        """Los 12 esquemas: ninguna tabla de filas libres precarga más de una."""
+        from .esquemas_sci import secciones_con_valores
+
+        excesos = []
+        for codigo, esquema in ESQUEMAS_SCI.items():
+            for seccion in secciones_con_valores(esquema, {}):
+                if seccion["tipo"] != TABLA or seccion.get("filas_fijas"):
+                    continue
+                if len(seccion["filas"]) != 1:
+                    excesos.append(f"SCI-{codigo}/{seccion['nombre']}: {len(seccion['filas'])}")
+        self.assertEqual(excesos, [], excesos)
+
+    def test_las_tablas_de_filas_fijas_conservan_sus_posiciones_oficiales(self):
+        """El SCI-203 trae las posiciones del organigrama escritas: no son filas vacías."""
+        from .esquemas_sci import secciones_con_valores
+
+        comando = next(
+            s for s in secciones_con_valores(ESQUEMAS_SCI["203"], {})
+            if s["nombre"] == "comando"
+        )
+        self.assertGreater(len(comando["filas"]), 1)
+
+    def test_el_201_abre_con_una_fila_y_el_boton_de_agregar(self):
+        import re as _re
+
+        html = self.editar("201", self.crear_emergencia("DIN-201"))
+        self.assertEqual(len(_re.findall(r'name="acciones-\d+-accion"', html)), 1)
+        self.assertIn('name="acciones-0-accion"', html)
+        self.assertNotIn('name="acciones-1-accion"', html)
+        self.assertIn("Agregar acción", html)
+        self.assertIn("sci-tabla__quitar", html)
+
+    def test_el_editor_generico_tambien_abre_con_una_fila_por_tabla(self):
+        import re as _re
+
+        html = self.editar("214", self.crear_emergencia("DIN-214"))
+        self.assertEqual(len(_re.findall(r'name="actividades-\d+-evento"', html)), 1)
+        self.assertEqual(len(_re.findall(r'name="personal-\d+-nombre"', html)), 1)
+        self.assertIn("Agregar actividad", html)
+        self.assertIn("Agregar persona", html)
+
+    def test_al_reabrir_solo_estan_las_filas_guardadas(self):
+        import re as _re
+
+        emergencia = self.crear_emergencia("DIN-REABRE")
+        self.crear_formulario(emergencia, "201", {"acciones": [
+            {"fecha_hora": "", "accion": "Primera"},
+            {"fecha_hora": "", "accion": "Segunda"},
+        ]})
+        html = self.editar("201", emergencia)
+        self.assertEqual(len(_re.findall(r'name="acciones-\d+-accion"', html)), 2)
+
+    # -- el guardado --------------------------------------------------------------
+
+    def test_las_filas_vacias_no_se_guardan_y_las_demas_no_se_mezclan(self):
+        """Tres escritas, una quitada del medio y una en blanco sin quitar.
+
+        Lo que manda el navegador tras quitar la fila del medio ya viene
+        renumerado, pero el servidor no debe depender de eso: lee los índices que
+        llegan, en orden, e ignora las filas sin contenido, estén donde estén.
+        """
+        emergencia = self.crear_emergencia("DIN-GUARDA")
+        self.guardar("201", emergencia, {
+            "acciones-0-accion": "Arribo de la primera unidad",
+            "acciones-0-fecha_hora": "",
+            # el índice 1 se quitó; el 2 conserva su propia acción
+            "acciones-2-accion": "Extricación de la víctima",
+            "acciones-2-fecha_hora": "",
+            # una fila en blanco que nadie quitó, y otra con solo espacios
+            "acciones-3-accion": "",
+            "acciones-3-fecha_hora": "",
+            "acciones-4-accion": "   ",
+            "acciones-4-fecha_hora": "",
+        })
+        filas = FormularioSCI.objects.get(
+            emergencia=emergencia, codigo_sci="201"
+        ).datos["acciones"]
+        self.assertEqual(
+            [fila["accion"] for fila in filas],
+            ["Arribo de la primera unidad", "Extricación de la víctima"],
+        )
+        self.assertFalse(any(not any(fila.values()) for fila in filas))
+
+    def test_un_formulario_sin_filas_guarda_una_lista_vacia(self):
+        emergencia = self.crear_emergencia("DIN-VACIO")
+        self.guardar("201", emergencia, {
+            "acciones-0-accion": "", "acciones-0-fecha_hora": "",
+        })
+        datos = FormularioSCI.objects.get(emergencia=emergencia, codigo_sci="201").datos
+        self.assertEqual(datos["acciones"], [])
+
+    # -- la hoja impresa ------------------------------------------------------------
+
+    def test_la_hoja_impresa_conserva_sus_renglones(self):
+        """En papel se escribe a mano: el formulario impreso lleva sus líneas."""
+        import re as _re
+
+        emergencia = self.crear_emergencia("DIN-HOJA")
+        self.crear_formulario(emergencia, "201", {"acciones": [
+            {"fecha_hora": "", "accion": "Única acción"},
+        ]})
+        self.client.force_login(self.usuario)
+        html = self.client.get(
+            reverse("emergencias:sci_visualizar", args=["201", emergencia.pk])
+        ).content.decode()
+        tabla = html[html.index('class="sci201-actions"'):]
+        tabla = tabla[:tabla.index("</table>")]
+        self.assertEqual(len(_re.findall(r"<tr>", tabla)) - 1, 24)  # menos el encabezado
+        self.assertNotIn("sci-tabla__agregar", html)
+
+    # -- la guarda -------------------------------------------------------------------
+
+    def test_los_dos_editores_cargan_el_comportamiento_de_agregar_y_quitar(self):
+        """Sin el fragmento el botón existe pero no hace nada, y no avisa.
+
+        El comportamiento va en línea, no como archivo estático, para que la
+        página siga funcionando desde la caché del service worker sin conexión.
+        """
+        from pathlib import Path
+
+        from django.conf import settings
+
+        raiz = Path(settings.BASE_DIR) / "templates" / "emergencias"
+        for plantilla in ("sci_editar.html", "sci_editar_201.html"):
+            fuente = (raiz / plantilla).read_text(encoding="utf-8")
+            self.assertIn("fragmentos/tablas_dinamicas.html", fuente, plantilla)
+        fragmento = (raiz / "fragmentos" / "tablas_dinamicas.html").read_text(encoding="utf-8")
+        # Renumera todas las filas tras agregar o quitar, y deshace el botón
+        # «Ahora» copiado, cuyo evento no viaja con el clon.
+        self.assertIn("renumerar()", fragmento)
+        self.assertIn("campo-con-ahora", fragmento)

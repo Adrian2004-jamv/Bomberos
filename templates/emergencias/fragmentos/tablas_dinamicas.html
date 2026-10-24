@@ -1,0 +1,86 @@
+{% comment %}
+Tablas con filas que se agregan y se quitan, para los editores del SCI.
+
+Va EN LÍNEA a propósito y no como archivo estático: la página del editor se
+sirve desde la caché del service worker cuando no hay conexión, y un guion
+aparte que no estuviera precargado la dejaría sin botón de agregar justo donde
+más falta hace. Lo usan el editor genérico y el del SCI-201.
+
+Contrato con el HTML: cada tabla es un elemento con «data-tabla-dinamica» que
+contiene un <tbody>, un botón «.sci-tabla__agregar» y, en cada fila, un botón
+«.sci-tabla__quitar». Los campos se llaman «seccion-<fila>-<columna>».
+
+Cómo se evita que las filas se mezclen: después de agregar o quitar, TODAS las
+filas se renumeran en el DOM según su posición actual. El servidor solo lee los
+índices que le llegan, en orden, de modo que quitar la fila del medio no deja
+datos en el sitio equivocado. Y como el guardado sin conexión serializa el
+formulario tal como está en ese momento (``new FormData(formulario)``), la cola
+del dispositivo recibe ya los índices correctos.
+{% endcomment %}
+<script>
+(() => {
+    "use strict";
+
+    document.querySelectorAll("[data-tabla-dinamica]").forEach((tabla) => {
+        const cuerpo = tabla.querySelector("tbody");
+        const agregar = tabla.querySelector(".sci-tabla__agregar");
+        if (!cuerpo || !agregar) return;
+
+        const filas = () => Array.from(cuerpo.querySelectorAll(":scope > tr"));
+
+        const renumerar = () => {
+            filas().forEach((fila, indice) => {
+                fila.querySelectorAll("[name]").forEach((campo) => {
+                    campo.name = campo.name.replace(/^(.+?)-\d+-(.+)$/, `$1-${indice}-$2`);
+                });
+                const quitar = fila.querySelector(".sci-tabla__quitar");
+                if (quitar) quitar.setAttribute("aria-label", `Quitar la fila ${indice + 1}`);
+            });
+        };
+
+        const vaciar = (fila) => {
+            fila.querySelectorAll("input, select, textarea").forEach((campo) => {
+                campo.value = "";
+            });
+        };
+
+        agregar.addEventListener("click", () => {
+            const copia = filas()[filas().length - 1].cloneNode(true);
+            // El botón «Ahora» de los campos de fecha lleva su evento atado al
+            // campo original; copiado, no hace nada. Se deshace la envoltura y
+            // se deja que ahora.js equipe el campo nuevo como si fuera de la carga.
+            copia.querySelectorAll(".campo-con-ahora").forEach((envoltura) => {
+                const campo = envoltura.querySelector("input");
+                delete campo.dataset.conAhora;
+                envoltura.replaceWith(campo);
+            });
+            vaciar(copia);
+            cuerpo.appendChild(copia);
+            renumerar();
+            const primero = copia.querySelector("input:not([type=hidden]), select, textarea");
+            if (primero) primero.focus();
+        });
+
+        cuerpo.addEventListener("click", (evento) => {
+            const quitar = evento.target.closest(".sci-tabla__quitar");
+            if (!quitar) return;
+            const fila = quitar.closest("tr");
+            if (filas().length <= 1) {
+                // La última no se borra —la tabla no puede quedar sin donde escribir—,
+                // se deja en blanco, que el servidor ignora igual que una fila quitada.
+                vaciar(fila);
+                const campo = fila.querySelector("input:not([type=hidden]), select, textarea");
+                if (campo) campo.focus();
+                return;
+            }
+            const siguiente = fila.nextElementSibling || fila.previousElementSibling;
+            fila.remove();
+            renumerar();
+            const campo = siguiente && siguiente.querySelector("input:not([type=hidden]), select, textarea");
+            (campo || agregar).focus();
+        });
+
+        renumerar();
+    });
+})();
+</script>

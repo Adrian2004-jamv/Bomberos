@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=13">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=23"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=15">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -69,7 +69,7 @@
     <section class="sci-word-sections">
       {% for seccion in secciones %}
         {% if seccion.tipo == 'tabla' %}
-        <fieldset class="sci-tabla" data-seccion="{{ seccion.nombre }}">
+        <fieldset class="sci-tabla" data-seccion="{{ seccion.nombre }}"{% if not seccion.filas_fijas %} data-tabla-dinamica{% endif %}>
           <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
           {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
           <table>
@@ -109,12 +109,12 @@
                   {% endif %}
                 </td>
                 {% endfor %}
-                {% if not seccion.filas_fijas %}<td class="sci-tabla__acciones"><button type="button" class="sci-tabla__quitar" title="Quitar fila">&times;</button></td>{% endif %}
+                {% if not seccion.filas_fijas %}<td class="sci-tabla__acciones"><button type="button" class="sci-tabla__quitar" aria-label="Quitar esta fila" title="Quitar fila"><i class="ti ti-trash" aria-hidden="true"></i></button></td>{% endif %}
               </tr>
               {% endfor %}
             </tbody>
           </table>
-          {% if not seccion.filas_fijas %}<button type="button" class="button sci-tabla__agregar">Agregar fila</button>{% endif %}
+          {% if not seccion.filas_fijas %}<button type="button" class="button sci-tabla__agregar"><i class="ti ti-plus" aria-hidden="true"></i> Agregar {{ seccion.fila|default:"fila" }}</button>{% endif %}
           {% if seccion.firma %}
           <label class="sci-firma"><span>{{ seccion.firma }}</span><input name="{{ seccion.nombre }}__firma" value="{{ seccion.firma_valor }}" maxlength="150"></label>
           {% endif %}
@@ -163,34 +163,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>
-<script>
-document.querySelectorAll(".sci-tabla").forEach((tabla) => {
-    const cuerpo = tabla.querySelector("tbody");
-    const seccion = tabla.dataset.seccion;
-
-    const renumerar = () => {
-        cuerpo.querySelectorAll("tr").forEach((fila, indice) => {
-            fila.querySelectorAll("input[name], select[name]").forEach((campo) => {
-                campo.name = campo.name.replace(/^(.+?)-\d+-(.+)$/, `$1-${indice}-$2`);
-            });
-        });
-    };
-
-    tabla.querySelector(".sci-tabla__agregar")?.addEventListener("click", () => {
-        const ultima = cuerpo.querySelector("tr:last-child");
-        const copia = ultima.cloneNode(true);
-        copia.querySelectorAll("input, select").forEach((campo) => { campo.value = ""; });
-        cuerpo.appendChild(copia);
-        renumerar();
-        copia.querySelector("input")?.focus();
-    });
-
-    cuerpo.addEventListener("click", (evento) => {
-        if (!evento.target.classList.contains("sci-tabla__quitar")) return;
-        if (cuerpo.querySelectorAll("tr").length <= 1) return;
-        evento.target.closest("tr").remove();
-        renumerar();
-    });
-});
-</script>
+{% include "emergencias/fragmentos/tablas_dinamicas.html" %}
 {% endblock %}

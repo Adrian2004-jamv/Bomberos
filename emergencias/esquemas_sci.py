@@ -125,10 +125,10 @@ ESQUEMAS_SCI = {
              "ayuda": "Describa el croquis o adjunte una descripción. Las coordenadas GPS de la emergencia se imprimen automáticamente.",
              "filas": 18},
             # Campos 15-16 — Tabla cronológica de acciones (página 3)
-            {"numero": 16, "nombre": "acciones", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
+            {"numero": 16, "nombre": "acciones", "fila": "acción", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
              "columnas": [_columna("fecha_hora", "15. Fecha y Hora", "22%", tipo=FECHA_HORA),
                           _columna("accion", "16. Resumen de la acción")],
-             "filas_minimas": 24},
+             "filas_impresion": 24},
             # Campo 17 — Organigrama (página 4)
             {"numero": 17, "nombre": "organigrama", "etiqueta": "Organigrama actual", "tipo": TEXTAREA,
              "ayuda": "Liste las posiciones activadas y el responsable de cada una.",
@@ -148,14 +148,14 @@ ESQUEMAS_SCI = {
         "aprobado_por": "Comandante del Incidente (CI)",
         "secciones": [
             {"numero": 6, "nombre": "objetivos", "obligatorio": True, "etiqueta": "Objetivo(s)", "tipo": TEXTAREA, "filas": 4},
-            {"numero": 7, "nombre": "plan", "etiqueta": "Estrategias, tácticas y asignación de recursos", "tipo": TABLA,
+            {"numero": 7, "nombre": "plan", "fila": "estrategia", "etiqueta": "Estrategias, tácticas y asignación de recursos", "tipo": TABLA,
              "columnas": [_columna("estrategia", "7. Estrategia(s)"),
                           _columna("tactica", "8. Táctica(s)"),
                           _columna("recursos_lugar", "9. Recursos en el lugar", "12%", True,
                                    origen=ORIGEN_EN_EL_LUGAR),
                           _columna("recursos_solicitar", "9. Recursos por solicitar", "12%", True),
                           _columna("asignacion", "10. Asignación / Ubicación")],
-             "filas_minimas": 6},
+             "filas_impresion": 6},
             {"numero": 13, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad según las amenazas identificadas", "tipo": TEXTAREA, "filas": 4},
             {"numero": 14, "nombre": "pronostico_tiempo", "etiqueta": "Pronóstico del tiempo", "tipo": TEXTAREA, "filas": 3},
             {"numero": 15, "nombre": "organigrama", "etiqueta": "Organigrama para el periodo operacional", "tipo": TEXTAREA, "filas": 6},
@@ -176,9 +176,9 @@ ESQUEMAS_SCI = {
              "columnas": [_columna("posicion", "Posición", "40%"), _columna("nombre", "Nombres y apellidos")],
              "filas_fijas": ["Comandante de Incidente (Principal)", "Comandante de Incidente (Adjunto)",
                              "Oficial de Seguridad", "Oficial de Información Pública", "Oficial de Enlace"]},
-            {"numero": 6, "nombre": "representantes", "etiqueta": "Representantes institucionales", "tipo": TABLA,
+            {"numero": 6, "nombre": "representantes", "fila": "institución", "etiqueta": "Representantes institucionales", "tipo": TABLA,
              "columnas": [_columna("institucion", "Institución", "40%"), _columna("nombre", "Nombres y apellidos")],
-             "filas_minimas": 4},
+             "filas_impresion": 4},
             {"numero": 7, "nombre": "planificacion", "etiqueta": "Sección de Planificación", "tipo": TABLA,
              "columnas": [_columna("posicion", "Posición", "40%"), _columna("nombre", "Nombres y apellidos")],
              "filas_fijas": ["Jefe de Sección", "Unidad de Recursos", "Unidad de Situación",
@@ -223,7 +223,7 @@ ESQUEMAS_SCI = {
              "ayuda": "Coordinador de Rama, Supervisor de División, Supervisor de Grupo, Líder de Fuerza de Tarea, "
                       "Líder de Equipo de Intervención, Líder de Recurso Simple o Encargado."},
             {"numero": 6, "nombre": "nombre_especifico", "etiqueta": "Nombre específico de la posición", "tipo": TEXTO},
-            {"numero": 7, "nombre": "recursos", "etiqueta": "Recursos asignados", "tipo": TABLA,
+            {"numero": 7, "nombre": "recursos", "fila": "recurso", "etiqueta": "Recursos asignados", "tipo": TABLA,
              "obligatorio": True,
              "columnas": [_columna("recurso", "Recurso verificado", "17%", True),
                           _columna("responsable", "Nombre del responsable bajo su cargo", "17%"),
@@ -234,7 +234,7 @@ ESQUEMAS_SCI = {
                           _columna("personas_a_cargo", "N.º de personas a cargo", "8%",
                                    tipo=NUMERO),
                           _columna("observaciones", "Observaciones", "14%")],
-             "filas_minimas": 8},
+             "filas_impresion": 8},
             {"numero": 8, "nombre": "instrucciones", "etiqueta": "Instrucciones tácticas", "tipo": TEXTAREA, "filas": 5},
             {"numero": 9, "nombre": "comunicaciones", "etiqueta": "Comunicaciones", "tipo": TEXTAREA,
              "ayuda": "Canal y forma de contacto con el PC y con las demás posiciones.", "filas": 4},
@@ -251,13 +251,13 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Líder de la Unidad de Comunicaciones (LUCO)",
         "secciones": [
-            {"numero": 6, "nombre": "canales", "obligatorio": True, "etiqueta": "Distribución de canales de comunicación", "tipo": TABLA,
+            {"numero": 6, "nombre": "canales", "fila": "canal", "obligatorio": True, "etiqueta": "Distribución de canales de comunicación", "tipo": TABLA,
              "columnas": [_columna("sistema", "6. Sistema / Equipo", "20%", True),
                           _columna("canal", "7. Canal", "12%"),
                           _columna("asignado", "8. Asignado a", "23%"),
                           _columna("ubicacion", "9. Ubicación", "20%"),
                           _columna("observaciones", "10. Observaciones")],
-             "filas_minimas": 10},
+             "filas_impresion": 10},
         ],
     },
     "206": {
@@ -280,23 +280,23 @@ ESQUEMAS_SCI = {
             {"numero": 7, "nombre": "ubicacion_um", "tipo": TEXTO, "obligatorio": True,
              "etiqueta": "Ubicación de la Unidad Médica",
              "ayuda": "Ubicación geográfica de la Unidad Médica dentro del incidente."},
-            {"numero": 8, "nombre": "asistencia", "etiqueta": "A. Asistencia médica", "tipo": TABLA,
+            {"numero": 8, "nombre": "asistencia", "fila": "instalación", "etiqueta": "A. Asistencia médica", "tipo": TABLA,
              "ayuda": "Instalaciones de asistencia médica en la periferia del incidente.",
              "columnas": [_columna("institucion", "8. Nombre de la institución", "32%"),
                           _columna("ubicacion", "9. Ubicación", "30%"),
                           _columna("contacto", "10. Forma de contacto")],
-             "filas_minimas": 4},
-            {"numero": 11, "nombre": "ambulancias", "etiqueta": "B. Servicios de ambulancia requeridos", "tipo": TABLA,
+             "filas_impresion": 4},
+            {"numero": 11, "nombre": "ambulancias", "fila": "ambulancia", "etiqueta": "B. Servicios de ambulancia requeridos", "tipo": TABLA,
              "columnas": [_columna("clase_tipo", "11. Ambulancia verificada", "25%", True),
                           _columna("institucion", "12. Institución", "30%"),
                           _columna("observaciones", "13. Observaciones")],
-             "filas_minimas": 4},
-            {"numero": 14, "nombre": "derivacion", "etiqueta": "C. Derivación de pacientes", "tipo": TABLA,
+             "filas_impresion": 4},
+            {"numero": 14, "nombre": "derivacion", "fila": "derivación", "etiqueta": "C. Derivación de pacientes", "tipo": TABLA,
              "columnas": [_columna("clasificacion", "14. Clasificación (rojo / amarillo / verde)", "22%"),
                           _columna("instalacion", "15. Institución de asistencia médica", "33%"),
                           _columna("transporte", "16. Medio de transporte verificado", "25%", True),
                           _columna("observaciones", "Observaciones")],
-             "filas_minimas": 4},
+             "filas_impresion": 4},
         ],
     },
     "207": {
@@ -315,7 +315,7 @@ ESQUEMAS_SCI = {
             {"numero": 2, "nombre": "lugar_registro", "etiqueta": "Lugar de registro", "tipo": TEXTO,
              "ayuda": "Área de Concentración de Víctimas (ACV) o Unidad Médica (UM)."},
             {"numero": 3, "nombre": "responsable_posicion", "etiqueta": "Nombre del responsable de la posición", "tipo": TEXTO},
-            {"numero": 4, "nombre": "pacientes", "obligatorio": True, "etiqueta": "Registro de pacientes", "tipo": TABLA,
+            {"numero": 4, "nombre": "pacientes", "fila": "paciente", "obligatorio": True, "etiqueta": "Registro de pacientes", "tipo": TABLA,
              "columnas": [_columna("nombre", "4. Nombres y apellidos", "22%"),
                           _columna("sexo", "5. Sexo", "8%", tipo=SELECCION, opciones=["M", "F", "Otro"]),
                           _columna("edad", "6. Edad", "7%", tipo=NUMERO),
@@ -323,7 +323,7 @@ ESQUEMAS_SCI = {
                           _columna("lugar_traslado", "8. Lugar de traslado", "18%"),
                           _columna("trasladado_por", "9. Trasladado por", "17%"),
                           _columna("fecha_hora", "10. Fecha y hora", "15%", tipo=FECHA_HORA)],
-             "filas_minimas": 12},
+             "filas_impresion": 12},
         ],
     },
     "214": {
@@ -337,14 +337,14 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Responsable de la posición (nombres, apellidos, firma y posición)",
         "secciones": [
-            {"numero": 6, "nombre": "personal", "etiqueta": "Lista de personal asignado", "tipo": TABLA,
+            {"numero": 6, "nombre": "personal", "fila": "persona", "etiqueta": "Lista de personal asignado", "tipo": TABLA,
              "columnas": [_columna("nombre", "Nombres y apellidos", "35%"),
                           _columna("posicion", "Posición en el SCI", "30%"),
                           _columna("institucion", "Institución a la que pertenece")],
-             "filas_minimas": 6},
-            {"numero": 7, "nombre": "actividades", "obligatorio": True, "etiqueta": "Registro de actividades", "tipo": TABLA,
+             "filas_impresion": 6},
+            {"numero": 7, "nombre": "actividades", "fila": "actividad", "obligatorio": True, "etiqueta": "Registro de actividades", "tipo": TABLA,
              "columnas": [_columna("hora", "Hora", "12%", tipo=HORA), _columna("evento", "Eventos principales")],
-             "filas_minimas": 14},
+             "filas_impresion": 14},
         ],
     },
     "215": {
@@ -358,11 +358,11 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Oficial de Seguridad",
         "secciones": [
-            {"numero": 1, "nombre": "analisis", "obligatorio": True, "etiqueta": "Análisis de seguridad por área", "tipo": TABLA,
+            {"numero": 1, "nombre": "analisis", "fila": "área", "obligatorio": True, "etiqueta": "Análisis de seguridad por área", "tipo": TABLA,
              "columnas": [_columna("area", "Área", "25%"),
                           _columna("riesgo", "Riesgo", "35%"),
                           _columna("accion", "Acción mitigante")],
-             "filas_minimas": 10},
+             "filas_impresion": 10},
         ],
     },
     "221": {
@@ -379,26 +379,26 @@ ESQUEMAS_SCI = {
         "secciones": [
             {"numero": 4, "nombre": "tiempo_conclusion", "etiqueta": "Tiempo estimado de conclusión", "tipo": FECHA_HORA,
              "ayuda": "Fecha y hora en la que se estima concluir la desmovilización."},
-            {"numero": 5, "nombre": "verif_planificacion", "etiqueta": "Lista de verificación — Sección de Planificación (JSP)", "tipo": TABLA,
+            {"numero": 5, "nombre": "verif_planificacion", "fila": "verificación", "etiqueta": "Lista de verificación — Sección de Planificación (JSP)", "tipo": TABLA,
              "columnas": [_columna("accion", "Acción de verificación", "45%"),
                           _columna("cumplido", "Cumplido", "12%"),
                           _columna("observaciones", "Observaciones")],
-             "filas_minimas": 5, "firma": "Firma del JSP"},
-            {"numero": 6, "nombre": "verif_operaciones", "etiqueta": "Lista de verificación — Sección de Operaciones (JSO)", "tipo": TABLA,
+             "filas_impresion": 5, "firma": "Firma del JSP"},
+            {"numero": 6, "nombre": "verif_operaciones", "fila": "verificación", "etiqueta": "Lista de verificación — Sección de Operaciones (JSO)", "tipo": TABLA,
              "columnas": [_columna("accion", "Acción de verificación", "45%"),
                           _columna("cumplido", "Cumplido", "12%"),
                           _columna("observaciones", "Observaciones")],
-             "filas_minimas": 5, "firma": "Firma del JSO"},
-            {"numero": 7, "nombre": "verif_logistica", "etiqueta": "Lista de verificación — Sección de Logística (JSL)", "tipo": TABLA,
+             "filas_impresion": 5, "firma": "Firma del JSO"},
+            {"numero": 7, "nombre": "verif_logistica", "fila": "verificación", "etiqueta": "Lista de verificación — Sección de Logística (JSL)", "tipo": TABLA,
              "columnas": [_columna("accion", "Acción de verificación", "45%"),
                           _columna("cumplido", "Cumplido", "12%"),
                           _columna("observaciones", "Observaciones")],
-             "filas_minimas": 5, "firma": "Firma del JSL"},
-            {"numero": 8, "nombre": "verif_finanzas", "etiqueta": "Lista de verificación — Sección de Administración y Finanzas (JSAF)", "tipo": TABLA,
+             "filas_impresion": 5, "firma": "Firma del JSL"},
+            {"numero": 8, "nombre": "verif_finanzas", "fila": "verificación", "etiqueta": "Lista de verificación — Sección de Administración y Finanzas (JSAF)", "tipo": TABLA,
              "columnas": [_columna("accion", "Acción de verificación", "45%"),
                           _columna("cumplido", "Cumplido", "12%"),
                           _columna("observaciones", "Observaciones")],
-             "filas_minimas": 5, "firma": "Firma del JSAF"},
+             "filas_impresion": 5, "firma": "Firma del JSAF"},
         ],
     },
     "222": {
@@ -413,7 +413,7 @@ ESQUEMAS_SCI = {
         "preparado_por": "Comando de Área (nombre y posición)",
         "secciones": [
             {"numero": 1, "nombre": "identificacion_comando", "obligatorio": True, "etiqueta": "Identificación del Comando de Área", "tipo": TEXTO},
-            {"numero": 4, "nombre": "matriz", "etiqueta": "Prioridades y recursos críticos por incidente", "tipo": TABLA,
+            {"numero": 4, "nombre": "matriz", "fila": "prioridad", "etiqueta": "Prioridades y recursos críticos por incidente", "tipo": TABLA,
              "columnas": [_columna("prioridad", "4. Prioridad del incidente", "10%"),
                           _columna("incidente", "5. Incidente", "22%"),
                           _columna("recurso", "6. Recurso crítico", "18%", True),
@@ -421,7 +421,7 @@ ESQUEMAS_SCI = {
                           _columna("falta", "Falta", "8%"),
                           _columna("requiere", "Requiere", "8%"),
                           _columna("observaciones", "7. Observaciones")],
-             "filas_minimas": 10},
+             "filas_impresion": 10},
             {"numero": 8, "nombre": "total_requeridos", "etiqueta": "Total de recursos requeridos", "tipo": TEXTO},
             {"numero": 9, "nombre": "total_existentes", "etiqueta": "Total de recursos existentes", "tipo": TEXTO},
             {"numero": 10, "nombre": "total_faltantes", "etiqueta": "Total de recursos faltantes", "tipo": TEXTO},
@@ -449,13 +449,21 @@ def campos_periodo(esquema):
 def limpiar(valor):
     return str(valor or "").strip()[:LIMITE_TEXTO]
 
-def secciones_con_valores(esquema, datos):
-    """Combina el esquema con los datos guardados para renderizar el formulario."""
+def secciones_con_valores(esquema, datos, imprimir=False):
+    """Combina el esquema con los datos guardados para renderizar el formulario.
+
+    ``imprimir`` decide cuántas filas vacías lleva cada tabla. En pantalla,
+    ninguna de más: una fila para empezar y el botón de agregar las demás. En la
+    hoja impresa, las que declara ``filas_impresion``, porque un formulario en
+    papel trae sus renglones para escribirlos a mano.
+    """
     resultado = []
     for seccion in esquema["secciones"]:
         item = dict(seccion)
         if seccion["tipo"] == TABLA:
-            item["filas"] = filas_para_render(seccion, datos.get(seccion["nombre"]))
+            item["filas"] = filas_para_render(
+                seccion, datos.get(seccion["nombre"]), imprimir
+            )
             item["firma_valor"] = datos.get(f"{seccion['nombre']}__firma", "")
         else:
             item["valor"] = datos.get(seccion["nombre"], "")
@@ -476,7 +484,10 @@ def _celda(columna, valor):
     # Los tipos seleccion y numero nunca se degradan a texto
     return {"columna": columna, "valor": valor, "tipo": tipo}
 
-def filas_para_render(seccion, guardadas):
+# Cuántas líneas lleva una tabla impresa si el esquema no lo dice.
+FILAS_IMPRESION_POR_DEFECTO = 5
+
+def filas_para_render(seccion, guardadas, imprimir=False):
     columnas = seccion["columnas"]
     guardadas = guardadas if isinstance(guardadas, list) else []
     fijas = seccion.get("filas_fijas")
@@ -489,7 +500,13 @@ def filas_para_render(seccion, guardadas):
             celdas[0]["valor"] = etiqueta
             filas.append({"celdas": celdas})
         return filas
-    minimas = seccion.get("filas_minimas", 5)
+    # En pantalla, una sola fila vacía. Antes se precargaban 24 en el SCI-201 y
+    # entre 4 y 14 en los demás: nadie las iba a llenar todas, ensuciaban la
+    # hoja, obligaban a desplazarse en el teléfono y daban a entender que había
+    # que completarlas. Lo que falta se agrega con el botón.
+    minimas = (
+        seccion.get("filas_impresion", FILAS_IMPRESION_POR_DEFECTO) if imprimir else 1
+    )
     total = max(minimas, len(guardadas))
     filas = []
     for indice in range(total):
@@ -608,7 +625,7 @@ ESQUEMA_CATALOGO_211 = {
                       _columna("desmovilizado_por", "E. Desmovilizado — 10. Por quién", "10%"),
                       _columna("fecha_desmovilizacion", "11. Fecha y hora", "9%", tipo=FECHA_HORA),
                       _columna("observaciones", "12. Observaciones")],
-         "filas_minimas": 12},
+         "filas_impresion": 12},
     ],
 }
 
