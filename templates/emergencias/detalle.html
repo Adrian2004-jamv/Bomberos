@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=22"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -20,7 +20,93 @@
         <div><dt>Dirección</dt><dd>{{ emergencia.direccion }}</dd></div>
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
         {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
+        <div><dt>Periodo operacional</dt><dd>{{ periodo_vigente.numero|default:"1" }}{% if periodos_operacionales|length > 1 %} <small>(de {{ periodos_operacionales|length }})</small>{% endif %}</dd></div>
     </dl>
+
+    {% if periodos_operacionales|length > 1 %}
+    <div class="periodos-historial">
+        <h3 class="periodos-historial__titulo"><i class="ti ti-history" aria-hidden="true"></i> Periodos operacionales</h3>
+        <ol class="periodos-historial__lista">
+            {% for po in periodos_operacionales %}
+            <li class="periodo-fila periodo-fila--{% if po.fin %}cerrado{% else %}abierto{% endif %}">
+                <span class="periodo-fila__numero">P{{ po.numero }}</span>
+                <span class="periodo-fila__fechas">
+                    {{ po.inicio|date:"d/m/Y H:i" }} &rarr;
+                    {% if po.fin %}{{ po.fin|date:"d/m/Y H:i" }}{% else %}<b>en curso</b>{% endif %}
+                    {% if po.motivo %}<small>{{ po.motivo }}</small>{% endif %}
+                </span>
+                <span class="periodo-fila__estado">
+                    {% if po.fin %}<i class="ti ti-lock" aria-hidden="true"></i> Solo lectura{% else %}<i class="ti ti-pencil" aria-hidden="true"></i> Editable{% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
+    {% if transiciones_emergencia %}
+    {% comment %}
+    La fase del incidente. Son botones y no un desplegable con «Guardar» a
+    propósito: cada uno dice lo que va a pasar y se pulsa una sola vez, que es lo
+    que hace falta con guantes y con prisa.
+
+    Cerrar exige que ninguna unidad siga en la escena; el servicio lo comprueba y
+    nombra las que faltan, porque si no el inventario diría que una autobomba
+    está en un incidente que ya terminó.
+    {% endcomment %}
+    <div class="fase-incidente">
+        <h3 class="fase-incidente__titulo"><i class="ti ti-route" aria-hidden="true"></i> Fase del incidente</h3>
+        <p class="fase-incidente__ahora">Ahora: <strong>{{ emergencia.get_estado_display }}</strong></p>
+        <div class="fase-incidente__acciones">
+            {% for transicion in transiciones_emergencia %}
+            <form method="post" action="{% url 'emergencias:cambiar_estado' emergencia.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="estado" value="{{ transicion.valor }}">
+                <button type="submit"
+                        class="fase-boton{% if transicion.valor == 'cerrada' %} fase-boton--cerrar{% elif transicion.valor == 'cancelada' %} fase-boton--cancelar{% endif %}"
+                        {% if transicion.valor == 'cancelada' %}data-confirmar="¿Cancelar la emergencia {{ emergencia.codigo }}? Se usa cuando el aviso resultó ser falso o el incidente no existió."{% elif transicion.valor == 'cerrada' %}data-confirmar="¿Terminar la emergencia {{ emergencia.codigo }}? Con esto podrá cerrar el SCI-211 y el SCI-214, que son las bitácoras que esperan al final."{% endif %}>
+                    <i class="ti {% if transicion.valor == 'cerrada' %}ti-circle-check{% elif transicion.valor == 'cancelada' %}ti-ban{% elif transicion.valor == 'controlada' %}ti-shield-check{% else %}ti-player-play{% endif %}" aria-hidden="true"></i>
+                    {{ transicion.etiqueta }}
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+        {% if emergencia.estado == 'en_atencion' or emergencia.estado == 'controlada' %}
+        <p class="fase-incidente__nota">
+            El SCI-211 y el SCI-214 son bitácoras: se escriben durante toda la
+            intervención y solo se pueden finalizar una vez que la emergencia
+            termina.
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if puede_gestionar and emergencia.esta_terminada %}
+    {% comment %}
+    Reactivar no es deshacer el cierre: abre el periodo operacional siguiente y
+    deja intacto lo escrito en el anterior. Por eso pide el motivo — queda en el
+    expediente como la justificación del periodo nuevo — y por eso el servicio lo
+    exige en lugar de aceptarlo vacío.
+    {% endcomment %}
+    <details class="reactivar">
+        <summary class="reactivar__abrir"><i class="ti ti-refresh" aria-hidden="true"></i> Reactivar la emergencia</summary>
+        <form method="post" action="{% url 'emergencias:reactivar' emergencia.pk %}" class="reactivar__form">
+            {% csrf_token %}
+            <p class="reactivar__aviso">
+                Se abrirá el <strong>periodo operacional {{ periodos_operacionales|length|add:1 }}</strong>.
+                Los formularios del periodo actual quedarán como están, en solo lectura,
+                y podrá llenar versiones nuevas para el periodo que se abre.
+            </p>
+            <label for="motivo-reactivacion">¿Por qué se reactiva?</label>
+            <textarea id="motivo-reactivacion" name="motivo" rows="2" required
+                      maxlength="2000"
+                      placeholder="Ej.: rebrote del incendio en el ala norte a las 03:10."></textarea>
+            <button class="button button--primary" type="submit">
+                <i class="ti ti-refresh" aria-hidden="true"></i> Reactivar y abrir periodo
+            </button>
+        </form>
+    </details>
+    {% endif %}
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading">
@@ -50,7 +136,7 @@
         {% endif %}
     </div>
     {% endif %}
-    {% if formularios_imprimibles %}<div class="sci-print-strip"><div class="sci-print-strip__label"><i class="ti ti-printer" aria-hidden="true"></i><span><strong>Formularios disponibles para imprimir</strong><small>Se abren en una pestaña nueva.</small></span></div><div class="sci-print-strip__actions">{% for item in formularios_imprimibles %}{% if item.codigo == "211" %}<a href="{% url 'emergencias:sci211_imprimir' sci211.pk %}" target="_blank" rel="noopener"><i class="ti ti-printer" aria-hidden="true"></i> SCI-{{ item.codigo }}</a>{% else %}<a href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener"><i class="ti ti-printer" aria-hidden="true"></i> SCI-{{ item.codigo }}</a>{% endif %}{% endfor %}</div></div>{% endif %}
+    {% if formularios_imprimibles %}<div class="sci-print-strip"><div class="sci-print-strip__label"><i class="ti ti-printer" aria-hidden="true"></i><span><strong>Formularios disponibles para imprimir</strong><small>Se abren en una pestaña nueva.</small></span></div><div class="sci-print-strip__actions">{% for item in formularios_imprimibles %}{% if item.codigo == "211" %}<a href="{% url 'emergencias:sci211_imprimir' sci211.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> SCI-{{ item.codigo }}</a>{% else %}<a href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}"><i class="ti ti-printer" aria-hidden="true"></i> SCI-{{ item.codigo }}</a>{% endif %}{% endfor %}</div></div>{% endif %}
     <div class="sci-status-legend" aria-label="Estados de los formularios">
         <span><i class="sci-status-dot sci-status-dot--complete" aria-hidden="true"></i>Finalizado correctamente</span>
         <span><i class="sci-status-dot sci-status-dot--incomplete" aria-hidden="true"></i>Incompleto o con errores</span>
@@ -74,34 +160,28 @@
             <div class="sci-periodos-list">
                 {% for p in periodos_sci201 %}
                 <div class="sci-periodo-item sci-periodo-item--{% if p.estado == 'finalizado' %}complete{% else %}incomplete{% endif %}">
-                    <span class="sci-periodo-badge">P{{ p.numero_periodo }}</span>
+                    <span class="sci-periodo-badge">P{{ p.periodo__numero }}</span>
                     <span class="sci-periodo-label">
-                        Período {{ p.numero_periodo }}
+                        Período {{ p.periodo__numero }}
                         <small>{% if p.estado == 'finalizado' %}Finalizado{% else %}Borrador{% endif %}</small>
                     </span>
                     <div class="sci-periodo-actions">
-                        <a href="{% url 'emergencias:sci_visualizar_periodo' '201' emergencia.pk p.numero_periodo %}" target="_blank" rel="noopener" title="Ver período {{ p.numero_periodo }}"><i class="ti ti-eye" aria-hidden="true"></i></a>
-                        {% if p.estado != 'finalizado' and puede_editar_sci %}
-                        <a href="{% url 'emergencias:sci_editar_periodo' '201' emergencia.pk p.numero_periodo %}" title="Editar período {{ p.numero_periodo }}"><i class="ti ti-pencil" aria-hidden="true"></i></a>
+                        <a href="{% url 'emergencias:sci_visualizar_periodo' '201' emergencia.pk p.periodo__numero %}" title="Ver período {{ p.periodo__numero }}"><i class="ti ti-eye" aria-hidden="true"></i></a>
+                        {% if p.estado != 'finalizado' and not p.periodo__fin and puede_editar_sci %}
+                        <a href="{% url 'emergencias:sci_editar_periodo' '201' emergencia.pk p.periodo__numero %}" title="Editar período {{ p.periodo__numero }}"><i class="ti ti-pencil" aria-hidden="true"></i></a>
                         {% endif %}
                     </div>
                 </div>
                 {% endfor %}
-                {% if puede_editar_sci and not emergencia.esta_terminada %}
-                {% with ultimo=periodos_sci201|last %}
-                {% if ultimo.estado == 'finalizado' %}
-                <form method="post" action="{% url 'emergencias:sci_nuevo_periodo' '201' emergencia.pk %}" class="sci-nuevo-periodo-form">
-                    {% csrf_token %}
-                    <button type="submit" class="sci-nuevo-periodo-btn">
-                        <i class="ti ti-plus" aria-hidden="true"></i> Activar período {{ periodos_sci201|length|add:1 }}
-                    </button>
-                </form>
-                {% endif %}
-                {% endwith %}
-                {% endif %}
+                {% comment %}
+                El botón de abrir periodo vivía aquí, dentro del SCI-201, y abría
+                un periodo solo para ese formulario. El periodo es del incidente,
+                así que ahora se abre desde la reactivación, en la cabecera de la
+                ficha. Aquí solo queda el historial.
+                {% endcomment %}
             </div>
         </details>
-    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" target="_blank" rel="noopener" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
+    {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}</em></span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
 <section class="panel">
     <div class="panel__heading"><div><p class="eyebrow">Unidades</p><h2>Despliegues asociados</h2></div></div>

@@ -1,12 +1,12 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=20"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=11">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=22"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=11">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
-    <div><strong>SCI-{{ codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }}</span></div>
+    <div><strong>SCI-{{ codigo }}</strong><span>Borrador editable · {{ emergencia.codigo }} · Periodo {{ periodo.numero }}</span></div>
     <div>
-      <a class="button" href="{% url 'emergencias:sci211_lista' %}">Cerrar</a>
+      <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>
       <a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>
       <button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>
     </div>
@@ -40,8 +40,8 @@
     {% if campos_periodo %}
     <section class="sci-periodo">
       {% for campo in campos_periodo %}
-      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}{% if campo.heredado %} <em class="sci-heredado" title="Tomado de otro formulario de esta emergencia. Cámbielo si este periodo es distinto.">tomado de otro formulario</em>{% endif %}</span>
-        <input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}">
+      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}{% if campo.heredado %} <em class="sci-heredado" title="Lo declara el periodo operacional del incidente, de modo que todos sus formularios dicen lo mismo. Puede cambiarlo en este documento si hace falta.">del periodo del incidente</em>{% endif %}</span>
+        <input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}"{% if campo.tipo == 'fecha_hora' and fecha_minima %} min="{{ fecha_minima }}"{% endif %}>
       </label>
       {% endfor %}
     </section>
@@ -75,7 +75,7 @@
                     </select>
                     {% if not recursos_disponibles %}<small class="sci-resource-empty">No hay recursos con disponibilidad vigente.</small>{% endif %}
                   {% elif celda.tipo == 'fecha_hora' %}
-                    <input type="datetime-local" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
+                    <input type="datetime-local" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}"{% if fecha_minima %} min="{{ fecha_minima }}"{% endif %}>
                   {% elif celda.tipo == 'hora' %}
                     <input type="time" name="{{ seccion.nombre }}-{{ forloop.parentloop.counter0 }}-{{ celda.columna.nombre }}" value="{{ celda.valor }}" aria-label="{{ celda.columna.etiqueta }}">
                   {% elif celda.tipo == 'seleccion' %}
@@ -107,7 +107,7 @@
           {% if seccion.tipo == 'textarea' %}
             <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:4 }}" maxlength="5000">{{ seccion.valor }}</textarea>
           {% elif seccion.tipo == 'fecha_hora' %}
-            <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}">
+            <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}"{% if fecha_minima %} min="{{ fecha_minima }}"{% endif %}>
           {% else %}
             <input name="{{ seccion.nombre }}" value="{{ seccion.valor }}" maxlength="5000">
           {% endif %}
@@ -116,9 +116,20 @@
       {% endfor %}
     </section>
 
+    {% comment %}
+    El formulario oficial pide dos firmas en el SCI-202 («11. Preparado por el
+    JSP» y «12. Aprobado por el CI») y en el SCI-204 («8. Preparado por» y
+    «9. Aprobado por el Jefe de la Sección de Operaciones»). El esquema ya decía
+    quién aprueba, pero no había dónde escribir su nombre: la hoja impresa salía
+    con el cargo donde debía ir la persona. El campo de aprobación solo aparece
+    en los formularios que lo piden.
+    {% endcomment %}
     <footer class="sci-paper__footer">
       <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
-      <div><strong>Posición:</strong>{{ esquema.preparado_por }}</div>
+      <div><strong>Posición:</strong><input name="posicion_preparado_por" value="{{ formulario_generico.posicion_preparado_por }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
+      {% if esquema.aprobado_por %}
+      <div><strong>Aprobado por:</strong><input name="aprobado_por" value="{{ formulario_generico.aprobado_por }}" maxlength="150" placeholder="{{ esquema.aprobado_por }}"></div>
+      {% endif %}
       <div><strong>Fecha:</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
     </footer>
   </form>

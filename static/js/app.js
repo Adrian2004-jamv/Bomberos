@@ -189,3 +189,21 @@ if (pwaControls) {
         waitingWorker?.postMessage({ type: "SKIP_WAITING" });
     });
 }
+
+// Confirmación para lo que cuesta deshacer.
+//
+// Terminar o cancelar un incidente no es irreversible —reactivar abre un periodo
+// nuevo— pero sí deja huella en el expediente, y es un botón que se pulsa con
+// guantes y con prisa junto a otros. El texto de cada aviso dice qué va a pasar,
+// no «¿está seguro?»: quien lo lee tiene que poder decidir con eso.
+//
+// Se delega en el documento para que alcance también a lo que llegue después,
+// y se usa «confirm» a propósito: es lo único que detiene el envío sin depender
+// de que un diálogo propio se haya cargado.
+document.addEventListener("submit", (evento) => {
+    const boton = evento.submitter;
+    const aviso = boton?.dataset?.confirmar;
+    if (aviso && !window.confirm(aviso)) {
+        evento.preventDefault();
+    }
+});

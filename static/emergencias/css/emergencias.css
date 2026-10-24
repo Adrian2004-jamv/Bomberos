@@ -190,3 +190,120 @@ td a { color: var(--color-red-700); }
 .sci-nuevo-periodo-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.45rem .6rem;border:1.5px dashed var(--color-red-400);border-radius:.45rem;background:#fff5f5;color:var(--color-red-700);font:inherit;font-size:.72rem;font-weight:800;cursor:pointer;transition:background 150ms,border-color 150ms}
 .sci-nuevo-periodo-btn:hover{background:var(--color-red-700);color:#fff;border-style:solid}
 .sci-nuevo-periodo-btn .ti{font-size:.9rem}
+
+/* ── Periodos operacionales: historial y reactivación ──────────────── */
+.periodos-historial { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--color-slate-200); }
+.periodos-historial__titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-slate-600);
+}
+.periodos-historial__lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.4rem; }
+.periodo-fila {
+    display: grid;
+    grid-template-columns: 3rem 1fr auto;
+    gap: 0.7rem;
+    align-items: center;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-slate-50);
+    font-size: 0.82rem;
+}
+.periodo-fila--abierto { background: #e7f6ec; border-left: 0.25rem solid #1a7f3c; }
+.periodo-fila--cerrado { border-left: 0.25rem solid var(--color-slate-300); }
+.periodo-fila__numero { font-weight: 900; color: var(--color-navy-900); }
+.periodo-fila__fechas small { display: block; margin-top: 0.15rem; color: var(--color-slate-600); }
+.periodo-fila__estado { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 700; white-space: nowrap; }
+
+.reactivar { margin-top: 1rem; }
+.reactivar__abrir {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.9rem;
+    border: 1.5px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    font-weight: 750;
+    cursor: pointer;
+}
+.reactivar__abrir:hover { border-color: var(--color-red-600); color: var(--color-red-700); }
+.reactivar__form { display: grid; gap: 0.6rem; max-width: 36rem; margin-top: 0.8rem; }
+.reactivar__aviso {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    border-left: 0.25rem solid #d89b00;
+    background: #fff7dd;
+    font-size: 0.85rem;
+}
+.reactivar__form label { font-size: 0.82rem; font-weight: 750; }
+.reactivar__form textarea { width: 100%; }
+
+/* El documento de un periodo cerrado se anuncia antes de que nadie lo lea. */
+.periodo-cerrado-aviso {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+    padding: 0.7rem 0.9rem;
+    border-left: 0.25rem solid var(--color-slate-500);
+    background: var(--color-slate-100);
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+/* ── Fase del incidente ─────────────────────────────────────────────── */
+.fase-incidente { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--color-slate-200); }
+.fase-incidente__titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-slate-600);
+}
+.fase-incidente__ahora { margin: 0 0 0.6rem; font-size: 0.88rem; }
+.fase-incidente__acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.fase-incidente__acciones form { margin: 0; }
+.fase-boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.55rem 0.95rem;
+    border: 1.5px solid var(--color-slate-300);
+    border-radius: var(--radius-sm);
+    color: var(--color-navy-900);
+    background: var(--color-white);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+.fase-boton:hover { border-color: var(--color-navy-900); background: var(--color-slate-50); }
+/* Terminar es la acción que se busca al final de la intervención: se distingue
+   para que no haya que leer los cuatro botones con prisa. */
+.fase-boton--cerrar { color: #0f5c2e; border-color: #1a7f3c; background: #e7f6ec; }
+.fase-boton--cerrar:hover { color: #fff; background: #1a7f3c; border-color: #1a7f3c; }
+.fase-boton--cancelar { color: #8a1420; border-color: #c7a1a5; }
+.fase-boton--cancelar:hover { color: #fff; background: #a3182a; border-color: #a3182a; }
+.fase-incidente__nota {
+    margin: 0.7rem 0 0;
+    padding: 0.6rem 0.75rem;
+    border-left: 0.25rem solid var(--color-slate-400);
+    background: var(--color-slate-50);
+    font-size: 0.82rem;
+    color: var(--color-slate-700);
+}

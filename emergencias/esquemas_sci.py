@@ -69,14 +69,14 @@ ESQUEMAS_SCI = {
         "preparado_por": "Comandante del Incidente",
         "secciones": [
             # Campo 3 — Lugar del incidente (fila completa, auto-completado)
-            {"numero": 3, "nombre": "lugar_incidente", "etiqueta": "Lugar del incidente", "tipo": TEXTO,
+            {"numero": 3, "nombre": "lugar_incidente", "obligatorio": True, "etiqueta": "Lugar del incidente", "tipo": TEXTO,
              "ayuda": "Se completa automáticamente con la dirección registrada en la emergencia."},
             # Campo 4 — Evaluación inicial con sub-ítems
-            {"numero": 4, "nombre": "evaluacion_inicial", "etiqueta": "Evaluación inicial", "tipo": TEXTAREA,
+            {"numero": 4, "nombre": "evaluacion_inicial", "obligatorio": True, "etiqueta": "Evaluación inicial", "tipo": TEXTAREA,
              "ayuda": "Incluya: - Naturaleza del incidente.  - Amenazas.  - Áreas afectadas.  - Aislamiento.",
              "filas": 8},
             # Campos 5, 6, 7 en una misma sección (se renderizan en 3 columnas en el preview)
-            {"numero": 5, "nombre": "objetivos_iniciales", "etiqueta": "Objetivo(s) inicial(es)", "tipo": TEXTAREA, "filas": 6},
+            {"numero": 5, "nombre": "objetivos_iniciales", "obligatorio": True, "etiqueta": "Objetivo(s) inicial(es)", "tipo": TEXTAREA, "filas": 6},
             {"numero": 6, "nombre": "estrategias", "etiqueta": "Estrategias", "tipo": TEXTAREA, "filas": 6},
             {"numero": 7, "nombre": "tacticas", "etiqueta": "Tácticas", "tipo": TEXTAREA, "filas": 6},
             # Campos 8-9 en 2 columnas
@@ -114,7 +114,7 @@ ESQUEMAS_SCI = {
         "preparado_por": "Jefe de la Sección de Planificación (JSP)",
         "aprobado_por": "Comandante del Incidente (CI)",
         "secciones": [
-            {"numero": 6, "nombre": "objetivos", "etiqueta": "Objetivo(s)", "tipo": TEXTAREA, "filas": 4},
+            {"numero": 6, "nombre": "objetivos", "obligatorio": True, "etiqueta": "Objetivo(s)", "tipo": TEXTAREA, "filas": 4},
             {"numero": 7, "nombre": "plan", "etiqueta": "Estrategias, tácticas y asignación de recursos", "tipo": TABLA,
              "columnas": [_columna("estrategia", "7. Estrategia(s)"),
                           _columna("tactica", "8. Táctica(s)"),
@@ -139,7 +139,7 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Unidad de Recursos",
         "secciones": [
-            {"numero": 5, "nombre": "comando", "etiqueta": "Comandante de Incidente y Staff", "tipo": TABLA,
+            {"numero": 5, "nombre": "comando", "obligatorio": True, "etiqueta": "Comandante de Incidente y Staff", "tipo": TABLA,
              "columnas": [_columna("posicion", "Posición", "40%"), _columna("nombre", "Nombres y apellidos")],
              "filas_fijas": ["Comandante de Incidente (Principal)", "Comandante de Incidente (Adjunto)",
                              "Oficial de Seguridad", "Oficial de Información Pública", "Oficial de Enlace"]},
@@ -184,16 +184,23 @@ ESQUEMAS_SCI = {
         "paginas": 1,
         "periodo_operacional": True,
         "preparado_por": "Jefe de la Sección de Planificación (JSP)",
+        "aprobado_por": "Jefe de la Sección de Operaciones",
         "secciones": [
-            {"numero": 6, "nombre": "posicion_operaciones", "etiqueta": "Posición en la Sección de Operaciones", "tipo": TEXTO,
+            {"numero": 6, "nombre": "posicion_operaciones", "etiqueta": "Posición en la Sección de Operaciones", "tipo": TEXTO, "obligatorio": True,
              "ayuda": "Coordinador de Rama, Supervisor de División, Supervisor de Grupo, Líder de Fuerza de Tarea, "
                       "Líder de Equipo de Intervención, Líder de Recurso Simple o Encargado."},
             {"numero": 6, "nombre": "nombre_especifico", "etiqueta": "Nombre específico de la posición", "tipo": TEXTO},
             {"numero": 7, "nombre": "recursos", "etiqueta": "Recursos asignados", "tipo": TABLA,
-             "columnas": [_columna("recurso", "Recurso verificado", "24%", True),
-                          _columna("responsable", "Nombre del responsable bajo su cargo", "26%"),
-                          _columna("funcion", "Función a desempeñar"),
-                          _columna("observaciones", "Observaciones", "25%")],
+             "obligatorio": True,
+             "columnas": [_columna("recurso", "Recurso verificado", "17%", True),
+                          _columna("responsable", "Nombre del responsable bajo su cargo", "17%"),
+                          _columna("funcion", "Función a desempeñar", "14%"),
+                          # Las tres que faltaban frente al formulario oficial.
+                          _columna("asignacion_tactica", "Asignación táctica", "16%"),
+                          _columna("ubicacion", "Ubicación", "14%"),
+                          _columna("personas_a_cargo", "N.º de personas a cargo", "8%",
+                                   tipo=NUMERO),
+                          _columna("observaciones", "Observaciones", "14%")],
              "filas_minimas": 8},
             {"numero": 8, "nombre": "instrucciones", "etiqueta": "Instrucciones tácticas", "tipo": TEXTAREA, "filas": 5},
             {"numero": 9, "nombre": "comunicaciones", "etiqueta": "Comunicaciones", "tipo": TEXTAREA,
@@ -211,7 +218,7 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Líder de la Unidad de Comunicaciones (LUCO)",
         "secciones": [
-            {"numero": 6, "nombre": "canales", "etiqueta": "Distribución de canales de comunicación", "tipo": TABLA,
+            {"numero": 6, "nombre": "canales", "obligatorio": True, "etiqueta": "Distribución de canales de comunicación", "tipo": TABLA,
              "columnas": [_columna("sistema", "6. Sistema / Equipo", "20%", True),
                           _columna("canal", "7. Canal", "12%"),
                           _columna("asignado", "8. Asignado a", "23%"),
@@ -231,10 +238,19 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Líder de la Unidad Médica",
         "secciones": [
-            {"numero": 6, "nombre": "asistencia", "etiqueta": "A. Asistencia médica", "tipo": TABLA,
-             "columnas": [_columna("instalacion", "6. Nombre de la instalación de asistencia médica", "30%"),
-                          _columna("institucion", "7. Nombre de la institución", "25%"),
-                          _columna("ubicacion", "9. Ubicación", "25%"),
+            # Los campos 6 y 7 describen la Unidad Médica del incidente —una
+            # sola— y estaban metidos como columnas de la tabla A, que enumera
+            # las instalaciones de la periferia. Al mezclarlos se perdió el
+            # campo 8 y la numeración de la tabla quedó corrida.
+            {"numero": 6, "nombre": "instalacion_um", "tipo": TEXTO, "obligatorio": True,
+             "etiqueta": "Nombre de la instalación de asistencia médica"},
+            {"numero": 7, "nombre": "ubicacion_um", "tipo": TEXTO, "obligatorio": True,
+             "etiqueta": "Ubicación de la Unidad Médica",
+             "ayuda": "Ubicación geográfica de la Unidad Médica dentro del incidente."},
+            {"numero": 8, "nombre": "asistencia", "etiqueta": "A. Asistencia médica", "tipo": TABLA,
+             "ayuda": "Instalaciones de asistencia médica en la periferia del incidente.",
+             "columnas": [_columna("institucion", "8. Nombre de la institución", "32%"),
+                          _columna("ubicacion", "9. Ubicación", "30%"),
                           _columna("contacto", "10. Forma de contacto")],
              "filas_minimas": 4},
             {"numero": 11, "nombre": "ambulancias", "etiqueta": "B. Servicios de ambulancia requeridos", "tipo": TABLA,
@@ -266,7 +282,7 @@ ESQUEMAS_SCI = {
             {"numero": 2, "nombre": "lugar_registro", "etiqueta": "Lugar de registro", "tipo": TEXTO,
              "ayuda": "Área de Concentración de Víctimas (ACV) o Unidad Médica (UM)."},
             {"numero": 3, "nombre": "responsable_posicion", "etiqueta": "Nombre del responsable de la posición", "tipo": TEXTO},
-            {"numero": 4, "nombre": "pacientes", "etiqueta": "Registro de pacientes", "tipo": TABLA,
+            {"numero": 4, "nombre": "pacientes", "obligatorio": True, "etiqueta": "Registro de pacientes", "tipo": TABLA,
              "columnas": [_columna("nombre", "4. Nombres y apellidos", "22%"),
                           _columna("sexo", "5. Sexo", "8%", tipo=SELECCION, opciones=["M", "F", "Otro"]),
                           _columna("edad", "6. Edad", "7%", tipo=NUMERO),
@@ -293,7 +309,7 @@ ESQUEMAS_SCI = {
                           _columna("posicion", "Posición en el SCI", "30%"),
                           _columna("institucion", "Institución a la que pertenece")],
              "filas_minimas": 6},
-            {"numero": 7, "nombre": "actividades", "etiqueta": "Registro de actividades", "tipo": TABLA,
+            {"numero": 7, "nombre": "actividades", "obligatorio": True, "etiqueta": "Registro de actividades", "tipo": TABLA,
              "columnas": [_columna("hora", "Hora", "12%", tipo=HORA), _columna("evento", "Eventos principales")],
              "filas_minimas": 14},
         ],
@@ -309,7 +325,7 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Oficial de Seguridad",
         "secciones": [
-            {"numero": 1, "nombre": "analisis", "etiqueta": "Análisis de seguridad por área", "tipo": TABLA,
+            {"numero": 1, "nombre": "analisis", "obligatorio": True, "etiqueta": "Análisis de seguridad por área", "tipo": TABLA,
              "columnas": [_columna("area", "Área", "25%"),
                           _columna("riesgo", "Riesgo", "35%"),
                           _columna("accion", "Acción mitigante")],
@@ -363,7 +379,7 @@ ESQUEMAS_SCI = {
         "periodo_operacional": True,
         "preparado_por": "Comando de Área (nombre y posición)",
         "secciones": [
-            {"numero": 1, "nombre": "identificacion_comando", "etiqueta": "Identificación del Comando de Área", "tipo": TEXTO},
+            {"numero": 1, "nombre": "identificacion_comando", "obligatorio": True, "etiqueta": "Identificación del Comando de Área", "tipo": TEXTO},
             {"numero": 4, "nombre": "matriz", "etiqueta": "Prioridades y recursos críticos por incidente", "tipo": TABLA,
              "columnas": [_columna("prioridad", "4. Prioridad del incidente", "10%"),
                           _columna("incidente", "5. Incidente", "22%"),

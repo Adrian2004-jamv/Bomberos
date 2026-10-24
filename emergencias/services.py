@@ -25,7 +25,8 @@ from inventario.models import Recurso
 from inventario.permissions import estaciones_permitidas
 from inventario.services import actualizar_estado_recurso
 
-from .models import DespliegueUnidad, Emergencia, PosicionUnidad
+from .models import (DespliegueUnidad, Emergencia, PeriodoOperacional,
+                     PosicionUnidad)
 from .permissions import conduce_el_despliegue, es_chofer, estacion_autorizada, puede_gestionar_emergencias
 
 # Finalizar se admite desde cualquier estado activo. La ficha de la emergencia
@@ -592,3 +593,84 @@ def punto_de_la_emergencia(emergencia):
     if emergencia.latitud is None or emergencia.longitud is None:
         return None
     return Point(float(emergencia.longitud), float(emergencia.latitud), srid=4326)
+
+
+# ==========================================
+# PERIODOS OPERACIONALES
+# ==========================================
+
+def periodo_actual(emergencia):
+    """El periodo operacional al que pertenece lo que se escriba ahora.
+
+    La regla vive en Emergencia.periodo_vigente porque el propio
+    FormularioSCI.save la necesita y los servicios no pueden importarse desde
+    los modelos. Aquí queda el nombre con que la usan las vistas.
+    """
+    return emergencia.periodo_vigente()
+
+
+@transaction.atomic
+def reactivar_emergencia(emergencia, usuario_responsable, motivo=""):
+    """Reabre una emergencia terminada en un periodo operacional nuevo.
+
+    Es la única puerta para volver a una emergencia cerrada, y es deliberado que
+    no pase por ``cambiar_estado_emergencia``: aquel mapa de transiciones sigue
+    declarando que de CERRADA no se sale, de modo que nadie puede reabrir una
+    emergencia por el camino ordinario y saltarse el periodo. Reabrir sin abrir
+    periodo dejaría los formularios del periodo anterior otra vez editables, que
+    es exactamente lo que este trabajo viene a impedir.
+
+    Lo que hace, en una sola transacción: cierra el periodo vigente con la hora
+    de la reactivación, abre el siguiente con su motivo, y devuelve la emergencia
+    a atención. Lo escrito en el periodo que se cierra queda inmutable —
+    ``FormularioSCI.es_editable`` consulta el periodo antes que el estado del
+    documento— y sigue visible en el historial del incidente.
+    """
+    validar_usuario(usuario_responsable)
+    if not isinstance(emergencia, Emergencia) or not emergencia.pk:
+        raise ValidationError("La emergencia no existe.")
+    try:
+        actual = Emergencia.objects.select_for_update().get(pk=emergencia.pk)
+    except Emergencia.DoesNotExist as error:
+        raise ValidationError("La emergencia no existe.") from error
+
+    if not estacion_autorizada(usuario_responsable, actual.estacion_responsable_id):
+        raise ValidationError("La emergencia está fuera del ámbito autorizado.")
+    if not actual.esta_terminada:
+        raise ValidationError(
+            "La emergencia sigue en curso; no hay nada que reactivar."
+        )
+    motivo = str(motivo or "").strip()
+    if not motivo:
+        raise ValidationError(
+            "Indique por qué se reactiva la emergencia: queda en el expediente "
+            "como la justificación del nuevo periodo operacional."
+        )
+
+    momento = timezone.now()
+    vigente = (
+        PeriodoOperacional.objects.select_for_update()
+        .filter(emergencia=actual).order_by("-numero").first()
+    )
+    if vigente is None:
+        vigente = PeriodoOperacional.objects.create(
+            emergencia=actual, numero=1, inicio=actual.fecha_reporte, fin=momento,
+        )
+    elif vigente.esta_abierto:
+        # El cierre no puede ser anterior al inicio: si la emergencia se reactiva
+        # el mismo instante en que se abrió el periodo, se cierra en su inicio.
+        vigente.fin = max(momento, vigente.inicio)
+        vigente.save(update_fields=["fin"])
+
+    nuevo = PeriodoOperacional.objects.create(
+        emergencia=actual,
+        numero=vigente.numero + 1,
+        inicio=momento,
+        motivo=motivo,
+        abierto_por=usuario_responsable,
+    )
+
+    actual.estado = Emergencia.Estado.EN_ATENCION
+    actual.fecha_cierre = None
+    actual.save(update_fields=["estado", "fecha_cierre"])
+    return nuevo

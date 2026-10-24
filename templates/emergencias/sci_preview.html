@@ -41,13 +41,15 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .tbl-acciones th{background:#e8eaf6;color:#1a237e;font-size:9.5px;padding:3px 5px;border:1px solid #1a237e;text-align:center}
 .tbl-acciones td{border:1px solid #1a237e;padding:3px 5px;height:20px;vertical-align:middle}
 @media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.page-break{border-top:none;margin:0}}
+.periodo-sello{width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #475569;background:#e2e8f0;color:#1e293b;font:11px Arial;font-weight:700}
 </style></head><body>
 
 <nav class="toolbar">
   <button onclick="window.print()">Imprimir</button>
   {% if not solo_vista and puede_editar and formulario_generico.es_editable|default_if_none:True %}<a class="ghost" href="{% url 'emergencias:sci_editar' codigo emergencia.pk %}">Editar</a>{% endif %}
-  <button class="ghost" onclick="window.close()">Cerrar</button>
+  {% if emergencia.pk %}<a class="ghost" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>{% else %}<a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a>{% endif %}
 </nav>
+{% if periodo_cerrado %}<p class="periodo-sello">Documento del periodo operacional {{ periodo.numero }}, cerrado el {{ periodo.fin|date:"d/m/Y H:i" }}. Es un periodo cerrado y lo escrito en él no se modifica; las versiones posteriores viven en el periodo vigente del incidente.</p>{% endif %}
 
 {% if codigo == '201' %}
 {# ════════════════════════════════════════════════════════════════════ #}
@@ -292,9 +294,9 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 
   <div style="display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px">
     <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Preparado por</strong>{{ formulario_generico.preparado_por|default:"________________________" }}</div>
-    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Posición</strong>{{ esquema.preparado_por }}</div>
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Posición</strong>{{ formulario_generico.posicion_preparado_por|default:esquema.preparado_por }}</div>
     {% if esquema.aprobado_por %}
-    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Aprobado por</strong>{{ esquema.aprobado_por }}</div>
+    <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Aprobado por</strong>{{ formulario_generico.aprobado_por|default:"________________________" }}<small style="display:block;font-size:8px;color:#6b7280">{{ esquema.aprobado_por }}</small></div>
     {% else %}
     <div style="min-height:52px;padding:6px;border:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">Fecha y hora</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
     {% endif %}

@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -628,10 +629,14 @@ class SCI211Tests(TestCase):
         recurso = self.crear_recurso_verificado(codigo="RADIO-SCI-01")
         self.client.force_login(self.usuario)
         url = reverse("emergencias:sci_editar", args=["205", self.emergencia.pk])
+        # Las fechas van relativas al incidente, no fijas: ninguna fecha del
+        # expediente puede ser anterior a su apertura, y una constante del año
+        # pasado la viola en cuanto el reloj avanza.
+        inicio = timezone.localtime(self.emergencia.fecha_reporte)
         respuesta = self.client.post(url, {
             "periodo_numero": "1",
-            "periodo_inicio": "2026-08-18T08:00",
-            "periodo_fin": "2026-08-18T20:00",
+            "periodo_inicio": inicio.strftime("%Y-%m-%dT%H:%M"),
+            "periodo_fin": (inicio + timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M"),
             "canales-0-sistema": str(recurso.pk),
             "canales-0-canal": "Canal 1",
             "canales-0-asignado": "Comando",
@@ -650,6 +655,9 @@ class SCI211Tests(TestCase):
         )
         formulario = FormularioSCI.objects.get(emergencia=self.emergencia, codigo_sci="205")
         self.assertEqual(formulario.datos["periodo_numero"], "1")
+        self.assertEqual(
+            formulario.datos["periodo_inicio"], inicio.strftime("%Y-%m-%dT%H:%M")
+        )
         self.assertEqual(len(formulario.datos["canales"]), 2)
         self.assertEqual(formulario.datos["canales"][0]["canal"], "Canal 1")
         self.assertEqual(formulario.preparado_por, "Luis Herrera")
@@ -690,6 +698,9 @@ class SCI211Tests(TestCase):
         self.client.post(reverse("emergencias:sci_editar", args=["214", self.emergencia.pk]), {
             "actividades-0-hora": "09:15",
             "actividades-0-evento": "Arribo de la primera unidad",
+            # Sin firma no se puede finalizar: el formulario oficial la pide y
+            # un documento SCI sin ella no vale como documento.
+            "preparado_por": "Luis Herrera",
         })
         # El SCI-214 es la bitácora del periodo operacional: se cierra cuando
         # la emergencia termina, igual que el registro de recursos.
@@ -702,8 +713,14 @@ class SCI211Tests(TestCase):
         self.assertEqual(formulario.estado, FormularioSCI.Estado.FINALIZADO)
         self.assertEqual(formulario.finalizado_por, self.usuario)
         edicion = self.client.get(reverse("emergencias:sci_editar", args=["214", self.emergencia.pk]))
+        # La hoja de solo lectura a la que se va es la de su periodo, no una
+        # genérica: un mismo código puede tener una versión por cada periodo
+        # operacional del incidente y hay que decir cuál se está consultando.
         self.assertRedirects(
-            edicion, reverse("emergencias:sci_visualizar", args=["214", self.emergencia.pk])
+            edicion,
+            reverse("emergencias:sci_visualizar_periodo",
+                    kwargs={"codigo": "214", "emergencia_pk": self.emergencia.pk,
+                            "periodo": formulario.numero_periodo}),
         )
 
     def test_no_se_puede_finalizar_un_formulario_vacio(self):
@@ -1928,6 +1945,7 @@ class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
             emergencia=self.emergencia, codigo_sci="214",
             datos={"actividades": [{"hora": "10:00", "evento": "Arribo"}]}
             if con_contenido else {},
+            preparado_por="Luis Herrera",
             creado_por=self.usuario, modificado_por=self.usuario,
         )
 
@@ -1992,6 +2010,7 @@ class BitacoraDelSCI214Tests(ConUnidadDesplegable, SCI211Tests):
         formulario = FormularioSCI.objects.create(
             emergencia=self.emergencia, codigo_sci="207",
             datos={"pacientes": [{"nombre": "N. N."}]},
+            preparado_por="Luis Herrera",
             creado_por=self.usuario, modificado_por=self.usuario,
         )
         cerrado = finalizar_sci(formulario, self.usuario)
@@ -2119,16 +2138,29 @@ class PeriodoHeredadoTests(SCI211Tests):
             reverse("emergencias:sci_editar", args=[codigo, self.emergencia.pk])
         )
 
-    def test_el_203_lo_recibe_del_202(self):
+    def test_el_203_lo_recibe_del_periodo_del_incidente(self):
+        """La fecha del periodo sale del periodo, no de lo que otro copió.
+
+        Antes se tomaba del formulario más reciente que la tuviera escrita, de
+        modo que el SCI-202 y el SCI-214 del mismo periodo podían declarar dos
+        fechas distintas sin que nada lo advirtiera —y el SCI-221 verifica la
+        desmovilización comparando documentos—. Ahora la declara el periodo
+        operacional del incidente y todos sus formularios dicen lo mismo.
+        """
         self.escribir_periodo_en_el_202()
+        periodo = self.emergencia.periodo_vigente()
         campos = {c["nombre"]: c for c in self.abrir("203").context["campos_periodo"]}
-        self.assertEqual(campos["periodo_numero"]["valor"], "1")
-        self.assertEqual(campos["periodo_inicio"]["valor"], "2026-09-03T08:00")
+        self.assertEqual(campos["periodo_numero"]["valor"], str(periodo.numero))
+        self.assertEqual(
+            campos["periodo_inicio"]["valor"],
+            timezone.localtime(periodo.inicio).strftime("%Y-%m-%dT%H:%M"),
+        )
         self.assertTrue(campos["periodo_numero"]["heredado"])
 
-    def test_se_avisa_de_que_viene_de_otro_formulario(self):
+    def test_se_avisa_de_donde_sale_el_periodo(self):
+        """Quien llena el formulario debe saber que ese valor no lo puso él."""
         self.escribir_periodo_en_el_202()
-        self.assertContains(self.abrir("203"), "tomado de otro formulario")
+        self.assertContains(self.abrir("203"), "del periodo del incidente")
 
     def test_lo_propio_manda_sobre_lo_heredado(self):
         self.escribir_periodo_en_el_202()
@@ -2141,11 +2173,19 @@ class PeriodoHeredadoTests(SCI211Tests):
         self.assertEqual(campos["periodo_numero"]["valor"], "2")
         self.assertFalse(campos["periodo_numero"]["heredado"])
 
-    def test_sin_nada_escrito_no_se_inventa_periodo(self):
+    def test_sin_nada_escrito_el_periodo_sigue_siendo_el_del_incidente(self):
+        """Ya no hay «sin nada escrito»: el incidente siempre tiene su periodo.
+
+        Antes, con ningún formulario llenado, el campo salía en blanco y había
+        que teclear el número a mano. Un incidente nace con su periodo 1 abierto,
+        así que ese número consta desde el primer momento y no hace falta
+        pedirlo; lo que no se inventa es el fin, que todavía no ha ocurrido.
+        """
         self.finalizar_anteriores("202")
         campos = {c["nombre"]: c for c in self.abrir("202").context["campos_periodo"]}
-        self.assertEqual(campos["periodo_numero"]["valor"], "")
-        self.assertFalse(campos["periodo_numero"]["heredado"])
+        self.assertEqual(campos["periodo_numero"]["valor"], "1")
+        self.assertTrue(campos["periodo_numero"]["heredado"])
+        self.assertEqual(campos["periodo_fin"]["valor"], "")
 
     def test_la_firma_viene_con_el_nombre_de_quien_entra(self):
         self.finalizar_anteriores("202")

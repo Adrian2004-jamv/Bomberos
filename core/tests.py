@@ -543,3 +543,50 @@ class CodificacionDeArchivosTests(TestCase):
             "Estos archivos llevan marca de orden de bytes al inicio, que es la "
             f"huella de un editor guardando en otra codificacion: {culpables}",
         )
+
+
+class UnaSolaPestanaTests(TestCase):
+    """El sistema entero se maneja en una pestaña.
+
+    Los formularios SCI se abrían con «target="_blank"». Con doce formularios por
+    incidente, entrando y saliendo de cada uno, al rato hay quince pestañas
+    iguales y nadie sabe cuál es cuál; en un teléfono el conmutador se llena de
+    miniaturas idénticas. Es además la clase de detalle que se recupera solo:
+    basta que alguien copie un enlace viejo.
+
+    Se vigila también «window.close()», que es la otra mitad del problema. Un
+    navegador solo deja cerrar las pestañas que abrió un guion, de modo que en
+    una pestaña normal ese botón no hace nada en absoluto: parece un control y
+    no lo es. Donde estaba, ahora hay una vuelta de verdad.
+    """
+
+    def archivos(self):
+        raiz = Path(settings.BASE_DIR)
+        for carpeta, patron in (("templates", "*.html"), ("static", "*.js")):
+            for ruta in (raiz / carpeta).rglob(patron):
+                if "vendor" not in ruta.relative_to(raiz).parts:
+                    yield ruta
+
+    def test_ningun_enlace_abre_una_pestana_nueva(self):
+        culpables = []
+        for ruta in self.archivos():
+            texto = ruta.read_text(encoding="utf-8")
+            if "_blank" in texto:
+                culpables.append(str(ruta.relative_to(settings.BASE_DIR)))
+        self.assertEqual(
+            culpables, [],
+            "Estas pantallas abren una pestaña nueva; todo el sistema se maneja "
+            f"en una sola: {culpables}",
+        )
+
+    def test_ningun_boton_intenta_cerrar_la_pestana(self):
+        culpables = []
+        for ruta in self.archivos():
+            texto = ruta.read_text(encoding="utf-8")
+            if "window.close()" in texto:
+                culpables.append(str(ruta.relative_to(settings.BASE_DIR)))
+        self.assertEqual(
+            culpables, [],
+            "«window.close()» no hace nada en una pestaña que no abrió un guion. "
+            f"Use un enlace de vuelta: {culpables}",
+        )

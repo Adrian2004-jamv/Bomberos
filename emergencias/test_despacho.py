@@ -397,7 +397,16 @@ class TransicionesWebTests(BaseDespachoTests):
         )
         self.assertContains(respuesta, 'value="finalizada"', html=False)
         self.assertNotContains(respuesta, 'value="en_ruta"', html=False)
-        self.assertNotContains(respuesta, 'value="cancelada"', html=False)
+        # «Cancelada» se busca solo dentro del bloque de despliegues. La ficha
+        # ofrece ahora también las fases del propio incidente, y una de ellas es
+        # cancelar la emergencia: buscar la cadena en la página entera dejó de
+        # distinguir una cosa de la otra.
+        html = respuesta.content.decode()
+        unidades = html[html.index("Despliegues asociados"):]
+        self.assertNotIn(
+            'value="cancelada"', unidades,
+            "Un despliegue solo se finaliza desde la ficha; cancelarlo es otra cosa.",
+        )
         self.assertContains(respuesta, "Las unidades se despachan desde el formulario SCI-211")
 
 class EdicionEmergenciaTests(BaseDespachoTests):

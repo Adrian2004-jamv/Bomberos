@@ -384,7 +384,7 @@ def _sci_datos(emergencia, codigo):
     formulario = (
         FormularioSCI.objects
         .filter(emergencia=emergencia, codigo_sci=codigo)
-        .order_by("numero_periodo")
+        .order_by("periodo__numero")
         .first()
     )
     return formulario.datos if formulario else {}
@@ -396,7 +396,7 @@ def _sci_preparado_por(emergencia, codigo):
     formulario = (
         FormularioSCI.objects
         .filter(emergencia=emergencia, codigo_sci=codigo)
-        .order_by("numero_periodo")
+        .order_by("periodo__numero")
         .first()
     )
     return formulario.preparado_por if formulario else ""

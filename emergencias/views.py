@@ -25,7 +25,7 @@ from inventario.permissions import estaciones_permitidas, recursos_permitidos
 
 from .forms import (DespachoUnidadForm, EmergenciaEdicionForm, EmergenciaForm,
                     FiltroIncidentesForm)
-from .models import DespliegueUnidad, Emergencia
+from .models import DespliegueUnidad, Emergencia, PeriodoOperacional
 from .models import FormularioSCI, FormularioSCI211
 from .forms_sci import (FormularioSCI211Form, RegistroRecursoSCI211FormSet,
                         agrupar_recursos, etiqueta_de_recurso)
@@ -41,12 +41,16 @@ from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           campos_periodo, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
-from .services import (TRANSICIONES_VALIDAS, cambiar_estado_despliegue,
+from .services import (TRANSICIONES_EMERGENCIA, TRANSICIONES_VALIDAS,
+                       cambiar_estado_despliegue,
                        cerrar_despliegue_conducido, detener_transmision,
                        cambiar_estado_emergencia, desplegar_unidad,
+                       periodo_actual, reactivar_emergencia,
                        registrar_posicion_unidad, transiciones_disponibles)
 from .services_sci import (crear_sci211_desde_emergencia,
-                          desplegar_recursos_del_sci211, finalizar_sci,
+                          desplegar_recursos_del_sci211,
+                          estado_del_incidente, exigir_fechas_coherentes,
+                          fecha_de_referencia, finalizar_sci, prepoblar,
                           finalizar_sci211, registrar_solicitud_en_sci211,
                           tiene_contenido)
 
@@ -801,6 +805,18 @@ def detalle(request, pk):
         "puede_gestionar_en_admin": request.user.is_staff,
         "puede_transmitir_gps": puede_gestionar_emergencias(request.user),
         "puede_gestionar": puede_gestionar,
+        # Las fases a las que puede pasar el incidente desde donde está. La ruta
+        # para cambiarlas existía desde el principio, pero ninguna pantalla la
+        # ofrecía: no había forma de terminar una emergencia desde la interfaz,
+        # y como el SCI-211 y el SCI-214 son bitácoras que solo se cierran
+        # cuando la emergencia termina, la documentación entera se quedaba
+        # abierta sin remedio.
+        "transiciones_emergencia": (
+            transiciones_disponibles(
+                TRANSICIONES_EMERGENCIA, emergencia.estado, Emergencia.Estado
+            )
+            if puede_gestionar else []
+        ),
         "sci211": sci211,
         "sci211_bloqueado": not formulario_sci_desbloqueado(emergencia, "211"),
         "puede_editar_sci": puede_editar_sci(request.user, emergencia),
@@ -818,11 +834,15 @@ def detalle(request, pk):
              and not item["bloqueado"] and not item["en_curso"]),
             None
         ),
+        # El historial del incidente: todos sus periodos, abiertos y cerrados.
+        "periodos_operacionales": list(emergencia.periodos.order_by("numero")),
+        "periodo_vigente": periodo_actual(emergencia),
         "periodos_sci201": list(
             FormularioSCI.objects
             .filter(emergencia=emergencia, codigo_sci="201")
-            .order_by("numero_periodo")
-            .values("numero_periodo", "estado", "fecha_actualizacion", "fecha_finalizacion")
+            .order_by("periodo__numero")
+            .values("periodo__numero", "periodo__fin", "estado",
+                    "fecha_actualizacion", "fecha_finalizacion")
         ),
     }
 
@@ -954,7 +974,7 @@ def formulario_sci_catalogo_visualizar(request, codigo):
     return render(request, "emergencias/sci_preview.html", contexto)
 
 @login_required
-def formulario_sci_visualizar(request, codigo, emergencia_pk):
+def formulario_sci_visualizar(request, codigo, emergencia_pk, periodo=None):
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
     if not puede_consultar_sci(request.user, emergencia):
         raise PermissionDenied
@@ -965,13 +985,28 @@ def formulario_sci_visualizar(request, codigo, emergencia_pk):
         formulario = FormularioSCI211.objects.filter(emergencia=emergencia).first()
         if formulario:
             return redirect("emergencias:sci211_imprimir", pk=formulario.pk)
-    contexto = contexto_documento_sci(request.user, emergencia, codigo)
+    contexto = contexto_documento_sci(
+        request.user, emergencia, codigo, periodo_pedido(emergencia, periodo)
+    )
     contexto["puede_editar"] = puede_editar_sci(request.user, emergencia)
     plantilla = (
         "emergencias/sci_preview_201.html"
         if codigo == "201" else "emergencias/sci_preview.html"
     )
     return render(request, plantilla, contexto)
+
+def periodo_pedido(emergencia, numero):
+    """El periodo que la URL nombra, o el vigente si no nombra ninguno.
+
+    Las rutas «…/periodo/<n>/…» existían desde la 0016 pero las vistas no
+    recibían ese argumento: Django las llamaba con un parámetro que no estaba en
+    su firma y respondían con un error 500. Abrir un periodo nuevo llevaba justo
+    a esa pantalla, de modo que la función entera era inalcanzable.
+    """
+    if numero is None:
+        return periodo_actual(emergencia)
+    return get_object_or_404(PeriodoOperacional, emergencia=emergencia, numero=numero)
+
 
 def periodo_heredado(emergencia, codigo):
     """Lo que ya se escribió del periodo operacional en otro formulario.
@@ -994,7 +1029,7 @@ def periodo_heredado(emergencia, codigo):
             break
     return heredado
 
-def contexto_documento_sci(usuario, emergencia, codigo, periodo=1):
+def contexto_documento_sci(usuario, emergencia, codigo, periodo=None):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
     # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
@@ -1002,16 +1037,46 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=1):
     esquema = obtener_esquema_catalogo(codigo)
     if esquema is None:
         raise Http404
-    formulario = FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci=codigo).first()
+    # Sin periodo —la vista de catalogo, que no cuelga de ninguna emergencia—
+    # no hay nada que buscar.
+    formulario = (
+        FormularioSCI.objects.filter(
+            emergencia=emergencia, codigo_sci=codigo, periodo=periodo
+        ).first()
+        if periodo is not None else None
+    )
     datos = formulario.datos if formulario else {}
     en_el_lugar = recursos_en_el_lugar(emergencia, usuario)
-    heredado = periodo_heredado(emergencia, codigo)
+    # El número y las fechas del periodo salen ahora del propio periodo, que es
+    # el único sitio donde pueden ser ciertos. Antes se copiaban del formulario
+    # más reciente que los tuviera, de modo que tres documentos del mismo
+    # periodo podían declarar tres fechas distintas sin que nada lo advirtiera.
+    estado = (
+        estado_del_incidente(emergencia, periodo)
+        if getattr(emergencia, "pk", None) else {}
+    )
+    heredado = estado or periodo_heredado(emergencia, codigo)
+    # Lo que el incidente ya declaró se ofrece hecho en los campos vacíos.
+    ofrecido = prepoblar(esquema, datos, estado) if estado else {}
+    datos_con_ofrecido = {**datos, **ofrecido}
     return {
         "emergencia": emergencia,
         "esquema": esquema,
         "codigo": codigo,
         "formulario_catalogo": next(item for item in CATALOGO_FORMULARIOS_SCI if item["codigo"] == codigo),
         "formulario_generico": formulario,
+        # El periodo al que pertenece este documento y si sigue abierto. La
+        # plantilla lo necesita para dos cosas: rotular la hoja con su periodo y
+        # no ofrecer el boton de guardar en uno cerrado.
+        "periodo": periodo,
+        "periodo_cerrado": periodo is not None and not periodo.esta_abierto,
+        # El «min» de cada control de fecha. Es el mismo instante que rechaza el
+        # servidor, de modo que el navegador no deja escribir lo que luego se
+        # rechazaría: el error se evita en vez de explicarse.
+        "fecha_minima": (
+            timezone.localtime(fecha_de_referencia(emergencia)).strftime("%Y-%m-%dT%H:%M")
+            if getattr(emergencia, "pk", None) else ""
+        ),
         "datos_sci": datos,
         # Un campo vacío se ofrece con lo que ya se escribió en otro formulario
         # de esta emergencia; uno con valor propio no se toca.
@@ -1023,13 +1088,21 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=1):
                  and bool(heredado.get(campo["nombre"])))
             for campo in campos_periodo(esquema)
         ],
-        "secciones": secciones_con_valores(esquema, datos),
+        "secciones": secciones_con_valores(esquema, datos_con_ofrecido),
+        # Lo que el sistema sabe del incidente, para que la plantilla pueda
+        # enseñarlo junto al campo que lo aprovecha.
+        "estado_incidente": estado,
+        "campos_prepoblados": sorted(ofrecido),
         "recursos_disponibles": recursos_disponibles_verificados(usuario),
         "recursos_agrupados": recursos_agrupados_para_sci(usuario),
         "recursos_del_lugar": en_el_lugar,
         # El nombre de quien firma se ofrece hecho: lo escribía en cada uno de
         # los doce formularios.
-        "preparado_por_sugerido": usuario.get_full_name() or usuario.username,
+        "preparado_por_sugerido": (
+            estado.get("comandante_incidente")
+            or usuario.get_full_name()
+            or usuario.username
+        ),
         "recursos_del_lugar_agrupados": agrupar_recursos(en_el_lugar),
     }
 
@@ -1176,7 +1249,7 @@ def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
     return normalizado
 
 @login_required
-def formulario_sci_editar(request, codigo, emergencia_pk):
+def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
     bloqueado = redirigir_si_sci_bloqueado(request, emergencia, codigo)
     if bloqueado:
@@ -1191,13 +1264,26 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
         raise Http404
     if not puede_editar_sci(request.user, emergencia):
         raise PermissionDenied
+    el_periodo = periodo_pedido(emergencia, periodo)
     formulario, _ = FormularioSCI.objects.get_or_create(
-        emergencia=emergencia, codigo_sci=codigo,
+        emergencia=emergencia, codigo_sci=codigo, periodo=el_periodo,
         defaults={"creado_por": request.user, "modificado_por": request.user},
     )
     if not formulario.es_editable:
-        messages.info(request, f"El formulario SCI-{codigo} está finalizado y es de solo lectura.")
-        return redirect("emergencias:sci_visualizar", codigo=codigo, emergencia_pk=emergencia.pk)
+        if not el_periodo.esta_abierto:
+            messages.info(
+                request,
+                f"El SCI-{codigo} del periodo operacional {el_periodo.numero} "
+                "pertenece a un periodo cerrado: queda como se escribió y solo "
+                "puede consultarse.",
+            )
+        else:
+            messages.info(
+                request,
+                f"El formulario SCI-{codigo} está finalizado y es de solo lectura.",
+            )
+        return redirect("emergencias:sci_visualizar_periodo", codigo=codigo,
+                        emergencia_pk=emergencia.pk, periodo=el_periodo.numero)
     if request.method == "POST":
         recursos = recursos_disponibles_verificados(request.user)
         try:
@@ -1208,18 +1294,27 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            formulario.datos = extraer_datos(esquema, post_validado)
-            formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
-            formulario.modificado_por = request.user
-            formulario.save()
-            messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
-            trasladar_solicitudes_al_sci211(
-                request, emergencia, codigo, esquema, post_validado, recursos
-            )
-            return redirect(
-                reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
-            )
-    contexto = contexto_documento_sci(request.user, emergencia, codigo)
+            datos = extraer_datos(esquema, post_validado)
+            try:
+                exigir_fechas_coherentes(emergencia, esquema, datos)
+            except ValidationError as error:
+                messages.error(request, " ".join(error.messages))
+            else:
+                formulario.datos = datos
+                formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
+                formulario.aprobado_por = request.POST.get("aprobado_por", "").strip()[:150]
+                formulario.posicion_preparado_por = request.POST.get(
+                    "posicion_preparado_por", "").strip()[:150]
+                formulario.modificado_por = request.user
+                formulario.save()
+                messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
+                trasladar_solicitudes_al_sci211(
+                    request, emergencia, codigo, esquema, post_validado, recursos
+                )
+                return redirect(
+                    reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
+                )
+    contexto = contexto_documento_sci(request.user, emergencia, codigo, el_periodo)
     contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
     plantilla = (
         "emergencias/sci_editar_201.html"
@@ -1228,7 +1323,7 @@ def formulario_sci_editar(request, codigo, emergencia_pk):
     return render(request, plantilla, contexto)
 
 @login_required
-def formulario_sci_finalizar(request, codigo, emergencia_pk, periodo=1):
+def formulario_sci_finalizar(request, codigo, emergencia_pk, periodo=None):
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
     bloqueado = redirigir_si_sci_bloqueado(request, emergencia, codigo)
     if bloqueado:
@@ -1236,7 +1331,8 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk, periodo=1):
     if not puede_editar_sci(request.user, emergencia) or obtener_esquema(codigo) is None:
         raise PermissionDenied
     formulario = get_object_or_404(
-        FormularioSCI, emergencia=emergencia, codigo_sci=codigo, numero_periodo=periodo
+        FormularioSCI, emergencia=emergencia, codigo_sci=codigo,
+        periodo=periodo_pedido(emergencia, periodo),
     )
     if request.method == "POST":
         try:
@@ -1252,63 +1348,37 @@ def formulario_sci_finalizar(request, codigo, emergencia_pk, periodo=1):
 
 @login_required
 @require_POST
-def sci_nuevo_periodo(request, codigo, emergencia_pk):
-    """Crea un nuevo período operacional para un formulario SCI.
+def emergencia_reactivar(request, pk):
+    """Reactiva una emergencia terminada abriendo un periodo operacional nuevo.
 
-    El período anterior debe estar finalizado. El nuevo hereda los datos de
-    encabezado del período anterior para no empezar desde cero.
+    El periodo nació por formulario: había un botón por cada SCI que abría «su»
+    periodo siguiente, de modo que el 202 podía ir por el periodo 3 mientras el
+    214 seguía en el 1. En el SCI el periodo es del incidente, no del papel: los
+    documentos de un mismo periodo comparten su número y sus fechas, y el
+    SCI-221 verifica la desmovilización pidiendo «un SCI-202 por cada periodo
+    operacional». Por eso ahora se abre uno solo, para el incidente entero, y
+    quien lo abre es la reactivación.
+
+    Lo anterior no se toca: al cerrarse el periodo, sus formularios pasan a ser
+    de solo lectura —``FormularioSCI.es_editable`` mira el periodo antes que el
+    estado del documento— y siguen a la vista en el historial del incidente.
     """
-    emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
-    if not puede_editar_sci(request.user, emergencia):
-        raise PermissionDenied
-    if obtener_esquema(codigo) is None:
-        raise Http404
-    ultimo = (
-        FormularioSCI.objects
-        .filter(emergencia=emergencia, codigo_sci=codigo)
-        .order_by("-numero_periodo")
-        .first()
-    )
-    if ultimo is None:
-        messages.warning(request, f"Primero crea y finaliza el período 1 del SCI-{codigo}.")
-        return redirect(reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci")
-    if ultimo.es_editable:
-        messages.warning(
-            request,
-            f"El SCI-{codigo} — Período {ultimo.numero_periodo} aún está en borrador. "
-            "Finalízalo antes de abrir un nuevo período operacional."
+    emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=pk)
+    try:
+        periodo = reactivar_emergencia(
+            emergencia, request.user, request.POST.get("motivo", ""),
         )
-        return redirect(reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci")
-    nuevo_periodo = ultimo.numero_periodo + 1
-    # Hereda datos del período anterior, limpiando los campos de contenido nuevo
-    datos_heredados = dict(ultimo.datos or {})
-    for campo_resetear in ("evaluacion_inicial", "objetivos_iniciales",
-                           "acciones", "organigrama", "croquis"):
-        datos_heredados.pop(campo_resetear, None)
-    nuevo, creado = FormularioSCI.objects.get_or_create(
-        emergencia=emergencia,
-        codigo_sci=codigo,
-        numero_periodo=nuevo_periodo,
-        defaults={
-            "datos": datos_heredados,
-            "preparado_por": ultimo.preparado_por,
-            "creado_por": request.user,
-            "modificado_por": request.user,
-        },
-    )
-    if creado:
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
         messages.success(
             request,
-            f"SCI-{codigo} — Período operacional {nuevo_periodo} creado. "
-            "Los datos del período anterior fueron copiados como base."
+            f"{emergencia.codigo} vuelve a estar en atención en el periodo "
+            f"operacional {periodo.numero}. Los formularios del periodo "
+            f"{periodo.numero - 1} quedaron como estaban y pueden consultarse "
+            "en el historial.",
         )
-    else:
-        messages.info(request, f"El SCI-{codigo} período {nuevo_periodo} ya existe.")
-    return redirect(
-        reverse("emergencias:sci_editar_periodo",
-                kwargs={"codigo": codigo, "emergencia_pk": emergencia_pk,
-                        "periodo": nuevo_periodo})
-    )
+    return redirect(reverse("emergencias:detalle", args=[emergencia.pk]))
 
 
 @login_required
