@@ -287,13 +287,57 @@ class SCI211Tests(TestCase):
             reverse("emergencias:sci211_editar", args=[formulario.pk]),
             self._datos_edicion(formulario, accion="finalizar"),
         )
+        # La emergencia sigue en curso, así que el SCI-211 no puede cerrarse aún,
+        # pero lo escrito ya está guardado y se vuelve al editor explicando por qué.
         self.assertRedirects(
-            respuesta, reverse("emergencias:sci211_finalizar", args=[formulario.pk])
+            respuesta, reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            fetch_redirect_response=False,
         )
         self.assertEqual(formulario.registros.count(), 1)
         registro = formulario.registros.get()
         self.assertEqual(registro.matricula_identificacion, "AB-01")
         self.assertEqual(registro.orden, 1)
+        formulario.refresh_from_db()
+        self.assertEqual(formulario.estado, FormularioSCI211.Estado.BORRADOR)
+        pagina = self.client.get(respuesta["Location"])
+        self.assertContains(pagina, "Sus cambios se guardaron")
+        self.assertContains(pagina, "se cierra cuando la emergencia termina")
+
+    def test_con_la_emergencia_terminada_un_solo_envio_guarda_y_finaliza(self):
+        """El SCI-211 ya no pasa por una pantalla de confirmación aparte.
+
+        La confirmación la pide el navegador antes de enviar; el servidor guarda
+        lo escrito y, en la misma petición, lo cierra.
+        """
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        Emergencia.objects.filter(pk=self.emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(
+            reverse("emergencias:sci211_editar", args=[formulario.pk]),
+            self._datos_edicion(formulario, accion="finalizar"),
+        )
+        self.assertRedirects(
+            respuesta,
+            reverse("emergencias:detalle", args=[self.emergencia.pk]) + "#formularios-sci",
+            fetch_redirect_response=False,
+        )
+        formulario.refresh_from_db()
+        self.assertEqual(formulario.estado, FormularioSCI211.Estado.FINALIZADO)
+        self.assertEqual(formulario.registros.count(), 1)
+        self.assertEqual(formulario.registros.get().matricula_identificacion, "AB-01")
+
+    def test_el_boton_del_211_pide_confirmacion(self):
+        self.finalizar_anteriores("211")
+        formulario = self.crear_formulario(completo=False)
+        self.client.force_login(self.usuario)
+        html = self.client.get(
+            reverse("emergencias:sci211_editar", args=[formulario.pk])
+        ).content.decode()
+        self.assertIn('value="finalizar" data-confirmar="', html)
+        self.assertIn("Confirmar y Finalizar", html)
 
     def test_guardar_borrador_regresa_a_la_ficha_de_la_emergencia(self):
         self.finalizar_anteriores("211")

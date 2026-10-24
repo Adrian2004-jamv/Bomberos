@@ -1090,7 +1090,8 @@ def hoja_de_solo_lectura(esquema, formulario):
     }
 
 
-def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_EDICION):
+def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_EDICION,
+                           pendiente=None):
     # El SCI-211 se captura con su modelo propio, de modo que no figura entre
     # los esquemas editables. Mientras la emergencia no tenga uno creado no hay
     # nada a donde redirigir, y esta vista debe mostrar su cuadricula oficial en
@@ -1100,7 +1101,10 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_
         raise Http404
     # Sin periodo —la vista de catalogo, que no cuelga de ninguna emergencia—
     # no hay nada que buscar.
-    formulario = (
+    # ``pendiente`` es el formulario con lo que el usuario acaba de enviar y no se
+    # pudo guardar. Si falla una validación hay que devolverle SU texto, no el de
+    # la base: de lo contrario el error le cuesta lo que escribió.
+    formulario = pendiente if pendiente is not None else (
         FormularioSCI.objects.filter(
             emergencia=emergencia, codigo_sci=codigo, periodo=periodo
         ).first()
@@ -1338,6 +1342,22 @@ def normalizar_recursos_sci(esquema, post, recursos, en_el_lugar=()):
                     )
     return normalizado
 
+def _borrador_enviado(formulario, request, codigo, esquema, post):
+    """El formulario con lo que el usuario envió, SIN guardarlo.
+
+    Sirve para volver a dibujar la pantalla cuando el envío no pasa una
+    validación: el usuario ve lo que escribió y puede corregirlo, en lugar de
+    encontrar la versión vieja de la base.
+    """
+    formulario.datos = conservar_campos_retirados(
+        codigo, formulario.datos, extraer_datos(esquema, post)
+    )
+    formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
+    formulario.aprobado_por = request.POST.get("aprobado_por", "").strip()[:150]
+    formulario.posicion_preparado_por = request.POST.get(
+        "posicion_preparado_por", "").strip()[:150]
+    return formulario
+
 @login_required
 def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
     emergencia = get_object_or_404(emergencias_permitidas(request.user), pk=emergencia_pk)
@@ -1378,6 +1398,7 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
             )
             return redirect("emergencias:sci_visualizar_periodo", codigo=codigo,
                             emergencia_pk=emergencia.pk, periodo=el_periodo.numero)
+    pendiente = None
     # Sin periodo abierto no se crea registro ninguno y el documento se abre
     # completo pero bajo llave: todo lo escrito, nada donde escribir.
     if request.method == "POST" and not el_periodo.esta_abierto:
@@ -1396,6 +1417,10 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
             )
         except ValidationError as error:
             messages.error(request, " ".join(error.messages))
+            # Lo escrito se devuelve tal cual. Los desplegables de recursos no
+            # recuperan su selección —viajan como identificadores— pero el resto
+            # del formulario no se pierde.
+            pendiente = _borrador_enviado(formulario, request, codigo, esquema, request.POST)
         else:
             datos = conservar_campos_retirados(
                 codigo, formulario.datos, extraer_datos(esquema, post_validado)
@@ -1404,6 +1429,7 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
                 exigir_fechas_coherentes(emergencia, esquema, datos)
             except ValidationError as error:
                 messages.error(request, " ".join(error.messages))
+                pendiente = _borrador_enviado(formulario, request, codigo, esquema, post_validado)
             else:
                 formulario.datos = datos
                 formulario.preparado_por = request.POST.get("preparado_por", "").strip()[:150]
@@ -1412,14 +1438,41 @@ def formulario_sci_editar(request, codigo, emergencia_pk, periodo=None):
                     "posicion_preparado_por", "").strip()[:150]
                 formulario.modificado_por = request.user
                 formulario.save()
-                messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
                 trasladar_solicitudes_al_sci211(
                     request, emergencia, codigo, esquema, post_validado, recursos
                 )
-                return redirect(
+                detalle_url = (
                     reverse("emergencias:detalle", args=[emergencia.pk]) + "#formularios-sci"
                 )
-    contexto = contexto_documento_sci(request.user, emergencia, codigo, el_periodo)
+                if request.POST.get("accion") != "finalizar":
+                    messages.success(request, f"Formulario SCI-{codigo} guardado correctamente.")
+                    return redirect(detalle_url)
+                # Finalizar es guardar y bloquear en una sola petición: lo que se
+                # escribió ya está en la base cuando se intenta cerrar, de modo que
+                # si el cierre se rechaza —falta un campo obligatorio, la bitácora
+                # espera a que termine la emergencia— no se pierde nada. Antes el
+                # botón era otro formulario que solo mandaba el token: finalizaba lo
+                # que hubiera en la base y tiraba lo que seguía en pantalla.
+                try:
+                    finalizar_sci(formulario, request.user)
+                except ValidationError as error:
+                    messages.warning(
+                        request,
+                        "Sus cambios se guardaron, pero el formulario no se pudo "
+                        "finalizar. " + " ".join(error.messages),
+                    )
+                    return redirect(
+                        "emergencias:sci_editar", codigo=codigo, emergencia_pk=emergencia.pk
+                    )
+                messages.success(
+                    request,
+                    f"Formulario SCI-{codigo} guardado y finalizado. "
+                    "Ahora es de solo lectura.",
+                )
+                return redirect(detalle_url)
+    contexto = contexto_documento_sci(
+        request.user, emergencia, codigo, el_periodo, pendiente=pendiente
+    )
     contexto["es_horizontal"] = esquema["orientacion"] == "horizontal"
     plantilla = (
         "emergencias/sci_editar_201.html"
@@ -1541,8 +1594,24 @@ def sci211_editar(request, pk):
             messages.warning(request, aviso)
         accion = request.POST.get("accion")
         if accion == "finalizar":
-            messages.success(request, "Borrador guardado. Confirme para finalizar.")
-            return redirect("emergencias:sci211_finalizar", pk=pk)
+            # Igual que en los demás formularios: ya se guardó, y recién entonces
+            # se intenta cerrar. La confirmación la pide el navegador antes de
+            # enviar; antes esto llevaba a una pantalla aparte.
+            try:
+                finalizar_sci211(formulario, request.user)
+            except ValidationError as error:
+                messages.warning(
+                    request,
+                    "Sus cambios se guardaron, pero el SCI-211 no se pudo "
+                    "finalizar. " + " ".join(error.messages),
+                )
+                return redirect("emergencias:sci211_editar", pk=pk)
+            messages.success(
+                request, "Formulario SCI-211 guardado y finalizado. Ahora es de solo lectura."
+            )
+            return redirect(
+                reverse("emergencias:detalle", args=[formulario.emergencia_id]) + "#formularios-sci"
+            )
         if accion == "guardar_recurso":
             # El botón de cada tarjeta guarda de verdad y devuelve al editor con
             # lo ya anotado plegado, para seguir añadiendo recursos. Antes solo

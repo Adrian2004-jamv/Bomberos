@@ -1,10 +1,12 @@
 {% comment %}
 Tablas con filas que se agregan y se quitan, para los editores del SCI.
 
-Va EN LÍNEA a propósito y no como archivo estático: la página del editor se
-sirve desde la caché del service worker cuando no hay conexión, y un guion
-aparte que no estuviera precargado la dejaría sin botón de agregar justo donde
-más falta hace. Lo usan el editor genérico y el del SCI-201.
+Va EN LÍNEA a propósito y no como archivo estático: es parte de la página y
+llega con ella, sin una segunda descarga que pueda fallar cuando se pierde la
+señal con el formulario ya abierto. (Una página nueva no se abre sin conexión:
+el service worker pide la red primero. Lo que sí sobrevive es la que ya está
+cargada, y por eso el guardado va por «fetch» y se encola.) Lo usan el editor
+genérico y el del SCI-201.
 
 Contrato con el HTML: cada tabla es un elemento con «data-tabla-dinamica» que
 contiene un <tbody>, un botón «.sci-tabla__agregar» y, en cada fila, un botón

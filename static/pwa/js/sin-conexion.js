@@ -77,7 +77,9 @@
                 url: formulario.action || window.location.href,
                 tipo: "formulario",
                 cuerpo,
-                titulo: formulario.dataset.guardarSinConexion || "Formulario",
+                titulo: (formulario.dataset.guardarSinConexion || "Formulario")
+                    + (pulsado && pulsado.name === "accion" && pulsado.value === "finalizar"
+                        ? " (finalizar)" : ""),
             };
 
             const boton = pulsado;
@@ -102,12 +104,29 @@
                 document.write(html);
                 document.close();
             } catch (_error) {
+                const finaliza = Boolean(pulsado && pulsado.name === "accion"
+                    && pulsado.value === "finalizar");
                 await cola.guardar(envio);
                 if (boton) boton.disabled = false;
-                decir(
-                    `«${envio.titulo}» quedó guardado en este equipo. Se enviará solo `
-                    + "cuando vuelva la señal. Puede seguir trabajando.",
-                );
+                if (finaliza) {
+                    // La finalización viaja en el mismo envío que los datos: al volver
+                    // la señal se guarda y se bloquea de una vez. Hasta entonces el
+                    // formulario se cierra AQUÍ: seguir escribiendo encolaría guardados
+                    // que llegarían a un documento ya bloqueado y se perderían.
+                    formulario.querySelectorAll("input, select, textarea, button")
+                        .forEach((campo) => { campo.disabled = true; });
+                    decir(
+                        `«${envio.titulo}» quedó guardado y su finalización en cola. `
+                        + "Se enviará sola cuando vuelva la señal; el formulario queda "
+                        + "bloqueado en este equipo hasta entonces.",
+                    );
+                } else {
+                    decir(
+                        `«${envio.titulo}» quedó guardado en este equipo. Se enviará solo `
+                        + "cuando vuelva la señal. Puede seguir trabajando.",
+                    );
+                }
+                document.dispatchEvent(new CustomEvent("bomberos:envio-en-cola"));
                 if (aviso) aviso.scrollIntoView({ block: "nearest", behavior: "smooth" });
             }
         });

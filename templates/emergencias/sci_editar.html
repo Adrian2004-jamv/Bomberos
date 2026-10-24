@@ -151,14 +151,19 @@
       {% endif %}
       <div><strong>Fecha:</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
     </footer>
-  </form>
 
-  {% if formulario_generico and formulario_generico.pk %}
-  <form method="post" action="{% url 'emergencias:sci_finalizar' codigo emergencia.pk %}" class="sci-finalizar">{% csrf_token %}
-    <p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar.</p>
-    <button class="button" type="submit">Finalizar formulario SCI-{{ codigo }}</button>
+    {% comment %}
+    El botón de finalizar vive DENTRO del formulario que se edita. Antes era otro
+    formulario aparte que solo mandaba el token: finalizaba lo que hubiera en la
+    base y descartaba lo que seguía en pantalla, y quien llenaba un formulario por
+    primera vez y pulsaba «Finalizar» recibía «formulario incompleto» y perdía lo
+    escrito. Ahora es un solo envío: se guarda y, solo si se guardó, se finaliza.
+    {% endcomment %}
+    <div class="sci-finalizar">
+      <p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar. Lo que tenga escrito en pantalla se guarda antes.</p>
+      <button class="button" type="submit" name="accion" value="finalizar" data-confirmar="¿Está seguro de finalizar el formulario? Al finalizar, el documento quedará bloqueado en modo solo lectura y no se podrá volver a editar." data-confirmar-titulo="Finalizar SCI-{{ codigo }}" data-confirmar-boton="Confirmar y Finalizar">Finalizar formulario SCI-{{ codigo }}</button>
+    </div>
   </form>
-  {% endif %}
   {% endif %}
 </div>
 {% endblock %}

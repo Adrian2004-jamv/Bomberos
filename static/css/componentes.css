@@ -802,3 +802,37 @@ body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }
 .guide-btn .ti,
 .incident-action--guide .ti,
 .inventory-action--guide .ti { font-size: 1.05rem; }
+
+/* Diálogo de confirmación (app.js): para lo que cuesta deshacer. Un <dialog> nativo,
+   de modo que el resto de la pantalla queda bloqueado y el foco no se escapa. */
+.dialogo-confirmar {
+    width: min(92vw, 30rem);
+    padding: 0;
+    border: 0;
+    border-radius: 0.9rem;
+    color: var(--color-navy-900, #0f1f3d);
+    background: #fff;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 35%);
+}
+.dialogo-confirmar::backdrop { background: rgb(15 23 42 / 60%); }
+.dialogo-confirmar__cuerpo { display: grid; gap: 0.75rem; padding: 1.25rem 1.35rem 1.1rem; border-top: 5px solid #d89b00; border-radius: 0.9rem; }
+.dialogo-confirmar__titulo { margin: 0; font-size: 1.1rem; }
+.dialogo-confirmar__texto { margin: 0; font-size: 0.92rem; line-height: 1.55; }
+.dialogo-confirmar__estado { margin: 0; padding: 0.55rem 0.7rem; border-radius: 0.45rem; background: #eef2f8; font-size: 0.8rem; line-height: 1.45; }
+.dialogo-confirmar__acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.6rem; margin-top: 0.25rem; }
+.dialogo-confirmar__acciones .button { min-height: 2.75rem; min-width: 7rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.dialogo-confirmar__acciones .button:disabled { opacity: 0.75; cursor: progress; }
+.dialogo-confirmar__spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgb(255 255 255 / 45%);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: dialogo-giro 0.8s linear infinite;
+}
+@keyframes dialogo-giro { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dialogo-confirmar__spinner { animation-duration: 2.4s; } }
+@media (max-width: 480px) {
+    .dialogo-confirmar__acciones { flex-direction: column-reverse; }
+    .dialogo-confirmar__acciones .button { width: 100%; }
+}

@@ -721,8 +721,8 @@ class TablasDinamicasTests(BaseValidacion):
     def test_los_dos_editores_cargan_el_comportamiento_de_agregar_y_quitar(self):
         """Sin el fragmento el botón existe pero no hace nada, y no avisa.
 
-        El comportamiento va en línea, no como archivo estático, para que la
-        página siga funcionando desde la caché del service worker sin conexión.
+        El comportamiento va en línea, no como archivo estático: llega con la
+        página, sin una segunda descarga que pueda fallar con la señal perdida.
         """
         from pathlib import Path
 

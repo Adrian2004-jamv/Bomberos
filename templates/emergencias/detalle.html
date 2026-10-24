@@ -64,7 +64,7 @@
                 <input type="hidden" name="estado" value="{{ transicion.valor }}">
                 <button type="submit"
                         class="fase-boton{% if transicion.valor == 'cerrada' %} fase-boton--cerrar{% elif transicion.valor == 'cancelada' %} fase-boton--cancelar{% endif %}"
-                        {% if transicion.valor == 'cancelada' %}data-confirmar="¿Cancelar la emergencia {{ emergencia.codigo }}? Se usa cuando el aviso resultó ser falso o el incidente no existió."{% elif transicion.valor == 'cerrada' %}data-confirmar="¿Terminar la emergencia {{ emergencia.codigo }}? Con esto podrá cerrar el SCI-211 y el SCI-214, que son las bitácoras que esperan al final."{% endif %}>
+                        {% if transicion.valor == 'cancelada' %}data-confirmar="¿Cancelar la emergencia {{ emergencia.codigo }}? Se usa cuando el aviso resultó ser falso o el incidente no existió." data-confirmar-titulo="Cancelar la emergencia" data-confirmar-boton="Cancelar emergencia"{% elif transicion.valor == 'cerrada' %}data-confirmar="¿Terminar la emergencia {{ emergencia.codigo }}? Con esto podrá cerrar el SCI-211 y el SCI-214, que son las bitácoras que esperan al final." data-confirmar-titulo="Terminar la emergencia" data-confirmar-boton="Terminar emergencia"{% endif %}>
                     <i class="ti {% if transicion.valor == 'cerrada' %}ti-circle-check{% elif transicion.valor == 'cancelada' %}ti-ban{% elif transicion.valor == 'controlada' %}ti-shield-check{% else %}ti-player-play{% endif %}" aria-hidden="true"></i>
                     {{ transicion.etiqueta }}
                 </button>
