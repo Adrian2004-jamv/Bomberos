@@ -6,6 +6,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=12">
+<link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=1">
 <style>
 .resumen-header{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;padding:1.25rem 1.5rem;border-left:.35rem solid var(--color-red-600);border-radius:var(--radius-md);background:#fff;box-shadow:var(--shadow-sm)}
 .resumen-header h2{margin:0 0 .25rem;color:var(--color-navy-950);font-size:1.35rem}
@@ -36,7 +37,12 @@
 .paciente-table th{background:var(--color-navy-900);color:#fff;padding:.45rem .65rem;text-align:left;font-size:.7rem;font-weight:800}
 .paciente-table td{padding:.45rem .65rem;border-bottom:1px solid var(--color-slate-100)}
 .no-data{padding:1.5rem;text-align:center;color:var(--color-slate-400);font-size:.85rem;font-style:italic}
-.texto-operativo{white-space:pre-wrap;font-size:.87rem;color:var(--color-navy-950);line-height:1.6;background:#f8fafc;border-left:3px solid var(--color-red-400);padding:.65rem 1rem;border-radius:0 .4rem .4rem 0;margin:.35rem 0}
+/* Un texto sin espacios (una URL, una cadena pegada) no debe salirse de su recuadro:
+   «pre-wrap» respeta los saltos de línea pero no parte una palabra demasiado larga. */
+.resumen-panel__body,.dato-item{min-width:0}
+.dato-item dd,.crono-table td{overflow-wrap:anywhere;word-break:break-word}
+.crono-table{table-layout:fixed}
+.texto-operativo{box-sizing:border-box;max-width:100%;min-width:0;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;white-space:pre-wrap;font-size:.87rem;color:var(--color-navy-950);line-height:1.6;background:#f8fafc;border-left:3px solid var(--color-red-400);padding:.65rem 1rem;border-radius:0 .4rem .4rem 0;margin:.35rem 0}
 </style>
 {% endblock %}
 
@@ -151,6 +157,18 @@
         <div class="texto-operativo">{{ d.tacticas }}</div>
         <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Mensaje de seguridad</p>
         <div class="texto-operativo">{{ d.mensaje_seguridad }}</div>
+        {% if d.croquis_dibujo or d.organigrama_svg %}
+        <div class="resumen-graficos">
+            {% if d.croquis_dibujo %}
+            <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Croquis del incidente</p>
+            <figure class="sci-grafico resumen-grafico"><img src="{{ d.croquis_dibujo }}" width="760" height="800" alt="Croquis del incidente"></figure>
+            {% endif %}
+            {% if d.organigrama_svg %}
+            <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Organigrama</p>
+            <figure class="sci-grafico sci-organigrama resumen-grafico">{{ d.organigrama_svg }}</figure>
+            {% endif %}
+        </div>
+        {% endif %}
         {% if d.acciones_201 %}
         <p style="font-size:.72rem;font-weight:800;color:var(--color-slate-500);text-transform:uppercase;letter-spacing:.05em;margin:.85rem 0 .3rem">Cronología de acciones</p>
         <table class="crono-table">

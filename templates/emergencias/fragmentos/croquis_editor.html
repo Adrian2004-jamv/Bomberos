@@ -1,0 +1,17 @@
+{% comment %}
+Croquis a mano alzada de un campo de tipo «croquis». Espera ``seccion`` (la que arma
+``secciones_con_valores``). El componente es ``static/emergencias/js/sci_croquis.js``,
+que se activa solo en el ``data-sci-croquis``; la plantilla no sabe de herramientas.
+
+El dibujo viaja en el campo oculto ``<nombre>__dibujo`` y la nota de texto, que era
+todo lo que tenía el campo antes, en ``<nombre>``: lo que alguien ya había escrito
+sigue ahí. Las medidas son las de ``CROQUIS_ANCHO`` y ``CROQUIS_ALTO`` de
+``emergencias/graficos_sci.py``.
+{% endcomment %}
+<div class="sci-croquis" data-sci-croquis data-ancho="760" data-alto="800">
+  <input type="hidden" name="{{ seccion.nombre }}__dibujo" value="{{ seccion.dibujo }}">
+  <noscript><p class="sci-grafico__ayuda">El croquis necesita JavaScript. Use la nota de texto de abajo.</p></noscript>
+</div>
+<label class="sci-grafico__nota-campo"><span>Nota o descripción del croquis (opcional)</span>
+  <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:3 }}" maxlength="5000">{{ seccion.valor }}</textarea>
+</label>

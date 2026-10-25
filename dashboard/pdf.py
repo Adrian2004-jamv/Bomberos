@@ -10,6 +10,7 @@ Paleta institucional:
   Blanco            #FFFFFF
 """
 
+import base64
 import io
 from datetime import datetime
 
@@ -19,10 +20,15 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
+from reportlab.graphics.shapes import Drawing, PolyLine, Rect, String
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, HRFlowable, NextPageTemplate, PageBreak,
-    PageTemplate, Paragraph, Spacer, Table, TableStyle,
+    BaseDocTemplate, Frame, HRFlowable, Image, KeepTogether, NextPageTemplate,
+    PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
+
+from emergencias.graficos_sci import (CAJA_ALTO, CAJA_ANCHO, LIENZO_ALTO, LIENZO_ANCHO,
+                                      PREFIJO_PNG, cargar_organigrama, lineas_de_caja,
+                                      puntos_de_conexion)
 
 # ── Paleta ──────────────────────────────────────────────────────────────────
 ROJO   = colors.HexColor("#B5121B")
@@ -152,6 +158,53 @@ class _Plantilla(BaseDocTemplate):
 
 
 # ── Helpers de construcción ──────────────────────────────────────────────────
+def _croquis_pdf(dibujo, ancho_max=ANCHO_PAGINA * 0.8):
+    """El croquis dibujado en el SCI-201 como imagen del tamaño de la hoja, o ``None``."""
+    if not dibujo or not dibujo.startswith(PREFIJO_PNG):
+        return None
+    try:
+        imagen = Image(io.BytesIO(base64.b64decode(dibujo[len(PREFIJO_PNG):])))
+    except Exception:  # una imagen ilegible no debe impedir el informe
+        return None
+    proporcion = imagen.imageHeight / imagen.imageWidth
+    imagen.drawWidth = ancho_max
+    imagen.drawHeight = ancho_max * proporcion
+    return imagen
+
+
+def _organigrama_pdf(grafico_json, ancho=ANCHO_PAGINA):
+    """El organigrama del SCI-201 como dibujo vectorial, o ``None`` si no hay.
+
+    Usa las mismas cajas y el mismo trazado que la hoja impresa
+    (``emergencias.graficos_sci``); solo cambia el sistema de coordenadas, porque en
+    ReportLab el eje vertical crece hacia arriba.
+    """
+    grafico = cargar_organigrama(grafico_json)
+    if not grafico:
+        return None
+    escala = ancho / LIENZO_ANCHO
+    dibujo = Drawing(ancho, LIENZO_ALTO * escala)
+
+    def punto(x, y):
+        return x * escala, (LIENZO_ALTO - y) * escala
+
+    por_id = {caja["id"]: caja for caja in grafico["nodos"]}
+    for enlace in grafico["enlaces"]:
+        vertices = [c for xy in puntos_de_conexion(por_id[enlace["de"]], por_id[enlace["a"]])
+                    for c in punto(*xy)]
+        dibujo.add(PolyLine(vertices, strokeColor=colors.HexColor("#475569"), strokeWidth=1.2))
+    for caja in grafico["nodos"]:
+        x, y = punto(caja["x"], caja["y"] + CAJA_ALTO)
+        dibujo.add(Rect(x, y, CAJA_ANCHO * escala, CAJA_ALTO * escala, rx=3, ry=3,
+                        fillColor=BLANCO, strokeColor=MARINO, strokeWidth=1.2))
+        lineas = lineas_de_caja(caja["t"])
+        arriba = (LIENZO_ALTO - caja["y"] - CAJA_ALTO / 2) * escala + (len(lineas) - 1) * 4.5
+        for numero, linea in enumerate(lineas):
+            dibujo.add(String((caja["x"] + CAJA_ANCHO / 2) * escala, arriba - numero * 9 - 3,
+                              linea, textAnchor="middle", fontSize=7.5, fillColor=NEGRO))
+    return dibujo
+
+
 def _hr(color=GRIS_M, width=0.5):
     return HRFlowable(width="100%", thickness=width, color=color,
                       spaceAfter=4, spaceBefore=2)
@@ -409,6 +462,16 @@ def generar_pdf_emergencia(datos: dict) -> bytes:
     ]:
         historia.append(_par(etiq, est, "etiqueta"))
         historia.append(_par(e.get(campo, "No registrado"), est, "normal"))
+        historia.append(Spacer(1, 2 * mm))
+
+    # El croquis y el organigrama del SCI-201, si se dibujaron.
+    croquis = _croquis_pdf(e.get("croquis_dibujo"))
+    if croquis:
+        historia.append(KeepTogether([_par("Croquis del incidente (SCI-201):", est, "etiqueta"), croquis]))
+        historia.append(Spacer(1, 2 * mm))
+    organigrama = _organigrama_pdf(e.get("organigrama_grafico"))
+    if organigrama:
+        historia.append(KeepTogether([_par("Organigrama (SCI-201):", est, "etiqueta"), organigrama]))
         historia.append(Spacer(1, 2 * mm))
 
     # Tabla de acciones cronológicas SCI-201

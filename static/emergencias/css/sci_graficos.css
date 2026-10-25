@@ -1,0 +1,103 @@
+/* Croquis y organigrama de los formularios SCI.
+   Lo comparten el editor, la hoja impresa, el periodo cerrado y el resumen de la
+   emergencia: un componente, un solo juego de estilos. */
+
+/* ── Barra de herramientas (croquis y organigrama) ─────────────────────────── */
+.sci-grafico__barra {
+    display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center;
+    padding: .55rem; border: 1px solid #cbd5e1; border-bottom: 0;
+    background: #f1f5f9;
+}
+.sci-grafico__grupo { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.sci-grafico__boton, .sci-grafico__color, .sci-grafico__grosor {
+    display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+    min-height: 2.75rem; min-width: 2.75rem; padding: .4rem .75rem;
+    border: 1px solid #94a3b8; border-radius: .45rem; background: #fff; color: #0f172a;
+    font: 700 .8rem/1.1 inherit; font-family: inherit; cursor: pointer;
+}
+.sci-grafico__boton--chip { font-size: .74rem; padding: .35rem .6rem; }
+.sci-grafico__boton:hover, .sci-grafico__color:hover, .sci-grafico__grosor:hover { border-color: #c70012; }
+.sci-grafico__boton[aria-pressed="true"], .sci-grafico__color[aria-pressed="true"],
+.sci-grafico__grosor[aria-pressed="true"] { border-color: #c70012; background: #fff1f2; box-shadow: inset 0 0 0 1px #c70012; }
+/* «display» de la clase gana al atributo hidden del navegador: sin esto los botones
+   que el editor oculta (eliminar caja, eliminar conexión) se verían siempre. */
+.sci-grafico__boton[hidden] { display: none; }
+.sci-grafico__boton:disabled { opacity: .45; cursor: not-allowed; }
+.sci-grafico__boton[data-confirmar="1"] { border-color: #c70012; background: #c70012; color: #fff; }
+.sci-grafico__color { padding: 0; }
+.sci-grafico__color span { width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #64748b; }
+.sci-grafico__grosor { padding: 0; }
+.sci-grafico__grosor span { border-radius: 50%; background: #0f172a; }
+.sci-grafico__ayuda { margin: .4rem 0 0; color: #475569; font-size: .75rem; font-weight: 400; }
+
+/* ── Croquis: el lienzo ─────────────────────────────────────────────────────── */
+.sci-croquis { width: 100%; }
+.sci-croquis__marco { padding: .5rem; border: 1px solid #cbd5e1; background: #e2e8f0; }
+.sci-croquis__lienzo {
+    display: block; width: 100%; height: auto; background: #fff;
+    border: 1px solid #64748b; cursor: crosshair;
+    /* Sin esto el dedo desplaza la página en lugar de dibujar. */
+    touch-action: none;
+}
+.sci-croquis__lienzo--borrador { cursor: cell; }
+
+/* ── Organigrama: el lienzo ─────────────────────────────────────────────────── */
+.sci-organigrama { width: 100%; }
+.sci-organigrama__marco { padding: .5rem; border: 1px solid #cbd5e1; background: #e2e8f0; }
+.sci-organigrama__lienzo {
+    display: block; width: 100%; height: auto; aspect-ratio: 760 / 700;
+    border: 1px solid #64748b; touch-action: none; user-select: none; -webkit-user-select: none;
+    background-color: #fff;
+    background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.sci-organigrama__caja { cursor: grab; outline: none; }
+.sci-organigrama__caja:active { cursor: grabbing; }
+.sci-organigrama__caja:focus-visible rect { stroke: #c70012; stroke-width: 3; }
+.sci-organigrama__toque { cursor: pointer; }
+.sci-organigrama__panel {
+    display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: flex-end;
+    padding: .55rem; border: 1px solid #cbd5e1; border-top: 0; background: #f1f5f9;
+}
+.sci-organigrama__panel[hidden] { display: none; }
+.sci-organigrama__campo { display: grid; gap: .2rem; flex: 1 1 14rem; }
+.sci-organigrama__campo[hidden] { display: none; }
+.sci-organigrama__campo label { font-size: .72rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: .03em; }
+.sci-organigrama__texto { min-height: 2.75rem; padding: .4rem .6rem; border: 1px solid #94a3b8; border-radius: .45rem; font: inherit; font-size: .9rem; }
+.sci-organigrama__mensaje { flex: 1 1 100%; margin: 0; color: #475569; font-size: .75rem; }
+
+/* ── La nota de texto que acompaña a cada gráfico ───────────────────────────── */
+.sci-grafico__nota-campo { display: grid; gap: .25rem; margin-top: .6rem; font-size: .78rem; font-weight: 700; color: #334155; }
+.sci-grafico__nota-campo textarea { width: 100%; box-sizing: border-box; padding: .5rem; border: 1px solid #94a3b8; border-radius: .45rem; font: 400 .85rem/1.4 inherit; font-family: inherit; resize: vertical; }
+
+/* ── Lectura e impresión ────────────────────────────────────────────────────── */
+.sci-grafico { margin: 0; box-sizing: border-box; width: 100%; }
+.sci-grafico img, .sci-organigrama__svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.sci-grafico--blanco { border: 0; }
+.sci-grafico__nota {
+    margin: .5rem 0 0; font: 400 .75rem/1.4 Arial, sans-serif; color: #1e293b;
+    white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+}
+@media (max-width: 40rem) {
+    .sci-grafico__barra { gap: .4rem .6rem; }
+}
+@media print {
+    .sci-grafico img, .sci-organigrama__svg { break-inside: avoid; }
+}
+
+/* ── Dentro de la hoja del SCI-201 ─────────────────────────────────────────── */
+/* Las cajas de papel tienen alto fijo porque contenían un cuadro de texto; el
+   croquis y el organigrama ocupan lo que necesiten. */
+.sci201-drawing.sci201-drawing--grafico,
+.sci201-grid--p4 .sci201-organigrama.sci201-organigrama--grafico {
+    height: auto; min-height: 0; text-align: left;
+}
+.sci201-grafico-titulo { display: block; margin-bottom: .4rem; text-align: left; }
+/* La rejilla del SCI-201 da a todo «label», «input» y «textarea» el aspecto de una
+   celda de papel; el croquis y el organigrama tienen controles propios. */
+.sci201-editor .sci-grafico__nota-campo { display: grid; padding: 0; border: 0; }
+.sci201-editor .sci-grafico__nota-campo textarea { border: 1px solid #94a3b8; font: 400 .85rem/1.4 Arial, sans-serif; }
+.sci201-editor .sci-organigrama__campo label { display: block; padding: 0; border: 0; font-size: .72rem; }
+.sci201-editor .sci-organigrama__texto { border: 1px solid #94a3b8; font: 400 .9rem Arial, sans-serif; }
+.sci201-preview .sci201-drawing, .sci201-preview .sci201-organigrama { height: auto; min-height: 0; }
+.sci201-preview .sci-grafico { margin-top: .5rem; }

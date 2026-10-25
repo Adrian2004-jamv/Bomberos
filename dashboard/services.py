@@ -5,6 +5,7 @@ from django.utils.dateparse import parse_date
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
 from emergencias.esquemas_sci import evaluacion_en_partes, evaluacion_heredada
+from emergencias.graficos_sci import limpiar_croquis, limpiar_organigrama, organigrama_svg
 from emergencias.forms import TIPOS_EMERGENCIA
 from emergencias.indicadores import (anotar_indicadores, preparar_indicadores,
                                       resumen_ejecutivo)
@@ -605,6 +606,12 @@ def datos_informe_emergencia(emergencia):
         "tacticas":            sci201.get("tacticas")            or "No registrado",
         "mensaje_seguridad":   sci201.get("mensaje_seguridad")   or "No registrado",
         "organigrama":         sci201.get("organigrama")         or "No registrado",
+        # Los gráficos del SCI-201: el croquis dibujado y el organigrama armado.
+        # Sin ellos el resumen y el PDF no se enteraban de que existían.
+        "croquis_dibujo":      limpiar_croquis(sci201.get("croquis__dibujo")),
+        "croquis_nota":        sci201.get("croquis") or "",
+        "organigrama_svg":     organigrama_svg(sci201.get("organigrama__grafico")),
+        "organigrama_grafico": limpiar_organigrama(sci201.get("organigrama__grafico")),
         "ubicacion_pc":        sci201.get("ubicacion_pc")        or "No registrado",
         "acciones_201":        acciones_201,
         # Recursos

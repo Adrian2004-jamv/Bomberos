@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=15">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=15"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=1">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -123,7 +123,9 @@
         <fieldset>
           <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
           {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
-          {% if seccion.tipo == 'textarea' %}
+          {% if seccion.tipo == 'croquis' %}{% include "emergencias/fragmentos/croquis_editor.html" %}
+          {% elif seccion.tipo == 'organigrama' %}{% include "emergencias/fragmentos/organigrama_editor.html" %}
+          {% elif seccion.tipo == 'textarea' %}
             <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:4 }}" maxlength="5000">{{ seccion.valor }}</textarea>
           {% elif seccion.tipo == 'fecha_hora' %}
             <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}"{% if fecha_minima %} min="{{ fecha_minima }}"{% endif %}>
@@ -168,5 +170,6 @@
 </div>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>
+<script src="{% static 'emergencias/js/sci_croquis.js' %}?v=1" defer></script><script src="{% static 'emergencias/js/sci_organigrama.js' %}?v=1" defer></script>
 {% include "emergencias/fragmentos/tablas_dinamicas.html" %}
 {% endblock %}

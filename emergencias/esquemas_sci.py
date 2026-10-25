@@ -13,6 +13,9 @@ Los datos capturados se guardan en ``FormularioSCI.datos`` con esta forma:
 
 import re
 
+from .graficos_sci import (clave_dibujo, clave_grafico, limpiar_croquis,
+                           limpiar_organigrama, organigrama_svg)
+
 TEXTO = "texto"
 TEXTAREA = "textarea"
 FECHA_HORA = "fecha_hora"
@@ -20,6 +23,12 @@ HORA = "hora"
 TABLA = "tabla"
 SELECCION = "seleccion"
 NUMERO = "numero"
+# Campos gráficos: un dibujo a mano alzada y un organigrama de cajas. Cada uno
+# guarda, además del texto que ya tenía el campo, su gráfico (ver graficos_sci).
+CROQUIS = "croquis"
+ORGANIGRAMA = "organigrama"
+TIPOS_GRAFICOS = (CROQUIS, ORGANIGRAMA)
+SUFIJOS_GRAFICOS = ("__dibujo", "__grafico")
 
 # Formatos que produce cada control del navegador. Sirven para reconocer un
 # valor guardado antes de que la columna tuviera tipo: si no encaja se muestra
@@ -121,18 +130,18 @@ ESQUEMAS_SCI = {
             # Campo 12 — Seguridad
             {"numero": 12, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad", "tipo": TEXTAREA, "filas": 4},
             # Campo 14 — Mapa/Croquis (página 2 completa)
-            {"numero": 14, "nombre": "croquis", "etiqueta": "Mapa situacional o croquis", "tipo": TEXTAREA,
-             "ayuda": "Describa el croquis o adjunte una descripción. Las coordenadas GPS de la emergencia se imprimen automáticamente.",
-             "filas": 18},
+            {"numero": 14, "nombre": "croquis", "etiqueta": "Mapa situacional o croquis", "tipo": CROQUIS,
+             "ayuda": "Dibuje el croquis con el dedo, el lápiz táctil o el ratón. La nota de abajo es opcional.",
+             "filas": 3},
             # Campos 15-16 — Tabla cronológica de acciones (página 3)
             {"numero": 16, "nombre": "acciones", "fila": "acción", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
              "columnas": [_columna("fecha_hora", "15. Fecha y Hora", "22%", tipo=FECHA_HORA),
                           _columna("accion", "16. Resumen de la acción")],
              "filas_impresion": 24},
             # Campo 17 — Organigrama (página 4)
-            {"numero": 17, "nombre": "organigrama", "etiqueta": "Organigrama actual", "tipo": TEXTAREA,
-             "ayuda": "Liste las posiciones activadas y el responsable de cada una.",
-             "filas": 18},
+            {"numero": 17, "nombre": "organigrama", "etiqueta": "Organigrama actual", "tipo": ORGANIGRAMA,
+             "ayuda": "Arrastre las cajas y conéctelas. La nota de abajo, con el responsable de cada posición, es opcional.",
+             "filas": 3},
         ],
     },
     "202": {
@@ -158,7 +167,9 @@ ESQUEMAS_SCI = {
              "filas_impresion": 6},
             {"numero": 13, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad según las amenazas identificadas", "tipo": TEXTAREA, "filas": 4},
             {"numero": 14, "nombre": "pronostico_tiempo", "etiqueta": "Pronóstico del tiempo", "tipo": TEXTAREA, "filas": 3},
-            {"numero": 15, "nombre": "organigrama", "etiqueta": "Organigrama para el periodo operacional", "tipo": TEXTAREA, "filas": 6},
+            {"numero": 15, "nombre": "organigrama", "etiqueta": "Organigrama para el periodo operacional", "tipo": ORGANIGRAMA,
+             "ayuda": "Arrastre las cajas y conéctelas. La nota de abajo, con el responsable de cada posición, es opcional.",
+             "filas": 3},
         ],
     },
     "203": {
@@ -479,6 +490,11 @@ def secciones_con_valores(esquema, datos, modo=MODO_EDICION):
             item["firma_valor"] = datos.get(f"{seccion['nombre']}__firma", "")
         else:
             item["valor"] = datos.get(seccion["nombre"], "")
+            if seccion["tipo"] == CROQUIS:
+                item["dibujo"] = limpiar_croquis(datos.get(clave_dibujo(seccion["nombre"])))
+            elif seccion["tipo"] == ORGANIGRAMA:
+                item["grafico"] = limpiar_organigrama(datos.get(clave_grafico(seccion["nombre"])))
+                item["svg"] = organigrama_svg(item["grafico"])
         resultado.append(item)
     return resultado
 
@@ -576,6 +592,14 @@ def extraer_datos(esquema, post):
         nombre = seccion["nombre"]
         if seccion["tipo"] != TABLA:
             datos[nombre] = limpiar(post.get(nombre))
+            # Un gráfico solo se escribe si el envío lo trae. Una página que se
+            # quedó abierta de antes de tener estos campos no manda la clave, y eso
+            # no puede interpretarse como «borró el dibujo»; borrarlo manda la
+            # clave vacía. Lo que falta se conserva en ``conservar_campos_retirados``.
+            if seccion["tipo"] == CROQUIS and clave_dibujo(nombre) in post:
+                datos[clave_dibujo(nombre)] = limpiar_croquis(post.get(clave_dibujo(nombre)))
+            elif seccion["tipo"] == ORGANIGRAMA and clave_grafico(nombre) in post:
+                datos[clave_grafico(nombre)] = limpiar_organigrama(post.get(clave_grafico(nombre)))
             continue
         filas = []
         indices = indices_enviados(post, nombre, seccion)
@@ -627,7 +651,19 @@ def conservar_campos_retirados(codigo, anteriores, nuevos):
     for nombre in CAMPOS_RETIRADOS.get(codigo, ()):
         if nombre in (anteriores or {}) and nombre not in nuevos:
             nuevos[nombre] = anteriores[nombre]
+    # Los gráficos que el envío no mencionó tampoco se pierden (ver extraer_datos).
+    for nombre in anteriores or {}:
+        if nombre.endswith(SUFIJOS_GRAFICOS) and nombre not in nuevos:
+            nuevos[nombre] = anteriores[nombre]
     return nuevos
+
+def tiene_grafico(seccion, datos):
+    """Si el campo gráfico trae algo dibujado, además de su nota de texto."""
+    if seccion["tipo"] == CROQUIS:
+        return bool(limpiar_croquis((datos or {}).get(clave_dibujo(seccion["nombre"]))))
+    if seccion["tipo"] == ORGANIGRAMA:
+        return bool(limpiar_organigrama((datos or {}).get(clave_grafico(seccion["nombre"]))))
+    return False
 
 def secciones_completadas(esquema, datos):
     """Cuenta cuántas secciones del formulario tienen datos reales.
@@ -640,7 +676,8 @@ def secciones_completadas(esquema, datos):
     for seccion in esquema["secciones"]:
         valor = datos.get(seccion["nombre"])
         if seccion["tipo"] != TABLA:
-            llenas += bool(str(valor or "").strip())
+            # Un croquis dibujado o un organigrama armado cuentan aunque no haya nota.
+            llenas += bool(str(valor or "").strip()) or tiene_grafico(seccion, datos)
             continue
         filas = valor if isinstance(valor, list) else []
         ignoradas = {seccion["columnas"][0]["nombre"]} if seccion.get("filas_fijas") else set()

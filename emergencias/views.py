@@ -1182,7 +1182,10 @@ def hoja_de_solo_lectura(esquema, formulario):
         if seccion["tipo"] == TABLA:
             seccion["vacia"] = not seccion["filas"]
         else:
-            seccion["vacia"] = not str(seccion.get("valor") or "").strip()
+            seccion["vacia"] = (
+                not str(seccion.get("valor") or "").strip()
+                and not seccion.get("dibujo") and not seccion.get("grafico")
+            )
         secciones.append(seccion)
     return {
         "periodo": formulario.periodo,

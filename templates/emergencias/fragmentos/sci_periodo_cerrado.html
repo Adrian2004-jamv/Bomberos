@@ -52,6 +52,10 @@ Espera «bloque» (lo arma ``hoja_de_solo_lectura`` en las vistas) y toma
         {% if seccion.firma %}<p class="sci-periodo-cerrado__firma"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"—" }}</p>{% endif %}
       {% elif seccion.vacia %}
         <p class="sci-periodo-cerrado__vacio">Sin anotar en este periodo.</p>
+      {% elif seccion.tipo == 'croquis' %}
+        {% include "emergencias/fragmentos/croquis_lectura.html" %}
+      {% elif seccion.tipo == 'organigrama' %}
+        {% include "emergencias/fragmentos/organigrama_lectura.html" %}
       {% else %}
         <p class="sci-periodo-cerrado__texto">{{ seccion.valor }}</p>
       {% endif %}

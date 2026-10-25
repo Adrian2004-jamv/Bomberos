@@ -1,4 +1,5 @@
 {% load static %}<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCI-{{ codigo }} · {{ emergencia.codigo }}</title>
+<link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=1">
 <style>
 @page{size:{% if esquema.orientacion == 'horizontal' %}landscape{% else %}portrait{% endif %};margin:10mm}
 *{box-sizing:border-box}
@@ -156,8 +157,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
     <tr>
       <td class="celda-xxl" style="vertical-align:top">
         {% for sec in secciones %}{% if sec.nombre == "croquis" %}
-          {% if sec.valor %}<span class="val" style="white-space:pre-wrap">{{ sec.valor }}</span>
-          {% else %}<span class="val--vacio" style="color:#aaa;font-style:italic">Espacio para el mapa situacional o croquis del incidente.</span>{% endif %}
+          {% include "emergencias/fragmentos/croquis_lectura.html" with seccion=sec alto_blanco="740px" %}
           {% if emergencia.latitud %}<div style="margin-top:8px;font-size:9.5px;color:#374151"><strong>Coordenadas GPS:</strong> {{ emergencia.latitud }}, {{ emergencia.longitud }}</div>{% endif %}
         {% endif %}{% endfor %}
       </td>
@@ -220,8 +220,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
     <tr>
       <td colspan="2" class="celda-xxl" style="vertical-align:top">
         {% for sec in secciones %}{% if sec.nombre == "organigrama" %}
-          {% if sec.valor %}<span class="val" style="white-space:pre-wrap">{{ sec.valor }}</span>
-          {% else %}<span class="val--vacio" style="color:#aaa;font-style:italic">Espacio para el organigrama del incidente (posiciones activadas y responsable de cada una).</span>{% endif %}
+          {% include "emergencias/fragmentos/organigrama_lectura.html" with seccion=sec alto_blanco="700px" %}
         {% endif %}{% endfor %}
       </td>
     </tr>
@@ -280,13 +279,17 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   {% for seccion in secciones %}
   <section style="margin-top:10px;border:1px solid #111;page-break-inside:avoid">
     <h2 style="margin:0;padding:5px 7px;background:#e5e7eb;font-size:11px">{{ seccion.numero }}. {{ seccion.etiqueta|upper }}</h2>
-    {% if seccion.ayuda %}<p style="margin:0;padding:4px 7px;border-bottom:1px solid #d1d5db;background:#fafafa;font-size:9px;color:#4b5563">{{ seccion.ayuda }}</p>{% endif %}
+    {% if seccion.ayuda and seccion.tipo != 'croquis' and seccion.tipo != 'organigrama' %}<p style="margin:0;padding:4px 7px;border-bottom:1px solid #d1d5db;background:#fafafa;font-size:9px;color:#4b5563">{{ seccion.ayuda }}</p>{% endif %}
     {% if seccion.tipo == 'tabla' %}
       <table style="width:100%;border-collapse:collapse;table-layout:fixed">
         <thead><tr>{% for columna in seccion.columnas %}<th style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;background:#eee;font-size:9px{% if columna.ancho %};width:{{ columna.ancho }}{% endif %}">{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
         <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.valor }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ seccion.columnas|length }}" style="height:26px;padding:4px 5px;border:1px solid #111;color:#6b7280;font-style:italic">Sin registros</td></tr>{% endfor %}</tbody>
       </table>
       {% if seccion.firma %}<div style="padding:6px 7px;border-top:1px solid #111;font-size:10px"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"________________________" }}</div>{% endif %}
+    {% elif seccion.tipo == 'croquis' %}
+      <div style="padding:7px">{% include "emergencias/fragmentos/croquis_lectura.html" with alto_blanco="360px" %}</div>
+    {% elif seccion.tipo == 'organigrama' %}
+      <div style="padding:7px">{% include "emergencias/fragmentos/organigrama_lectura.html" with alto_blanco="360px" %}</div>
     {% else %}
       <p style="min-height:44px;margin:0;padding:7px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">{% if seccion.valor %}{{ seccion.valor }}{% else %}<span style="color:#9ca3af">Pendiente de completar</span>{% endif %}</p>
     {% endif %}

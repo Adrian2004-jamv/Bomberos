@@ -1,0 +1,13 @@
+{% comment %}
+El organigrama en una hoja o en un documento de solo lectura. Espera ``seccion``;
+``alto_blanco`` (opcional) es el alto del recuadro cuando no hay organigrama.
+
+El SVG lo dibuja el servidor (``organigrama_svg``) para que se vea igual sin ejecutar
+JavaScript y salga en el papel. Sin organigrama queda un recuadro en blanco, para
+dibujarlo a mano; la nota de texto, si existe, se imprime abajo.
+{% endcomment %}
+{% if seccion.svg %}
+<figure class="sci-grafico sci-organigrama">{{ seccion.svg }}{% if seccion.valor %}<figcaption class="sci-grafico__nota">{{ seccion.valor }}</figcaption>{% endif %}</figure>
+{% else %}
+<div class="sci-grafico sci-grafico--blanco" style="min-height:{{ alto_blanco|default:'14rem' }}">{% if seccion.valor %}<p class="sci-grafico__nota">{{ seccion.valor }}</p>{% endif %}</div>
+{% endif %}

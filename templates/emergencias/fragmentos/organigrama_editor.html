@@ -1,0 +1,13 @@
+{% comment %}
+Editor de organigrama de un campo de tipo «organigrama». Espera ``seccion``. El
+componente es ``static/emergencias/js/sci_organigrama.js``. El gráfico viaja en el
+campo oculto ``<nombre>__grafico`` (JSON) y la nota de texto, que era todo lo que
+tenía el campo antes, en ``<nombre>``.
+{% endcomment %}
+<div class="sci-organigrama" data-sci-organigrama>
+  <input type="hidden" name="{{ seccion.nombre }}__grafico" value="{{ seccion.grafico }}">
+  <noscript><p class="sci-grafico__ayuda">El organigrama necesita JavaScript. Use la nota de texto de abajo.</p></noscript>
+</div>
+<label class="sci-grafico__nota-campo"><span>Nota o detalle del organigrama (opcional)</span>
+  <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:3 }}" maxlength="5000">{{ seccion.valor }}</textarea>
+</label>
