@@ -195,8 +195,8 @@ def _exigir_que_se_pueda_eliminar(emergencia):
 def cancelar_o_eliminar_emergencia(emergencia, usuario_responsable, motivo, detalle=""):
     """Descarta un incidente que no llegó a ser una emergencia.
 
-    «Falsa alarma» y «broma» lo ELIMINAN: no queda en los registros operativos ni
-    cuenta en las estadísticas, porque nunca hubo nada que registrar. «Error de
+    «Falsa alarma» (que incluye la broma) lo ELIMINA: no queda en los registros
+    operativos ni cuenta en las estadísticas, porque nunca hubo nada que registrar. «Error de
     despacho» y «otro motivo» lo dejan cancelado, con la razón anotada.
 
     Devuelve la emergencia si quedó cancelada y ``None`` si se eliminó.

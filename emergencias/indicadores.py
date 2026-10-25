@@ -11,11 +11,13 @@ registrado —despliegues y formularios—, así que no hay ningún dato que alg
 deba mantener aparte ni que pueda contradecir a la pantalla que lo alimenta.
 """
 
+from datetime import datetime, timedelta
+
 from django.db.models import (Count, IntegerField, Min, OuterRef, Q, Subquery,
                               Sum)
 from django.utils import timezone
 
-from .models import DespliegueUnidad, RegistroRecursoSCI211
+from .models import DespliegueUnidad, FormularioSCI, RegistroRecursoSCI211
 
 TOTAL_FORMULARIOS_SCI = 12
 
@@ -87,51 +89,134 @@ def preparar_indicadores(emergencias):
         emergencia.formularios_porcentaje = round(
             completados / TOTAL_FORMULARIOS_SCI * 100
         )
-        emergencia.puntos_clave = puntos_clave(emergencia)
     return emergencias
 
-def puntos_clave(emergencia):
-    """Resume una emergencia en frases sueltas, listas para leerse en voz alta.
+def _momento(texto):
+    """Lee la fecha y hora de una celda del formulario, o ``None`` si no se entiende.
 
-    Nace de una necesidad concreta: quien atiende una entrevista o un parte no
-    puede ponerse a interpretar una tabla de indicadores. Cada frase sale de un
-    dato ya calculado; lo que no consta no se menciona, en vez de rellenarse
-    con un cero que se leería como un hecho.
+    Las celdas ``datetime-local`` guardan «2026-10-24T09:30» sin zona: es la hora
+    que el bombero vio en su pantalla, o sea la local.
     """
-    puntos = []
-    if emergencia.sigue_abierta:
-        puntos.append(f"Abierta desde hace {emergencia.duracion}.")
-    else:
-        puntos.append(f"Cerrada tras {emergencia.duracion} de atención.")
+    try:
+        momento = datetime.fromisoformat(str(texto).strip())
+    except ValueError:
+        return None
+    if timezone.is_naive(momento):
+        momento = timezone.make_aware(momento)
+    return momento
 
-    if emergencia.unidades_activas:
-        # «Activa» incluye asignada y en ruta: decir «en el lugar» anunciaba en
-        # la escena unidades que aún no habían salido de la estación.
-        frase = (
-            f"{emergencia.unidades_activas} unidad"
-            f"{'es' if emergencia.unidades_activas != 1 else ''} movilizada"
-            f"{'s' if emergencia.unidades_activas != 1 else ''}"
-        )
-        if emergencia.unidades_en_sitio:
-            frase += f", {emergencia.unidades_en_sitio} en el lugar"
-        else:
-            frase += ", ninguna ha llegado todavía"
-        if emergencia.unidades_totales > emergencia.unidades_activas:
-            frase += f" (de {emergencia.unidades_totales} despachadas en total)"
-        puntos.append(frase + ".")
-    elif emergencia.unidades_totales:
-        puntos.append(f"{emergencia.unidades_totales} unidad(es) movilizadas, ninguna activa.")
-    else:
-        puntos.append("Todavía sin unidades despachadas.")
 
-    if emergencia.personal_comprometido:
-        puntos.append(f"{emergencia.personal_comprometido} personas comprometidas.")
+def _corto(texto, largo=90):
+    texto = " ".join(str(texto).split())
+    return texto if len(texto) <= largo else texto[: largo - 1].rstrip() + "…"
 
-    # El tiempo de respuesta se sigue calculando y guardando; se retiró de este
-    # resumen a petición del usuario, no porque dejara de medirse.
 
-    puntos.append(
-        f"Documentación SCI: {emergencia.formularios_completados} de "
-        f"{emergencia.formularios_total} formularios."
+def resumen_ejecutivo(emergencias):
+    """Cuelga de cada emergencia lo que un jefe quiere saber al primer vistazo.
+
+    Tres datos, ninguno escrito aparte: se leen de lo que el personal ya registra,
+    así que no hay un campo más que mantener ni una cifra que pueda contradecir al
+    formulario del que sale.
+
+    * ``mando``: el Comandante del Incidente, del SCI-201 (quien firma como
+      «preparado por») o, si ese no lo trae, de la fila «Comandante de Incidente
+      (Principal)» del SCI-203.
+    * ``recursos_en_escena``: las unidades activas repartidas en el lugar, en camino
+      y de regreso, de los despliegues ya cargados en la emergencia.
+    * ``ultima_novedad``: lo más reciente que consta entre las acciones del SCI-201,
+      los hitos de cada despliegue (despachada, salió, llegó, regresó) y, si no hay
+      otra cosa, el último formulario tocado.
+
+    Lo que no consta se deja vacío para que la tarjeta lo diga («Sin designar»); no
+    se rellena con un valor que se leería como un hecho. El costo son tres consultas
+    para todas las tarjetas, no una por tarjeta.
+    """
+    if not emergencias:
+        return emergencias
+    ahora = timezone.now()
+    ids = [emergencia.pk for emergencia in emergencias]
+
+    mando, mando_203, novedades = {}, {}, {pk: [] for pk in ids}
+    formularios = (
+        FormularioSCI.objects
+        .filter(emergencia_id__in=ids, codigo_sci__in=("201", "203"))
+        .order_by("periodo__numero", "pk")
+        .only("emergencia_id", "codigo_sci", "datos", "preparado_por",
+              "posicion_preparado_por")
     )
-    return puntos
+    for formulario in formularios:
+        datos = formulario.datos or {}
+        if formulario.codigo_sci == "201":
+            if formulario.preparado_por.strip():
+                # Se ordena por periodo: el último que firmó es quien manda ahora.
+                mando[formulario.emergencia_id] = (
+                    formulario.preparado_por.strip(),
+                    formulario.posicion_preparado_por.strip(),
+                )
+            for fila in datos.get("acciones") or []:
+                if not isinstance(fila, dict) or not str(fila.get("accion", "")).strip():
+                    continue
+                cuando = _momento(fila.get("fecha_hora"))
+                if cuando and cuando <= ahora:
+                    novedades[formulario.emergencia_id].append(
+                        (cuando, _corto(fila["accion"]))
+                    )
+        else:
+            for fila in datos.get("comando") or []:
+                if (isinstance(fila, dict)
+                        and "principal" in str(fila.get("posicion", "")).lower()
+                        and str(fila.get("nombre", "")).strip()):
+                    mando_203[formulario.emergencia_id] = (
+                        str(fila["nombre"]).strip(), "",
+                    )
+
+    ultimo_tocado = {}
+    for pk, codigo, cuando in (
+        FormularioSCI.objects.filter(emergencia_id__in=ids)
+        .order_by("fecha_actualizacion")
+        .values_list("emergencia_id", "codigo_sci", "fecha_actualizacion")
+    ):
+        ultimo_tocado[pk] = (cuando, f"Se actualizó el SCI-{codigo}")
+
+    for emergencia in emergencias:
+        emergencia.mando = mando.get(emergencia.pk) or mando_203.get(emergencia.pk)
+
+        en_lugar = en_camino = regresando = 0
+        for despliegue in getattr(emergencia, "unidades_desplegadas", []):
+            codigo = despliegue.unidad.codigo_interno
+            for cuando, frase in (
+                (despliegue.fecha_asignacion, f"{codigo} despachada"),
+                (despliegue.fecha_salida, f"{codigo} salió de la estación"),
+                (despliegue.fecha_llegada, f"{codigo} llegó al lugar"),
+                (despliegue.fecha_retorno, f"{codigo} terminó y regresó"),
+            ):
+                if cuando:
+                    novedades[emergencia.pk].append((cuando, frase))
+            if despliegue.estado == DespliegueUnidad.Estado.EN_SITIO:
+                en_lugar += 1
+            elif despliegue.estado == DespliegueUnidad.Estado.RETORNANDO:
+                regresando += 1
+            elif despliegue.estado in (DespliegueUnidad.Estado.ASIGNADA,
+                                       DespliegueUnidad.Estado.EN_RUTA):
+                en_camino += 1
+        emergencia.recursos_en_escena = {
+            "en_lugar": en_lugar, "en_camino": en_camino, "regresando": regresando,
+            "activos": en_lugar + en_camino + regresando,
+        }
+
+        candidatas = novedades[emergencia.pk]
+        if not candidatas and emergencia.pk in ultimo_tocado:
+            candidatas = [ultimo_tocado[emergencia.pk]]
+        if candidatas:
+            cuando, texto = max(candidatas, key=lambda par: par[0])
+            emergencia.ultima_novedad = {
+                "texto": texto, "momento": cuando,
+                # «Hace 0 min» se lee como un error: bajo el minuto se dice así.
+                "hace": (
+                    formato_duracion(ahora - cuando)
+                    if ahora - cuando >= timedelta(minutes=1) else "menos de 1 min"
+                ),
+            }
+        else:
+            emergencia.ultima_novedad = None
+    return emergencias

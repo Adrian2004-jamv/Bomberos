@@ -356,12 +356,23 @@ class FiltroYPuntosClaveTests(TestCase):
         respuesta = self.panel("?desde=2026-03-05&hasta=2026-03-15")
         self.assertContains(respuesta, "entre el 05/03/2026 y el 15/03/2026")
 
-    def test_cada_emergencia_trae_sus_puntos_clave(self):
+    def test_cada_emergencia_trae_su_informacion_clave(self):
         self.crear("IE-10032026-001", 10)
         respuesta = self.panel()
-        self.assertContains(respuesta, "incident-board__claves")
-        self.assertContains(respuesta, "Todavía sin unidades despachadas.")
-        self.assertContains(respuesta, "Documentación SCI: 0 de 12 formularios.")
+        self.assertContains(respuesta, "incident-board__clave")
+        self.assertContains(respuesta, "Comandante del Incidente")
+        self.assertContains(respuesta, "Sin designar")
+        self.assertContains(respuesta, "Sin unidades despachadas")
+        self.assertContains(respuesta, "Sin novedades registradas")
+
+    def test_la_tarjeta_no_repite_con_palabras_lo_que_ya_dicen_las_cifras(self):
+        """El recuadro gris de frases decía otra vez el tiempo, las unidades y los
+        formularios que la franja de arriba ya mostraba como cifras."""
+        self.crear("IE-10032026-001", 10)
+        respuesta = self.panel()
+        for repetido in ("Abierta desde hace", "Documentación SCI:", "movilizada",
+                         "incident-board__claves"):
+            self.assertNotContains(respuesta, repetido)
 
     def test_el_tablero_ya_no_habla_de_arribos(self):
         self.crear("IE-10032026-002", 10)
@@ -381,10 +392,10 @@ class EstiloDelTableroTests(TestCase):
         # Se usa en varias plantillas; sin la regla se ve como uno secundario.
         self.assertIn(".button--primary", self.hoja("css/componentes.css"))
 
-    def test_los_puntos_clave_ocupan_la_fila_entera(self):
+    def test_la_informacion_clave_ocupa_la_fila_entera(self):
         hoja = self.hoja("dashboard/css/dashboard.css")
-        bloque = hoja[hoja.index(".incident-board__claves"):]
-        self.assertIn("grid-column: 1 / -1", bloque[:400])
+        bloque = hoja[hoja.index(".incident-board__clave {"):]
+        self.assertIn("grid-column: 1 / -1", bloque[:200])
 
 
 class FiltroPorIncidenteTests(FiltroYPuntosClaveTests):
@@ -556,28 +567,114 @@ class PersonalComprometidoTests(TestCase):
         respuesta = self.client.get(reverse("dashboard:principal"))
         incidente = respuesta.context["incidentes_en_curso"][0]
         self.assertEqual(incidente.personal_comprometido, 5)
-        self.assertContains(respuesta, "5 personas comprometidas.")
+        self.assertContains(respuesta, "Personal</dt><dd>5</dd>")
 
 
-class RedaccionDeLosPuntosClaveTests(PersonalComprometidoTests):
-    """Las frases deben decir lo que los datos dicen, no algo parecido."""
+class InformacionClaveTests(PersonalComprometidoTests):
+    """El resumen ejecutivo debe decir lo que los datos dicen, no algo parecido."""
+
+    def panel(self):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("dashboard:principal"))
 
     def test_una_unidad_asignada_no_esta_en_el_lugar(self):
         self.escenario_con_varias_uniones()
-        self.client.force_login(self.usuario)
-        respuesta = self.client.get(reverse("dashboard:principal"))
-        self.assertContains(respuesta, "ninguna ha llegado todavía")
-        self.assertNotContains(respuesta, "2 unidades en el lugar")
+        respuesta = self.panel()
+        self.assertContains(respuesta, "2 en camino")
+        self.assertContains(respuesta, "Aún hay recursos por llegar.")
+        self.assertNotContains(respuesta, "en el lugar</span>")
 
     def test_cuando_llegan_se_cuentan_aparte(self):
         emergencia = self.escenario_con_varias_uniones()
         despliegue = DespliegueUnidad.objects.filter(emergencia=emergencia).first()
         DespliegueUnidad.objects.filter(pk=despliegue.pk).update(
-            fecha_llegada=timezone.now()
+            estado=DespliegueUnidad.Estado.EN_SITIO, fecha_llegada=timezone.now()
         )
-        self.client.force_login(self.usuario)
-        respuesta = self.client.get(reverse("dashboard:principal"))
-        self.assertContains(respuesta, "2 unidades movilizadas, 1 en el lugar")
+        respuesta = self.panel()
+        self.assertContains(respuesta, "1 en el lugar")
+        self.assertContains(respuesta, "1 en camino")
+
+    def test_cuando_todas_llegaron_se_dice_que_ya_no_viene_ninguna(self):
+        emergencia = self.escenario_con_varias_uniones()
+        DespliegueUnidad.objects.filter(emergencia=emergencia).update(
+            estado=DespliegueUnidad.Estado.EN_SITIO, fecha_llegada=timezone.now()
+        )
+        respuesta = self.panel()
+        self.assertContains(respuesta, "2 en el lugar")
+        self.assertNotContains(respuesta, "en camino</span>")
+        self.assertContains(respuesta, "Todos los recursos están en el lugar.")
+
+    def test_el_comandante_sale_del_sci_201(self):
+        emergencia = self.escenario_con_varias_uniones()
+        FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci="201").update(
+            preparado_por="Mayor Luis Andrade", posicion_preparado_por="Jefe de Estación"
+        )
+        respuesta = self.panel()
+        self.assertContains(respuesta, "Mayor Luis Andrade")
+        self.assertContains(respuesta, "Jefe de Estación")
+        self.assertNotContains(respuesta, "Sin designar")
+
+    def test_sin_201_el_comandante_se_toma_del_sci_203(self):
+        emergencia = self.escenario_con_varias_uniones()
+        FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci="201").delete()
+        FormularioSCI.objects.create(
+            emergencia=emergencia, codigo_sci="203",
+            datos={"comando": [
+                {"posicion": "Comandante de Incidente (Adjunto)", "nombre": "Cap. Pablo Ríos"},
+                {"posicion": "Comandante de Incidente (Principal)", "nombre": "Cap. Rosa Vega"},
+            ]},
+            creado_por=self.usuario, modificado_por=self.usuario,
+        )
+        respuesta = self.panel()
+        self.assertContains(respuesta, "Cap. Rosa Vega")
+        self.assertNotContains(respuesta, "Cap. Pablo Ríos")
+
+    def test_la_ultima_novedad_es_la_accion_registrada_mas_reciente(self):
+        emergencia = self.escenario_con_varias_uniones()
+        ahora = timezone.localtime()
+
+        def hace(minutos):
+            return (ahora - timedelta(minutes=minutos)).strftime("%Y-%m-%dT%H:%M")
+
+        FormularioSCI.objects.filter(emergencia=emergencia, codigo_sci="201").update(
+            datos={"acciones": [
+                {"fecha_hora": hace(40), "accion": "Llegada de la primera unidad"},
+                {"fecha_hora": hace(15), "accion": "Control de conato"},
+                # Una hora futura todavía no ocurrió: no puede ser lo «último».
+                {"fecha_hora": (ahora + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+                 "accion": "Relevo programado"},
+                {"fecha_hora": "basura", "accion": "Fecha ilegible"},
+            ]}
+        )
+        # Los despliegues del escenario se crearon hace instantes y serían «más
+        # recientes»: se los lleva atrás para comprobar solo las acciones.
+        DespliegueUnidad.objects.filter(emergencia=emergencia).update(
+            fecha_asignacion=timezone.now() - timedelta(hours=3)
+        )
+        respuesta = self.panel()
+        self.assertContains(respuesta, "Control de conato")
+        self.assertContains(respuesta, "hace 15 min")
+        self.assertNotContains(respuesta, "Relevo programado")
+        self.assertNotContains(respuesta, "Fecha ilegible")
+
+    def test_bajo_el_minuto_no_dice_cero_minutos(self):
+        self.escenario_con_varias_uniones()
+        respuesta = self.panel()
+        self.assertContains(respuesta, "hace menos de 1 min")
+        self.assertNotContains(respuesta, "hace 0 min")
+
+    def test_sin_acciones_la_novedad_es_el_ultimo_hito_de_una_unidad(self):
+        emergencia = self.escenario_con_varias_uniones()
+        despliegue = DespliegueUnidad.objects.filter(emergencia=emergencia).first()
+        DespliegueUnidad.objects.filter(emergencia=emergencia).update(
+            fecha_asignacion=timezone.now() - timedelta(hours=2)
+        )
+        DespliegueUnidad.objects.filter(pk=despliegue.pk).update(
+            fecha_llegada=timezone.now() - timedelta(minutes=7)
+        )
+        respuesta = self.panel()
+        self.assertContains(respuesta, f"{despliegue.unidad.codigo_interno} llegó al lugar")
+        self.assertContains(respuesta, "hace 7 min")
 
 
 class DesplegableDeTiposTests(TestCase):

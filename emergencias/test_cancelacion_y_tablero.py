@@ -211,10 +211,10 @@ class ConUnidades(BaseDelPeriodo):
 
 
 class EliminarFalsasAlarmasTests(ConUnidades):
-    """«Falsa alarma» y «broma»: el incidente no existió y no debe quedar."""
+    """«Falsa alarma» (la broma incluida): el incidente no existió y no debe quedar."""
 
     def test_se_elimina_sin_dejar_nada_huerfano(self):
-        for motivo in ("falsa_alarma", "broma"):
+        for motivo in ("falsa_alarma",):
             with self.subTest(motivo=motivo):
                 emergencia, unidad = self.incidente_con_todo(f"CAN-{motivo[:3].upper()}")
                 pk = emergencia.pk
@@ -249,6 +249,13 @@ class EliminarFalsasAlarmasTests(ConUnidades):
         self.cancelar(emergencia, "falsa_alarma", confirmo="1")
         self.assertEqual(Emergencia.objects.count(), antes - 1)
 
+    def test_el_motivo_retirado_ya_no_se_acepta(self):
+        """Una petición hecha a mano con «broma» no debe borrar ni cancelar nada."""
+        emergencia, _ = self.incidente_con_todo("CAN-BRO")
+        self.cancelar(emergencia, "broma", confirmo="1")
+        emergencia.refresh_from_db()
+        self.assertEqual(emergencia.estado, Emergencia.Estado.EN_ATENCION)
+
     def test_el_servidor_exige_la_confirmacion(self):
         """El navegador la pide, pero este extremo atiende peticiones de cualquiera."""
         emergencia, _ = self.incidente_con_todo("CAN-CONF")
@@ -262,7 +269,7 @@ class EliminarFalsasAlarmasTests(ConUnidades):
     def test_queda_constancia_en_el_registro_del_servidor(self):
         emergencia, _ = self.incidente_con_todo("CAN-LOG")
         with self.assertLogs("emergencias.services", level="WARNING") as registro:
-            self.cancelar(emergencia, "broma", confirmo="1")
+            self.cancelar(emergencia, "falsa_alarma", confirmo="1")
         texto = " ".join(registro.output)
         self.assertIn("CAN-LOG", texto)
         self.assertIn(self.usuario.username, texto)
@@ -387,14 +394,16 @@ class FichaConElBotonDeCancelarTests(ConUnidades):
             reverse("emergencias:detalle", args=[emergencia.pk])
         ).content.decode()
 
-    def test_una_emergencia_en_curso_ofrece_cancelar_con_los_cuatro_motivos(self):
+    def test_una_emergencia_en_curso_ofrece_cancelar_con_los_tres_motivos(self):
         html = self.ficha(self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "FIC-001"))
         self.assertIn('data-abrir-dialogo="dialogo-cancelar"', html)
         self.assertIn('id="dialogo-cancelar"', html)
-        for valor in ("falsa_alarma", "broma", "error_despacho", "otro"):
+        for valor in ("falsa_alarma", "error_despacho", "otro"):
             self.assertIn(f'value="{valor}"', html)
-        # Los dos que eliminan lo advierten; los otros no piden la casilla.
-        self.assertEqual(html.count('data-elimina="1"'), 2)
+        # «Broma» era una segunda forma de decir «falsa alarma»: ya no se ofrece.
+        self.assertNotIn('value="broma"', html)
+        # La falsa alarma elimina y lo advierte; los otros dos no piden la casilla.
+        self.assertEqual(html.count('data-elimina="1"'), 1)
         self.assertEqual(html.count('data-elimina="0"'), 2)
 
     def test_una_emergencia_terminada_no_lo_ofrece(self):

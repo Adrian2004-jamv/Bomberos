@@ -132,7 +132,9 @@ class TableroDeIncidentesTests(BaseOperativoTests):
         respuesta = self.abrir(self.responsable)
         self.assertContains(respuesta, "OP-100")
         self.assertContains(respuesta, reverse("emergencias:detalle", args=[emergencia.pk]))
-        self.assertContains(respuesta, "1 unidad")
+        # La cifra vive en la franja de métricas y el estado en el resumen ejecutivo;
+        # ya no se repite como «1 unidad» suelto.
+        self.assertContains(respuesta, "1 en camino")
         self.assertContains(respuesta, "Sin SCI-211")
         incidente = respuesta.context["incidentes_en_curso"][0]
         self.assertEqual(incidente.unidades_activas, 1)

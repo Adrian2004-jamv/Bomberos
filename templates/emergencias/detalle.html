@@ -183,9 +183,9 @@
 </section>
 {% if puede_cancelar %}
 {% comment %}
-Cancelar pide el motivo, y el motivo decide qué pasa: una falsa alarma o una broma
-no son un incidente mal atendido sino uno que no existió, así que se ELIMINAN y no
-quedan en los registros ni en las estadísticas; un error de despacho u otro motivo
+Cancelar pide el motivo, y el motivo decide qué pasa: una falsa alarma (o una
+broma) no es un incidente mal atendido sino uno que no existió, así que se ELIMINA
+y no queda en los registros ni en las estadísticas; un error de despacho u otro motivo
 dejan el incidente cancelado, con la razón anotada. Eliminar no se deshace, de modo
 que además del motivo pide marcar que se entiende. El servidor lo vuelve a exigir.
 {% endcomment %}

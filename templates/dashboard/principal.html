@@ -3,7 +3,7 @@
 
 {% block title %}Panel de control institucional{% endblock %}
 {% block page_title %}Panel de control institucional{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=11">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}?v=12">{% endblock %}
 
 {% block content %}
 <section class="dashboard-welcome" aria-labelledby="welcome-title">
@@ -74,20 +74,47 @@
                     </div>
                     <div class="incident-board__facts">
                         <span class="dashboard-badge dashboard-badge--estado">{{ incidente.get_estado_display }}</span>
-                        <span>{{ incidente.unidades_activas }} unidad{{ incidente.unidades_activas|pluralize:"es" }}</span>
                         {% if not incidente.tiene_sci211 %}<span class="incident-board__pending">Sin SCI-211</span>{% endif %}
                     </div>
                     <time datetime="{{ incidente.fecha_reporte|date:'c' }}">{{ incidente.fecha_reporte|date:"d/m/Y H:i" }}</time>
                     <a href="{% url 'emergencias:detalle' incidente.pk %}">Abrir emergencia</a>
                     <dl class="incident-board__resumen" aria-label="Resumen de {{ incidente.codigo }}">
-                        <div><dt>Transcurrido</dt><dd>{{ incidente.duracion|default:"—" }}</dd></div>
-                        <div><dt>Unidades</dt><dd>{{ incidente.unidades_activas }}{% if incidente.unidades_totales != incidente.unidades_activas %} <span>de {{ incidente.unidades_totales }}</span>{% endif %}</dd></div>
-                        <div><dt>Personal</dt><dd>{{ incidente.personal_comprometido|default:"—" }}</dd></div>
-                        <div><dt>Recursos</dt><dd>{{ incidente.recursos_registrados }}</dd></div>
-                        <div><dt>Formularios</dt><dd>{{ incidente.formularios_completados }}/{{ incidente.formularios_total }}
+                        <div><dt><i class="ti ti-clock" aria-hidden="true"></i> Transcurrido</dt><dd>{{ incidente.duracion|default:"—" }}</dd></div>
+                        <div><dt><i class="ti ti-firetruck" aria-hidden="true"></i> Unidades</dt><dd>{{ incidente.unidades_activas }}{% if incidente.unidades_totales != incidente.unidades_activas %} <span>de {{ incidente.unidades_totales }}</span>{% endif %}</dd></div>
+                        <div><dt><i class="ti ti-users" aria-hidden="true"></i> Personal</dt><dd>{{ incidente.personal_comprometido|default:"—" }}</dd></div>
+                        <div><dt><i class="ti ti-package" aria-hidden="true"></i> Recursos SCI-211</dt><dd>{{ incidente.recursos_registrados }}</dd></div>
+                        <div><dt><i class="ti ti-files" aria-hidden="true"></i> Formularios</dt><dd>{{ incidente.formularios_completados }}/{{ incidente.formularios_total }}
                             <div class="incident-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ incidente.formularios_total }}" aria-valuenow="{{ incidente.formularios_completados }}" aria-label="Avance documental de {{ incidente.codigo }}"><span style="width:{{ incidente.formularios_porcentaje }}%"></span></div>
                         </dd></div>
                     </dl>
+                    <section class="incident-board__clave" aria-label="Información clave de {{ incidente.codigo }}">
+                        <h4 class="incident-board__clave-titulo"><i class="ti ti-target-arrow" aria-hidden="true"></i> Información clave</h4>
+                        <dl>
+                            <div class="clave clave--mando">
+                                <dt><i class="ti ti-shield-star" aria-hidden="true"></i> Comandante del Incidente</dt>
+                                <dd>{% if incidente.mando %}<strong>{{ incidente.mando.0 }}</strong>{% if incidente.mando.1 %}<small>{{ incidente.mando.1 }}</small>{% endif %}{% else %}<span class="clave__vacio">Sin designar</span><small>Se registra en el SCI-201</small>{% endif %}</dd>
+                            </div>
+                            <div class="clave clave--recursos">
+                                <dt><i class="ti ti-firetruck" aria-hidden="true"></i> Recursos en escena</dt>
+                                <dd>
+                                    {% with r=incidente.recursos_en_escena %}
+                                    {% if r.activos %}
+                                    <span class="clave__fichas">
+                                        {% if r.en_lugar %}<span class="clave__ficha clave__ficha--lugar"><i class="ti ti-map-pin" aria-hidden="true"></i> {{ r.en_lugar }} en el lugar</span>{% endif %}
+                                        {% if r.en_camino %}<span class="clave__ficha clave__ficha--camino"><i class="ti ti-truck-delivery" aria-hidden="true"></i> {{ r.en_camino }} en camino</span>{% endif %}
+                                        {% if r.regresando %}<span class="clave__ficha clave__ficha--regreso"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> {{ r.regresando }} regresando</span>{% endif %}
+                                    </span>
+                                    <small>{% if r.en_camino %}Aún hay recursos por llegar.{% elif r.en_lugar %}Todos los recursos están en el lugar.{% else %}Los recursos van de regreso a su estación.{% endif %}</small>
+                                    {% else %}<span class="clave__vacio">{% if incidente.unidades_totales %}Sin unidades activas{% else %}Sin unidades despachadas{% endif %}</span>{% endif %}
+                                    {% endwith %}
+                                </dd>
+                            </div>
+                            <div class="clave clave--novedad">
+                                <dt><i class="ti ti-history" aria-hidden="true"></i> Última actualización</dt>
+                                <dd>{% if incidente.ultima_novedad %}<strong>{{ incidente.ultima_novedad.texto }}</strong><small><time datetime="{{ incidente.ultima_novedad.momento|date:'c' }}" title="{{ incidente.ultima_novedad.momento|date:'d/m/Y H:i' }}">hace {{ incidente.ultima_novedad.hace }}</time></small>{% else %}<span class="clave__vacio">Sin novedades registradas</span>{% endif %}</dd>
+                            </div>
+                        </dl>
+                    </section>
                     {% if incidente.unidades_desplegadas %}
                     <div class="incident-board__unidades">
                         <p class="eyebrow">Recursos desplegados</p>
@@ -103,9 +130,6 @@
                         </ul>
                     </div>
                     {% endif %}
-                    <ul class="incident-board__claves" aria-label="Puntos clave de {{ incidente.codigo }}">
-                        {% for punto in incidente.puntos_clave %}<li>{{ punto }}</li>{% endfor %}
-                    </ul>
                 </article>
             {% endfor %}
         </div>

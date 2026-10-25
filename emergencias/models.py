@@ -15,21 +15,20 @@ class Emergencia(models.Model):
     class MotivoCancelacion(models.TextChoices):
         """Por qué se descarta un incidente que no llegó a ser una emergencia.
 
-        Los dos primeros —un aviso falso y una broma— no son un incidente que se
-        atendió mal sino uno que no existió, y no deben figurar en los registros
-        operativos ni en las estadísticas: se eliminan. Los otros dos sí ocurrieron
-        como trámite —hubo un error al despachar, o un motivo distinto— y quedan
-        como «cancelado» con su razón.
+        «Falsa alarma» —que abarca el aviso equivocado y la broma— no es un
+        incidente que se atendió mal sino uno que no existió, y no debe figurar en
+        los registros operativos ni en las estadísticas: se elimina. Los otros dos
+        sí ocurrieron como trámite —hubo un error al despachar, o un motivo
+        distinto— y quedan como «cancelado» con su razón.
         """
 
         FALSA_ALARMA = "falsa_alarma", "Falsa alarma"
-        BROMA = "broma", "Broma"
         ERROR_DESPACHO = "error_despacho", "Error de despacho"
         OTRO = "otro", "Otro motivo"
 
         @classmethod
         def que_eliminan(cls):
-            return {cls.FALSA_ALARMA.value, cls.BROMA.value}
+            return {cls.FALSA_ALARMA.value}
 
     class Estado(models.TextChoices):
         REPORTADA = "reportada", "Reportada"

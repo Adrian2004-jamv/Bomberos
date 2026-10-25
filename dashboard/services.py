@@ -6,7 +6,8 @@ from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
 from emergencias.esquemas_sci import evaluacion_en_partes, evaluacion_heredada
 from emergencias.forms import TIPOS_EMERGENCIA
-from emergencias.indicadores import anotar_indicadores, preparar_indicadores
+from emergencias.indicadores import (anotar_indicadores, preparar_indicadores,
+                                      resumen_ejecutivo)
 
 from emergencias.models import (DespliegueUnidad, Emergencia, FormularioSCI211,
                                 numero_de_periodo_vigente)
@@ -169,7 +170,7 @@ def incidentes_en_curso(estaciones, limite=6, desde=None, hasta=None,
     # El resumen de cada emergencia se anota en la misma consulta; resolverlo
     # por fila costaría varias consultas por tarjeta.
     emergencias = preparar_indicadores(list(anotar_indicadores(consulta)[:limite]))
-    return adjuntar_unidades(emergencias)
+    return resumen_ejecutivo(adjuntar_unidades(emergencias))
 
 def adjuntar_unidades(emergencias):
     """Cuelga de cada emergencia las unidades que tiene encima.
