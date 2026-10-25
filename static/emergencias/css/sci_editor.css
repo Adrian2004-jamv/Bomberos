@@ -8,7 +8,7 @@
 .sci-word-sections input,.sci-word-sections textarea,.sci-sheet-grid input,.sci-sheet-grid textarea{display:block;box-sizing:border-box;width:100%;resize:vertical;border:0;background:repeating-linear-gradient(#fff,#fff 25px,#d8dde3 26px);color:#111;font:12px/26px Arial}.sci-word-sections input:focus,.sci-word-sections textarea:focus,.sci-sheet-grid input:focus,.sci-sheet-grid textarea:focus{outline:2px solid #e10613;outline-offset:2px;background:#fffbea}
 .sci-sheet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-left:1px solid #111}.sci-sheet-grid__title{grid-column:1/-1;padding:7px;border-right:1px solid #111;border-bottom:1px solid #111;background:#dfe3e8;text-align:center;font-size:.72rem;font-weight:900}.sci-sheet-grid label{min-width:0;padding:0;border-right:1px solid #111;border-bottom:1px solid #111}.sci-sheet-grid label span{display:block;min-height:32px;padding:6px;background:#edf0f3;text-align:center;font-size:.64rem;font-weight:800}.sci-sheet-grid input,.sci-sheet-grid textarea{min-height:150px;padding:7px;background:repeating-linear-gradient(#fff,#fff 25px,#cfd5dc 26px)}
 .sci-paper__footer{display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px;border-top:1px solid #111;border-left:1px solid #111}.sci-paper__footer div{min-height:58px;padding:7px;border-right:1px solid #111;border-bottom:1px solid #111;font-size:.68rem}.sci-paper__footer strong{display:block;margin-bottom:8px}
-@media(max-width:760px){.sci-workspace{padding:.5rem}.sci-workspace__toolbar{position:static;align-items:stretch;flex-direction:column}.sci-workspace__toolbar>div:last-child{display:grid;grid-template-columns:1fr}.sci-paper,.sci-paper--landscape{width:100%;min-height:0;padding:10px}.sci-paper__header{grid-template-columns:60px 1fr}.sci-paper__header img{width:48px!important;max-width:48px!important}.sci-paper__header>span{display:none}.sci-paper__meta,.sci-word-sections,.sci-sheet-grid{grid-template-columns:1fr}.sci-word-sections fieldset:has(textarea),.sci-sheet-grid__title{grid-column:auto}.sci-paper__footer{grid-template-columns:1fr}}
+@media screen and (max-width:760px){.sci-workspace{padding:.5rem}.sci-workspace__toolbar{position:static;align-items:stretch;flex-direction:column}.sci-workspace__toolbar>div:last-child{display:grid;grid-template-columns:1fr}.sci-paper,.sci-paper--landscape{width:100%;min-height:0;padding:10px}.sci-paper__header{grid-template-columns:60px 1fr}.sci-paper__header img{width:48px!important;max-width:48px!important}.sci-paper__header>span{display:none}.sci-paper__meta,.sci-word-sections,.sci-sheet-grid{grid-template-columns:1fr}.sci-word-sections fieldset:has(textarea),.sci-sheet-grid__title{grid-column:auto}.sci-paper__footer{grid-template-columns:1fr}}
 
 /* Formularios SCI con estructura oficial: tablas repetibles, periodo operacional y firmas. */
 .sci-inventory-notice{margin:.8rem 0;padding:.7rem .85rem;border:1px solid #9bd5bd;border-radius:.5rem;color:#086c4b;background:#eefaf5;font-size:.76rem}
@@ -38,7 +38,7 @@
 .sci-paper__footer input{width:100%;padding:5px;border:0;border-bottom:1px solid #475569;background:transparent;font:inherit}
 .sci-finalizar{margin-top:16px;padding:12px 16px;border-left:4px solid #d89b00;background:#fff7dd;border-radius:4px}
 .sci-finalizar p{margin:0 0 8px;font-size:12px}
-@media (max-width:900px){.sci-periodo{grid-template-columns:1fr}.sci-tabla{overflow-x:auto}}
+@media screen and (max-width:900px){.sci-periodo{grid-template-columns:1fr}.sci-tabla{overflow-x:auto}}
 
 /* Ajuste de texto en el editor. Una cadena larga sin espacios no tiene donde
    cortar y estiraba la tabla hasta desbordar la pagina. */
@@ -85,7 +85,7 @@
 
 /* SCI-201 conserva la retícula carta vertical de la revisión oficial 06-2015. */
 .sci201-editor{width:min(100%,760px);margin:auto;font:10px Arial,sans-serif;color:#14245d}.sci201-page{box-sizing:border-box;min-height:980px;margin:0 auto 20px;padding:34px 31px 22px;background:#fff;box-shadow:0 8px 30px #0002}.sci201-head{display:grid;grid-template-columns:70px 1fr;align-items:center;min-height:55px}.sci201-head img{width:58px}.sci201-head div{text-align:center;padding-right:70px}.sci201-head strong,.sci201-head span{display:block;color:#1a237e}.sci201-head strong{font-size:12px}.sci201-head span{font-size:11px;font-weight:700}.sci201-grid{display:grid;border-top:1px solid #777;border-left:1px solid #777}.sci201-grid label,.sci201-drawing,.sci201-sign,.sci201-page-no{box-sizing:border-box;display:block;min-width:0;padding:5px;border-right:1px solid #777;border-bottom:1px solid #777;font-size:9px;font-weight:700}.sci201-grid label{min-height:47px}.sci201-grid input,.sci201-grid textarea,.sci201-drawing textarea,.sci201-actions input{box-sizing:border-box;display:block;width:100%;border:0;background:#fff;color:#111;font:10px Arial}.sci201-grid input{height:22px}.sci201-grid textarea{resize:vertical;line-height:15px}.sci201-grid input:focus,.sci201-grid textarea:focus,.sci201-drawing textarea:focus,.sci201-actions input:focus{outline:2px solid #e10613;outline-offset:-1px;background:#fffbea}.sci201-grid--p1{grid-template-columns:repeat(6,1fr)}.sci201-grid--p1>label:nth-child(1),.sci201-grid--p1>label:nth-child(2),.sci201-grid--p1>label:nth-child(8),.sci201-grid--p1>label:nth-child(9),.sci201-grid--p1>label:nth-child(10),.sci201-grid--p1>label:nth-child(11){grid-column:span 3}.sci201-grid .wide{grid-column:1/-1}.sci201-grid .sci201-box{grid-column:span 2;min-height:185px}.sci201-grid .sci201-tall{min-height:220px}.sci201-grid small{display:block;margin:10px 0 0;font-size:9px}.sci201-grid .sci201-tall textarea{margin-top:6px}.sci201-security{min-height:78px}.sci201-page-no{font-weight:800}.sci201-grid--p1 .sci201-page-no{grid-column:span 1}.sci201-grid--p1 .sci201-sign{grid-column:span 5}.sci201-sign input{height:25px;border:0;border-bottom:1px solid #777;background:transparent;font:10px Arial}.sci201-sign span{display:block;min-height:21px;margin-top:7px;border-bottom:1px solid #777;color:#111;font-weight:400}.sci201-page footer{margin-top:12px;font-size:8px;color:#222}.sci201-drawing{height:825px;border:1px solid #777;border-bottom:0;text-align:center}.sci201-drawing textarea{height:790px;margin-top:8px;resize:none;text-align:left}.sci201-bottom{display:grid;grid-template-columns:18% 1fr;border:1px solid #777}.sci201-bottom .sci201-page-no,.sci201-bottom .sci201-sign{border:0}.sci201-bottom .sci201-page-no{border-right:1px solid #777}.sci201-actions{width:100%;border-collapse:collapse;table-layout:fixed}.sci201-actions th,.sci201-actions td{border:1px solid #777;overflow-wrap:anywhere}.sci201-actions th{height:34px;padding:3px;text-align:left;font-size:9px}.sci201-actions th:first-child,.sci201-actions td:first-child{width:18%}.sci201-actions td{height:23px;padding:0}.sci201-actions input{height:22px;padding:2px}.sci201-grid--p4{grid-template-columns:1fr 1fr}.sci201-grid--p4 .sci201-organigrama{min-height:770px;text-align:center}.sci201-organigrama textarea{height:735px;margin-top:7px;resize:none;text-align:left}.sci201-grid--p4 .sci201-page-no{grid-column:span 1}.sci201-grid--p4 .sci201-sign{grid-column:span 1}
-@media(max-width:760px){.sci201-page{min-height:0;padding:16px 10px}.sci201-head div{padding-right:0}.sci201-grid--p1{grid-template-columns:1fr}.sci201-grid--p1>label,.sci201-grid .sci201-box,.sci201-grid--p1 .sci201-page-no,.sci201-grid--p1 .sci201-sign{grid-column:1/-1}.sci201-drawing{height:580px}.sci201-drawing textarea{height:540px}.sci201-grid--p4 .sci201-organigrama{min-height:560px}.sci201-organigrama textarea{height:525px}.sci201-actions{font-size:8px}}
+@media screen and (max-width:760px){.sci201-page{min-height:0;padding:16px 10px}.sci201-head div{padding-right:0}.sci201-grid--p1{grid-template-columns:1fr}.sci201-grid--p1>label,.sci201-grid .sci201-box,.sci201-grid--p1 .sci201-page-no,.sci201-grid--p1 .sci201-sign{grid-column:1/-1}.sci201-drawing{height:580px}.sci201-drawing textarea{height:540px}.sci201-grid--p4 .sci201-organigrama{min-height:560px}.sci201-organigrama textarea{height:525px}.sci201-actions{font-size:8px}}
 
 /* Documento continuo: los periodos cerrados y el que está en curso en la misma
    hoja desplazable. El periodo cerrado se distingue por el fondo gris, la
@@ -121,7 +121,7 @@
 .sci-separador-periodo{display:flex;align-items:center;gap:.75rem;width:min(100%,820px);margin:1.4rem auto .9rem;color:#8a1017;font-size:.72rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 .sci-separador-periodo::before,.sci-separador-periodo::after{content:"";flex:1;height:2px;background:repeating-linear-gradient(90deg,#c70012,#c70012 8px,transparent 8px,transparent 14px)}
 .sci-sin-periodo{display:flex;align-items:flex-start;gap:.5rem;width:min(100%,820px);margin:0 auto;padding:.8rem .9rem;border:1px solid #e3c26a;border-left:4px solid #d89b00;border-radius:.5rem;background:#fff7dd;font-size:.8rem;line-height:1.5}
-@media(max-width:760px){.sci-timeline,.sci-separador-periodo,.sci-sin-periodo{width:100%}.sci-periodo-cerrado__periodo{grid-template-columns:1fr}.sci-separador-periodo{font-size:.66rem;letter-spacing:.04em}}
+@media screen and (max-width:760px){.sci-timeline,.sci-separador-periodo,.sci-sin-periodo{width:100%}.sci-periodo-cerrado__periodo{grid-template-columns:1fr}.sci-separador-periodo{font-size:.66rem;letter-spacing:.04em}}
 
 /* SCI-201, punto 4: cuatro campos independientes dentro de la misma celda. En la
    pantalla ancha cada sub-punto lleva su título a la izquierda y su campo a la
@@ -133,7 +133,7 @@
 label.sci201-eval__item>span{padding-top:6px;font-weight:700}
 .sci201-grid .sci201-eval__item textarea{min-height:2.75rem;padding:2px 3px;border:1px solid #d3d7dc;border-radius:2px;resize:vertical}
 .sci201-eval__heredado{margin:4px 0;padding:6px 8px;border-left:3px solid #d89b00;background:#fff7dd;font-size:9px;font-weight:400;line-height:1.45;white-space:pre-wrap}
-@media(max-width:760px){.sci201-grid .sci201-eval__item{grid-template-columns:1fr;gap:0}label.sci201-eval__item>span{padding-top:0}}
+@media screen and (max-width:760px){.sci201-grid .sci201-eval__item{grid-template-columns:1fr;gap:0}label.sci201-eval__item>span{padding-top:0}}
 
 /* SCI-201, punto 16: tabla dinámica. Una fila para empezar y «Agregar acción»; en el
    teléfono cada fila es una tarjeta —fecha, acción y el botón de quitar— en lugar de
@@ -143,7 +143,7 @@ label.sci201-eval__item>span{padding-top:6px;font-weight:700}
 .sci201-actions td.sci-tabla__acciones{width:3.25rem;vertical-align:middle}
 .sci201-actions th.sci-tabla__acciones{width:3.25rem}
 .sci201-actions td{vertical-align:middle}
-@media(max-width:760px){
+@media screen and (max-width:760px){
 .sci201-actions,.sci201-actions tbody,.sci201-actions tr,.sci201-actions td{display:block;box-sizing:border-box}
 .sci201-actions thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .sci201-actions tr{position:relative;margin:0 0 .6rem;padding:.4rem 3.6rem .4rem .5rem;border:1px solid #777;border-radius:.3rem;background:#fff}
@@ -153,4 +153,32 @@ label.sci201-eval__item>span{padding-top:6px;font-weight:700}
 .sci201-actions td.sci-tabla__acciones::before{content:none}
 .sci201-actions input{height:2.75rem;font-size:13px}
 .sci201-acciones .sci-tabla__agregar{width:100%}
+}
+
+/* ── Impresión de la hoja del SCI-201 ─────────────────────────────────────────
+   1. El papel carta imprime con unos 740 px de ancho útil. Las reglas «móviles»
+      de arriba (max-width: 760px) valían también para el papel, y la hoja salía
+      como en un teléfono: cada celda en su propia fila, la página 1 desbordaba
+      sobre una segunda y el formulario de cuatro páginas salía de cinco. Ahora
+      están acotadas a «screen».
+   2. La rejilla dibujaba su borde superior e izquierdo en el contenedor y solo el
+      derecho e inferior en cada celda. Cuando la rejilla se parte entre dos
+      páginas, el contenedor solo existe en la primera: la segunda empezaba sin
+      línea superior. Ahora cada celda lleva sus cuatro lados (se solapan 1 px con
+      la vecina para que no se doblen) y no se parte por dentro: el salto cae entre
+      celdas y cada fragmento queda cerrado. */
+@media print{
+.sci201-page{min-height:975px;box-shadow:none}
+.sci201-grid{border:0;padding:0 1px 1px 0}
+.sci201-grid>*{border:1px solid #777!important;margin:0 -1px -1px 0;break-inside:avoid;page-break-inside:avoid;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.sci201-drawing{border:1px solid #777!important;break-inside:avoid}
+.sci201-bottom{break-inside:avoid}
+/* Tabla de acciones: sin bordes colapsados, que Chrome pierde en los saltos de
+   página. El borde superior va en el encabezado, que se repite en cada página. */
+.sci201-actions{border-collapse:separate;border-spacing:0}
+.sci201-actions th,.sci201-actions td{border:0!important;border-right:1px solid #777!important;border-bottom:1px solid #777!important}
+.sci201-actions th{border-top:1px solid #777!important}
+.sci201-actions th:first-child,.sci201-actions td:first-child{border-left:1px solid #777!important}
+.sci201-actions thead{display:table-header-group}
+.sci201-actions tr{break-inside:avoid;page-break-inside:avoid}
 }
