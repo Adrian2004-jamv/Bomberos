@@ -234,9 +234,7 @@ class RutasDelPeriodoTests(BaseDelPeriodo):
         self.assertRedirects(
             respuesta, f"{documento}#periodo-1", fetch_redirect_response=False
         )
-        self.assertContains(
-            self.client.get(documento), "Periodo operacional 1, cerrado"
-        )
+        self.assertContains(self.client.get(documento), "P1 · cerrado")
 
     def test_editar_el_periodo_abierto_funciona(self):
         emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA)
@@ -444,20 +442,36 @@ class DocumentoContinuoTests(BaseDelPeriodo):
         return emergencia, nuevo
 
     def test_un_solo_documento_trae_lo_cerrado_y_lo_que_se_escribe(self):
+        """Dentro del punto: el P1 bloqueado y, pegado debajo, el campo del P2.
+
+        No una pila de periodos completos —ese fue el primer intento— sino lo
+        que hace el formulario en Word: el punto no se repite, crece.
+        """
+        import re as _re
+
         emergencia, _ = self.incidente_reactivado()
         respuesta = self.client.get(
             reverse("emergencias:sci_editar", args=["202", emergencia.pk])
         )
         self.assertEqual(respuesta.status_code, 200)
         html = respuesta.content.decode()
-        # Arriba, el periodo 1 tal como quedó.
+        # Lo del periodo 1, con su sello, dentro del mismo punto.
         self.assertIn("Confinar el fuego en el ala norte", html)
-        self.assertIn("Periodo operacional 1, cerrado", html)
+        self.assertIn("P1 · cerrado", html)
         self.assertIn("Rebrote en el ala norte", html)
-        # Debajo, el periodo 2 y dónde escribirlo, en la misma página.
+        # Debajo, el campo del periodo 2, en la misma página.
         self.assertIn('id="periodo-2"', html)
-        self.assertIn("Inicio del periodo operacional 2", html)
         self.assertIn('name="objetivos"', html)
+        # Y de verdad pegados: entre el texto cerrado y su campo no hay otro
+        # punto del formulario por medio.
+        punto = _re.search(
+            r"<legend>6\. Objetivo\(s\)</legend>(.*?)</fieldset>", html, _re.S
+        )
+        self.assertIsNotNone(punto)
+        self.assertIn("Confinar el fuego en el ala norte", punto.group(1))
+        self.assertIn('name="objetivos"', punto.group(1))
+        # Lo que ningún periodo escribió no ocupa sitio.
+        self.assertNotIn("Sin anotar en este periodo", html)
 
     def test_lo_cerrado_se_lee_pero_no_tiene_un_solo_control(self):
         """Ni un «name» en lo cerrado: no hay nada que pueda reenviarse.
@@ -473,10 +487,9 @@ class DocumentoContinuoTests(BaseDelPeriodo):
         html = self.client.get(
             reverse("emergencias:sci_editar", args=["202", emergencia.pk])
         ).content.decode()
-        bloques = _re.findall(
-            r'<details class="sci-periodo-cerrado".*?</details>', html, _re.S
-        )
+        bloques = _re.findall(r'<div class="sci-previo">.*?</div>', html, _re.S)
         self.assertEqual(len(bloques), 1)
+        self.assertIn("Confinar el fuego en el ala norte", bloques[0])
         for prohibido in ("<input", "<textarea", "<select", "name="):
             self.assertNotIn(prohibido, bloques[0])
 
@@ -506,7 +519,7 @@ class DocumentoContinuoTests(BaseDelPeriodo):
             reverse("emergencias:sci_editar", args=["201", emergencia.pk])
         ).content.decode()
         self.assertIn("Incendio declarado en la bodega", html)
-        self.assertIn("Periodo operacional 1, cerrado", html)
+        self.assertIn("P1 · cerrado", html)
         # Y el punto 4 ya no es una casilla: cada sub-punto tiene la suya. Lo que
         # el periodo 1 escribió con la casilla única se conserva a la vista.
         self.assertIn('name="evaluacion_naturaleza"', html)
@@ -583,3 +596,160 @@ class DocumentoContinuoTests(BaseDelPeriodo):
             html,
         )
         self.assertIn("periodo 2 (este)", html)
+
+
+class HojaUnicaDelSCI201Tests(BaseDelPeriodo):
+    """La hoja del SCI-201 con varios periodos dentro, como el formulario en Word.
+
+    El Cuerpo de Bomberos corrigió dos veces la misma idea. Primero: no quieren
+    un SCI-201 por periodo, quieren uno solo. Después, viendo la pantalla: ese
+    documento único tampoco es una pila de periodos completos, con sus diecisiete
+    puntos repetidos y en blanco. En el Word, el punto 4 lleva el texto del P1 y
+    debajo, dentro del mismo recuadro, el del P2.
+    """
+
+    DATOS_P1 = {
+        "lugar_incidente": "Bodega de la avenida Unidad Nacional",
+        "objetivos_iniciales": "Confinar el fuego en la bodega",
+        "evaluacion_naturaleza": "Incendio estructural declarado",
+        "acciones": [{"fecha_hora": "2026-10-27T08:00", "accion": "Primer ataque"}],
+    }
+
+    def incidente_con_dos_periodos(self, **datos_p1):
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-201")
+        self.crear_formulario(
+            emergencia, "201", datos=datos_p1 or dict(self.DATOS_P1),
+            preparado_por="Capitán Vaca",
+        )
+        nuevo = reactivar_emergencia(emergencia, self.usuario, "Rebrote nocturno")
+        self.client.force_login(self.usuario)
+        return emergencia, nuevo
+
+    def test_cada_punto_lleva_el_periodo_cerrado_encima_de_su_campo(self):
+        import re as _re
+
+        emergencia, _ = self.incidente_con_dos_periodos()
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+        # El punto 5 trae el texto del P1 y, debajo, el campo del P2.
+        punto = _re.search(
+            r'<label class="sci201-box">5\. Objetivo\(s\)(.*?)</label>', html, _re.S
+        )
+        self.assertIsNotNone(punto)
+        self.assertIn("Confinar el fuego en la bodega", punto.group(1))
+        self.assertIn('name="objetivos_iniciales"', punto.group(1))
+        self.assertLess(
+            punto.group(1).index("Confinar el fuego en la bodega"),
+            punto.group(1).index('name="objetivos_iniciales"'),
+            "lo cerrado va encima del campo que se escribe",
+        )
+        # Y el punto que el P1 dejó vacío no arrastra ningún rótulo.
+        vacio = _re.search(r"7\. Tácticas:(.*?)</label>", html, _re.S)
+        self.assertNotIn("cerrado", vacio.group(1))
+
+    def test_la_bitacora_de_acciones_sigue_siendo_una_sola(self):
+        """El punto 15-16 es una bitácora: lo del P1 arriba y lo del P2 debajo."""
+        emergencia, _ = self.incidente_con_dos_periodos()
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+        self.assertIn("Primer ataque", html)
+        self.assertIn('name="acciones-0-accion"', html)
+        self.assertLess(html.index("Primer ataque"), html.index('name="acciones-0-accion"'))
+
+    def test_lo_cerrado_no_tiene_un_solo_control(self):
+        import re as _re
+
+        emergencia, _ = self.incidente_con_dos_periodos()
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+        bloques = _re.findall(r'<span class="sci201-previo">.*?</span></span>', html, _re.S)
+        self.assertGreaterEqual(len(bloques), 2)
+        for bloque in bloques:
+            for prohibido in ("<input", "<textarea", "<select", "name="):
+                self.assertNotIn(prohibido, bloque)
+
+    def test_guardar_el_periodo_2_no_reescribe_el_1(self):
+        """La garantía es estructural: el POST solo alcanza al registro del P2."""
+        emergencia, nuevo = self.incidente_con_dos_periodos()
+        respuesta = self.client.post(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk]),
+            {"lugar_incidente": "Bodega de la avenida Unidad Nacional",
+             "objetivos_iniciales": "Enfriar y vigilar el rescoldo",
+             "evaluacion_naturaleza": "Rescoldo en la cubierta",
+             "preparado_por": "Teniente Chango"},
+        )
+        self.assertEqual(respuesta.status_code, 302)
+        primero = FormularioSCI.objects.get(
+            emergencia=emergencia, codigo_sci="201", periodo__numero=1
+        )
+        segundo = FormularioSCI.objects.get(
+            emergencia=emergencia, codigo_sci="201", periodo=nuevo
+        )
+        self.assertEqual(primero.datos["objetivos_iniciales"],
+                         "Confinar el fuego en la bodega")
+        self.assertEqual(primero.datos["acciones"], self.DATOS_P1["acciones"])
+        self.assertEqual(primero.preparado_por, "Capitán Vaca")
+        self.assertEqual(segundo.datos["objetivos_iniciales"],
+                         "Enfriar y vigilar el rescoldo")
+
+    def test_la_hoja_de_impresion_reune_los_periodos_sin_repetir_el_formulario(self):
+        """Un solo documento: cuatro páginas, con los dos textos en el mismo punto.
+
+        El encabezado, el logo y los datos del incidente van una vez; lo que se
+        repite es el renglón dentro del recuadro.
+        """
+        emergencia, nuevo = self.incidente_con_dos_periodos()
+        self.crear_formulario(
+            emergencia, "201", periodo=nuevo,
+            datos={"objetivos_iniciales": "Enfriar y vigilar el rescoldo"},
+        )
+        html = self.client.get(
+            reverse("emergencias:sci_visualizar", args=["201", emergencia.pk])
+        ).content.decode()
+        self.assertEqual(html.count('class="sci201-page"'), 4)
+        self.assertIn("Confinar el fuego en la bodega", html)
+        self.assertIn("Enfriar y vigilar el rescoldo", html)
+        self.assertLess(html.index("Confinar el fuego en la bodega"),
+                        html.index("Enfriar y vigilar el rescoldo"))
+        self.assertIn("P1", html)
+        self.assertIn("en curso", html)
+
+    def test_con_un_solo_periodo_la_hoja_sale_como_el_formulario_oficial(self):
+        """Sin reactivación no hay rótulos de periodo: es el caso corriente."""
+        emergencia = self.crear_emergencia(codigo="PER-UNO")
+        self.crear_formulario(
+            emergencia, "201", datos={"objetivos_iniciales": "Controlar el fuego"},
+        )
+        self.client.force_login(self.usuario)
+        for ruta in ("emergencias:sci_editar", "emergencias:sci_visualizar"):
+            with self.subTest(ruta=ruta):
+                html = self.client.get(
+                    reverse(ruta, args=["201", emergencia.pk])
+                ).content.decode()
+                self.assertIn("Controlar el fuego", html)
+                self.assertNotIn("P1 ·", html)
+                self.assertNotIn("sci201-previo", html)
+                self.assertNotIn("Un solo documento", html)
+
+    def test_sin_periodo_abierto_la_hoja_se_lee_entera_y_sin_campos(self):
+        """Mismo maquetado, ni un control: el documento se consulta completo."""
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-LEER")
+        self.crear_formulario(
+            emergencia, "201", datos={"objetivos_iniciales": "Lo que se hizo"},
+        )
+        periodo = periodo_actual(emergencia)
+        periodo.fin = timezone.now()
+        periodo.save(update_fields=["fin"])
+        self.client.force_login(self.usuario)
+        html = self.client.get(
+            reverse("emergencias:sci_editar", args=["201", emergencia.pk])
+        ).content.decode()
+        self.assertIn("Lo que se hizo", html)
+        self.assertIn("no tiene ningún periodo operacional abierto", html)
+        self.assertNotIn('id="sci201-form"', html)
+        self.assertNotIn('name="objetivos_iniciales"', html)
+        self.assertNotIn("data-sci-croquis", html)
+

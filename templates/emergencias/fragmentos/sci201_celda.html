@@ -1,0 +1,16 @@
+{% comment %}
+Un recuadro de la hoja impresa del SCI-201 con todos los periodos dentro: primero
+lo que escribió cada periodo cerrado y al final el del periodo en curso. El
+encabezado del formulario —el logo, el nombre del incidente, la fecha— va una
+sola vez arriba: lo que se repite es el renglón dentro del recuadro, no la hoja.
+
+Espera ``entradas`` (``historial_periodos.<campo>``) y ``valor`` (lo del periodo
+en curso); ``vacio`` es el texto de relleno cuando no hay nada escrito y solo se
+usa si tampoco hay periodos cerrados, porque «Pendiente» debajo de un texto del
+P1 diría que falta algo que ya está dicho.
+
+``periodo_cerrado`` significa que el periodo de esta hoja tampoco se escribe: lo
+suyo ya viene dentro de ``entradas`` y aquí no se vuelve a sacar.
+{% endcomment %}
+{% for entrada in entradas %}{% if varios_periodos %}<b class="sci201-sello">P{{ entrada.numero }}{% if entrada.fin %} · cerrado el {{ entrada.fin|date:"d/m/Y H:i" }}{% endif %}</b>{% endif %}<span class="sci201-readonly">{{ entrada.valor }}</span>{% endfor %}
+{% if not periodo_cerrado %}{% if valor or not entradas %}{% if varios_periodos %}<b class="sci201-sello">P{{ periodo.numero }} · en curso</b>{% endif %}<span class="sci201-readonly{% if not valor %} sci201-blank{% endif %}">{% firstof valor vacio %}</span>{% endif %}{% endif %}

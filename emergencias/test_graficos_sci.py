@@ -18,6 +18,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from dashboard.pdf import _croquis_pdf, _organigrama_pdf
 from dashboard.services import datos_informe_emergencia
@@ -28,7 +29,7 @@ from .esquemas_sci import (CROQUIS, ESQUEMAS_SCI, MODO_BLANCO, MODO_LECTURA, ORG
                            secciones_con_valores)
 from .models import Emergencia, FormularioSCI
 from .test_validacion_sci import BaseValidacion
-from .views import hoja_de_solo_lectura
+from .views import historial_de_campos
 
 # Un PNG mínimo y válido de 1×1 píxel.
 PNG_1X1 = (
@@ -357,18 +358,28 @@ class HojaImpresaTests(BaseValidacion):
 
 
 class DocumentoContinuoYResumenTests(BaseValidacion):
+    def periodo_cerrado_con(self, codigo_emergencia, datos):
+        """Una emergencia con su periodo 1 cerrado y un 201 escrito en él."""
+        emergencia = self.crear_emergencia(codigo_emergencia)
+        self.crear_formulario(emergencia, "201", datos)
+        periodo = emergencia.periodo_vigente()
+        periodo.fin = timezone.now()
+        periodo.save(update_fields=["fin"])
+        return emergencia, periodo
+
     def test_un_periodo_cerrado_muestra_los_graficos_como_solo_lectura(self):
-        emergencia = self.crear_emergencia("CON-001")
-        formulario = self.crear_formulario(emergencia, "201", {
+        emergencia, periodo = self.periodo_cerrado_con("CON-001", {
             "croquis__dibujo": PNG_1X1,
             "organigrama__grafico": g.limpiar_organigrama(ORGANIGRAMA_BASICO),
         })
-        bloque = hoja_de_solo_lectura(ESQUEMAS_SCI["201"], formulario)
-        por_nombre = {s["nombre"]: s for s in bloque["secciones"]}
-        self.assertFalse(por_nombre["croquis"]["vacia"])
-        self.assertFalse(por_nombre["organigrama"]["vacia"])
-        html = render_to_string("emergencias/fragmentos/sci_periodo_cerrado.html", {
-            "bloque": bloque, "codigo": "201", "emergencia": emergencia,
+        historial, periodos = historial_de_campos(
+            emergencia, "201", ESQUEMAS_SCI["201"], periodo
+        )
+        self.assertEqual([sello["numero"] for sello in periodos], [1])
+        self.assertEqual(historial["croquis"][0]["dibujo"], PNG_1X1)
+        html = render_to_string("emergencias/fragmentos/sci_previos.html", {
+            "entradas": historial["croquis"] + historial["organigrama"],
+            "varios_periodos": True,
         })
         self.assertIn(PNG_1X1, html)
         self.assertIn("sci-organigrama__svg", html)
@@ -376,12 +387,19 @@ class DocumentoContinuoYResumenTests(BaseValidacion):
         self.assertNotIn("<input", html)
         self.assertNotIn("data-sci-croquis", html)
 
-    def test_un_periodo_sin_graficos_dice_que_no_se_anoto(self):
-        formulario = self.crear_formulario(self.crear_emergencia("CON-002"), "201", {})
-        bloque = hoja_de_solo_lectura(ESQUEMAS_SCI["201"], formulario)
-        por_nombre = {s["nombre"]: s for s in bloque["secciones"]}
-        self.assertTrue(por_nombre["croquis"]["vacia"])
-        self.assertTrue(por_nombre["organigrama"]["vacia"])
+    def test_un_periodo_sin_graficos_no_deja_rastro_en_el_historial(self):
+        """Lo que un periodo no escribió no ocupa sitio en la pantalla.
+
+        Antes cada periodo cerrado traía sus diecisiete puntos, con un «Sin
+        anotar en este periodo» debajo de los dieciséis que nadie llenó. El
+        punto vacío sencillamente no entra.
+        """
+        emergencia, periodo = self.periodo_cerrado_con("CON-002", {})
+        historial, periodos = historial_de_campos(
+            emergencia, "201", ESQUEMAS_SCI["201"], periodo
+        )
+        self.assertEqual(historial, {})
+        self.assertEqual(periodos, [])
 
     def test_el_resumen_de_la_emergencia_muestra_los_graficos(self):
         emergencia = self.crear_emergencia("RES-001")

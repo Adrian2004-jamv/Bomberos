@@ -1,0 +1,38 @@
+{% comment %}
+Lo que los periodos ya cerrados escribieron en ESTE campo, justo encima del campo
+que se escribe ahora. Es el documento del papel: el punto no se repite, crece.
+
+Antes esto era una pila de periodos completos, cada uno con todos sus puntos
+aunque no se hubiera escrito ninguno —de ahí el «Sin anotar en este periodo»
+repetido diecisiete veces—. El Cuerpo de Bomberos pidió el Word: en el punto 4
+va el texto del P1 y debajo, dentro del mismo recuadro, el del P2.
+
+Lo cerrado se dibuja con texto, no con campos deshabilitados: un control sigue
+pareciendo escribible —sobre todo con guante, sobre todo en un teléfono— y uno
+«disabled» dentro del formulario que se envía sería peor, porque el navegador no
+manda su valor. Así no hay un solo «name» capaz de reenviar un periodo cerrado,
+que es la garantía que pide un expediente.
+
+Espera ``entradas`` (``seccion.previos``, ``campo.previos`` o
+``historial_periodos.<campo>``) y toma ``varios_periodos`` del contexto.
+{% endcomment %}
+{% for entrada in entradas %}
+<div class="sci-previo">
+  {% if varios_periodos %}<p class="sci-previo__sello"{% if entrada.fin %} title="Periodo operacional {{ entrada.numero }}, cerrado el {{ entrada.fin|date:'d/m/Y H:i' }}"{% endif %}><i class="ti ti-lock" aria-hidden="true"></i> P{{ entrada.numero }} · cerrado</p>{% endif %}
+  {% if entrada.tipo == 'tabla' %}
+    <div class="sci-previo__tabla">
+      <table>
+        <thead><tr>{% for columna in entrada.columnas %}<th>{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for fila in entrada.filas %}<tr>{% for celda in fila.celdas %}<td>{{ celda.legible|default:"—" }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% if entrada.firma %}<p class="sci-previo__firma"><strong>{{ entrada.firma }}:</strong> {{ entrada.firma_valor|default:"—" }}</p>{% endif %}
+  {% elif entrada.tipo == 'croquis' %}
+    {% include "emergencias/fragmentos/croquis_lectura.html" with seccion=entrada %}
+  {% elif entrada.tipo == 'organigrama' %}
+    {% include "emergencias/fragmentos/organigrama_lectura.html" with seccion=entrada %}
+  {% else %}
+    <p class="sci-previo__texto">{% firstof entrada.legible entrada.valor %}</p>
+  {% endif %}
+</div>
+{% endfor %}

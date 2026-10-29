@@ -1,0 +1,11 @@
+{% load static %}{% comment %}
+La página 2 de la hoja del SCI-201: el mapa situacional. Se imprime una por cada
+periodo que tenga croquis, porque un croquis ocupa la página entera y dos no
+caben en una sin encogerlos hasta no entenderse. El encabezado del formulario se
+repite aquí igual que en el papel oficial, que lo lleva en las cuatro páginas; lo
+que no se repite es el formulario completo por periodo.
+
+Espera ``grafico`` (la sección con el dibujo: la del periodo en curso o la de uno
+cerrado) y, para los cerrados, ``entrada`` con el sello del periodo.
+{% endcomment %}
+<section class="sci201-page"><header class="sci201-head"><img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI"><div><strong>Formulario SCI - 201</strong><span>Resumen del Incidente</span></div></header><div class="sci201-drawing">14. Mapa Situacional o Croquis:{% if varios_periodos %}<b class="sci201-sello">{% if entrada.fin %}P{{ entrada.numero }} · cerrado el {{ entrada.fin|date:"d/m/Y H:i" }}{% else %}P{{ periodo.numero }} · en curso{% endif %}</b>{% endif %}{% include "emergencias/fragmentos/croquis_lectura.html" with seccion=grafico alto_blanco="740px" %}</div><div class="sci201-bottom"><div class="sci201-page-no">Página 2 de 4</div><div class="sci201-sign">13. Comandante del Incidente (Nombre, Apellidos) y firma:<span>{{ formulario_generico.preparado_por }}</span></div></div><footer><span>Rev. 06 - 2015</span><span>{{ emergencia.codigo }}</span></footer></section>

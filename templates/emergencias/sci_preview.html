@@ -43,6 +43,9 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .tbl-acciones td{border:1px solid #1a237e;padding:3px 5px;height:20px;vertical-align:middle}
 @media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.page-break{border-top:none;margin:0}}
 .periodo-sello{width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #475569;background:#e2e8f0;color:#1e293b;font:11px Arial;font-weight:700}
+/* Varios periodos dentro del mismo punto: el renglón se repite, la hoja no. */
+.sci-sello{margin:6px 0 2px;color:#334155;font:700 8px Arial;letter-spacing:.02em;text-transform:uppercase}
+.sci-previo-texto{min-height:22px;margin:0;padding:0 7px 6px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
 .periodo-nav{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #0b4ea2;background:#eef2f8;color:#1f2d4a;font:11px Arial}.periodo-nav a{color:#0b4ea2;font-weight:700}@media print{.periodo-nav{display:none}}
 </style></head><body>
 
@@ -52,7 +55,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   {% if emergencia.pk %}<a class="ghost" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>{% else %}<a class="ghost" href="{% url 'emergencias:sci211_lista' %}">Volver al catálogo</a>{% endif %}
 </nav>
 {% if periodo_cerrado %}<p class="periodo-sello">Documento del periodo operacional {{ periodo.numero }}, cerrado el {{ periodo.fin|date:"d/m/Y H:i" }}. Es un periodo cerrado y lo escrito en él no se modifica; las versiones posteriores viven en el periodo vigente del incidente.</p>{% endif %}
-{% if periodos_del_documento|length > 1 %}<p class="periodo-nav">Este formulario tiene hoja en {{ periodos_del_documento|length }} periodos operacionales: {% for numero in periodos_del_documento %}{% if numero == periodo.numero %}<b>periodo {{ numero }} (este)</b>{% else %}<a href="{% url 'emergencias:sci_visualizar_periodo' codigo emergencia.pk numero %}">periodo {{ numero }}</a>{% endif %}{% endfor %}</p>{% endif %}
+{% if periodos_del_documento|length > 1 %}<p class="periodo-nav">Documento continuo con {{ periodos_del_documento|length }} periodos operacionales dentro. También puede imprimir la hoja de cada uno por separado: {% for numero in periodos_del_documento %}{% if numero == periodo.numero %}<b>periodo {{ numero }} (este)</b>{% else %}<a href="{% url 'emergencias:sci_visualizar_periodo' codigo emergencia.pk numero %}">periodo {{ numero }}</a>{% endif %}{% endfor %}</p>{% endif %}
 
 {% if codigo == '201' %}
 {# ════════════════════════════════════════════════════════════════════ #}
@@ -271,7 +274,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   {% if campos_periodo %}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid #111;border-top:1px solid #111;margin-top:8px">
     {% for campo in campos_periodo %}
-    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">{{ campo.numero }}. {{ campo.etiqueta }}</strong>{{ campo.valor|default:"—" }}</div>
+    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">{{ campo.numero }}. {{ campo.etiqueta }}</strong>{% include "emergencias/fragmentos/sci_previos_impresos.html" with entradas=campo.previos %}{% if not periodo_cerrado %}{% firstof campo.legible campo.valor "—" %}{% endif %}</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -280,10 +283,15 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   <section style="margin-top:10px;border:1px solid #111;page-break-inside:avoid">
     <h2 style="margin:0;padding:5px 7px;background:#e5e7eb;font-size:11px">{{ seccion.numero }}. {{ seccion.etiqueta|upper }}</h2>
     {% if seccion.ayuda and seccion.tipo != 'croquis' and seccion.tipo != 'organigrama' %}<p style="margin:0;padding:4px 7px;border-bottom:1px solid #d1d5db;background:#fafafa;font-size:9px;color:#4b5563">{{ seccion.ayuda }}</p>{% endif %}
+    {% include "emergencias/fragmentos/sci_previos_impresos.html" with entradas=seccion.previos %}
+    {% if periodo_cerrado %}{% comment %}Lo de este periodo ya salió arriba, con su sello.{% endcomment %}
+    {% elif not seccion.con_valor and seccion.previos %}{% comment %}El periodo en curso no ha escrito este punto y otro sí: no se rellena con «Pendiente».{% endcomment %}
+    {% else %}
+    {% if varios_periodos %}<p class="sci-sello">P{{ periodo.numero }} · en curso</p>{% endif %}
     {% if seccion.tipo == 'tabla' %}
       <table style="width:100%;border-collapse:collapse;table-layout:fixed">
         <thead><tr>{% for columna in seccion.columnas %}<th style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;background:#eee;font-size:9px{% if columna.ancho %};width:{{ columna.ancho }}{% endif %}">{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.valor }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ seccion.columnas|length }}" style="height:26px;padding:4px 5px;border:1px solid #111;color:#6b7280;font-style:italic">Sin registros</td></tr>{% endfor %}</tbody>
+        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.legible }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ seccion.columnas|length }}" style="height:26px;padding:4px 5px;border:1px solid #111;color:#6b7280;font-style:italic">Sin registros</td></tr>{% endfor %}</tbody>
       </table>
       {% if seccion.firma %}<div style="padding:6px 7px;border-top:1px solid #111;font-size:10px"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"________________________" }}</div>{% endif %}
     {% elif seccion.tipo == 'croquis' %}
@@ -292,6 +300,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
       <div style="padding:7px">{% include "emergencias/fragmentos/organigrama_lectura.html" with alto_blanco="360px" %}</div>
     {% else %}
       <p style="min-height:44px;margin:0;padding:7px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">{% if seccion.valor %}{{ seccion.valor }}{% else %}<span style="color:#9ca3af">Pendiente de completar</span>{% endif %}</p>
+    {% endif %}
     {% endif %}
   </section>
   {% endfor %}

@@ -40,6 +40,7 @@ from .codigos import generar_codigo_emergencia
 from .esquemas_sci import (ESQUEMAS_SCI, FORMULARIOS_SCI_CONTINUOS,
                           ORIGEN_EN_EL_LUGAR, ORIGEN_INVENTARIO, TABLA,
                           EVALUACION_INICIAL, MODO_BLANCO, MODO_EDICION, MODO_LECTURA, campos_periodo, conservar_campos_retirados,
+                          EVALUACION_INICIAL_HEREDADA, texto_legible,
                           evaluacion_heredada, extraer_datos, obtener_esquema,
                           obtener_esquema_catalogo, secciones_completadas,
                           secciones_con_valores)
@@ -1140,22 +1141,31 @@ def periodo_heredado(emergencia, codigo):
             break
     return heredado
 
-def periodos_anteriores_del_documento(emergencia, codigo, esquema, periodo):
-    """Lo escrito en este mismo formulario en los periodos ya cerrados.
+def historial_de_campos(emergencia, codigo, esquema, periodo):
+    """Lo escrito en este mismo formulario en los periodos ya cerrados, campo por campo.
 
     El periodo nació como «otra versión» del documento: cada uno tenía su
     pantalla y para leer el periodo 1 había que salir del 2. El Cuerpo de
     Bomberos de Latacunga lo rechazó con una frase que describe el papel mejor
-    que el programa: «queremos un solo documento continuo». En la hoja real el
-    periodo nuevo se escribe debajo del anterior, no en otra carpeta.
+    que el programa: «queremos un solo documento continuo».
+
+    La primera corrección apiló los periodos enteros, uno debajo de otro, cada
+    uno con sus diecisiete puntos aunque no hubiera escrito ninguno. El papel
+    volvió a darles la razón: en el Word no hay una hoja por periodo, hay una
+    sola hoja cuyos recuadros crecen. En el punto 4 va el texto del P1 y debajo,
+    dentro del mismo recuadro, el del P2.
 
     La base de datos no cambia —sigue habiendo un registro por periodo, que es
-    justo lo que mantiene intacto lo anterior—; cambia lo que llega a la
-    pantalla: todos los periodos previos, en orden y resueltos a texto, de modo
-    que no haya un solo control capaz de reenviarlos.
+    justo lo que mantiene intacto lo anterior—; cambia a qué altura de la
+    pantalla llega cada cosa. Devuelve ``{campo: [entrada, ...]}`` con una
+    entrada por cada periodo que escribió algo en ese campo. Los campos que un
+    periodo dejó en blanco no entran: de ahí desaparece el «Sin anotar en este
+    periodo», que repetía diecisiete veces que no había nada que decir.
     """
     if periodo is None or getattr(emergencia, "pk", None) is None:
-        return []
+        return {}, []
+    # Un periodo cerrado tampoco se escribe, así que entra en el historial: la
+    # hoja se lee entera y ningún recuadro queda con un control dentro.
     hasta = periodo.numero if periodo.esta_abierto else periodo.numero + 1
     anteriores = (
         FormularioSCI.objects
@@ -1164,42 +1174,70 @@ def periodos_anteriores_del_documento(emergencia, codigo, esquema, periodo):
         .select_related("periodo")
         .order_by("periodo__numero")
     )
-    return [hoja_de_solo_lectura(esquema, formulario) for formulario in anteriores]
-
-
-def hoja_de_solo_lectura(esquema, formulario):
-    """Un periodo resuelto a texto plano, sin un «name» que pueda reenviarse.
-
-    Las filas vacías de una tabla existen en el editor para poder escribir. En
-    un periodo cerrado solo serían renglones en blanco entre dos cosas que sí
-    se dijeron, de modo que no se traen. Las de etiqueta fija —«Agua»,
-    «Alimentación»— sí, porque ahí el renglón vacío significa que ese recurso
-    no se pidió.
-    """
-    datos = formulario.datos or {}
-    secciones = []
-    for seccion in secciones_con_valores(esquema, datos, MODO_LECTURA):
-        if seccion["tipo"] == TABLA:
-            seccion["vacia"] = not seccion["filas"]
-        else:
-            seccion["vacia"] = (
-                not str(seccion.get("valor") or "").strip()
-                and not seccion.get("dibujo") and not seccion.get("grafico")
-            )
-        secciones.append(seccion)
-    return {
-        "periodo": formulario.periodo,
-        "formulario": formulario,
+    historial, periodos = {}, []
+    for formulario in anteriores:
+        datos = formulario.datos or {}
+        sello = {
+            "numero": formulario.periodo.numero,
+            "fin": formulario.periodo.fin,
+            "motivo": formulario.periodo.motivo,
+            "finalizado": formulario.estado == FormularioSCI.Estado.FINALIZADO,
+            "preparado_por": formulario.preparado_por,
+        }
+        campos = [
+            (campo["nombre"], {
+                "valor": datos.get(campo["nombre"], ""),
+                "legible": texto_legible(
+                    campo.get("tipo"), datos.get(campo["nombre"], "")
+                ),
+            })
+            for campo in campos_periodo(esquema)
+        ]
         # Lo que el punto 4 decía cuando era una sola casilla: un periodo cerrado
         # no se reescribe y tampoco se oculta.
-        "evaluacion_heredada": evaluacion_heredada(datos),
-        "finalizado": formulario.estado == FormularioSCI.Estado.FINALIZADO,
-        "campos_periodo": [
-            dict(campo, valor=datos.get(campo["nombre"], ""))
-            for campo in campos_periodo(esquema)
-        ],
-        "secciones": secciones,
-    }
+        heredada = evaluacion_heredada(datos)
+        if heredada:
+            campos.append((EVALUACION_INICIAL_HEREDADA, {"valor": heredada}))
+        for seccion in secciones_con_valores(esquema, datos, MODO_LECTURA):
+            if seccion["tipo"] == TABLA:
+                # Las filas vacías existen en el editor para poder escribir; en un
+                # periodo cerrado solo serían renglones en blanco entre dos cosas
+                # que sí se dijeron. ``MODO_LECTURA`` ya las dejó fuera.
+                campos.append((seccion["nombre"], {
+                    "tipo": TABLA,
+                    "filas": seccion["filas"],
+                    "columnas": seccion["columnas"],
+                    "firma": seccion.get("firma", ""),
+                    "firma_valor": seccion.get("firma_valor", ""),
+                }))
+            else:
+                campos.append((seccion["nombre"], {
+                    "tipo": seccion["tipo"],
+                    "valor": seccion.get("valor", ""),
+                    "dibujo": seccion.get("dibujo", ""),
+                    "grafico": seccion.get("grafico", ""),
+                    "svg": seccion.get("svg", ""),
+                }))
+        aporta = False
+        for nombre, entrada in campos:
+            if not contenido_de_entrada(entrada):
+                continue
+            historial.setdefault(nombre, []).append({**sello, **entrada})
+            aporta = True
+        if aporta or formulario.preparado_por:
+            periodos.append(sello)
+    return historial, periodos
+
+
+def contenido_de_entrada(entrada):
+    """Si un periodo escribió algo en ese campo. Un dibujo también es algo."""
+    return bool(
+        str(entrada.get("valor") or "").strip()
+        or entrada.get("dibujo")
+        or entrada.get("grafico")
+        or entrada.get("filas")
+        or str(entrada.get("firma_valor") or "").strip()
+    )
 
 
 def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_EDICION,
@@ -1236,6 +1274,27 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_
     # Lo que el incidente ya declaró se ofrece hecho en los campos vacíos.
     ofrecido = prepoblar(esquema, datos, estado) if estado else {}
     datos_con_ofrecido = {**datos, **ofrecido}
+    historial, periodos_cerrados = historial_de_campos(
+        emergencia, codigo, esquema, periodo
+    )
+    abierto = periodo is not None and periodo.esta_abierto
+    varios_periodos = len(periodos_cerrados) + (1 if abierto else 0) > 1
+    # Cada sección y cada sub-punto del 4 llevan encima lo que los periodos
+    # cerrados escribieron en ese mismo campo. La plantilla no busca nada: lo
+    # recorre donde está.
+    secciones = secciones_con_valores(esquema, datos_con_ofrecido, modo)
+    for seccion in secciones:
+        seccion["previos"] = historial.get(seccion["nombre"], [])
+        # Si este periodo escribió algo en el punto. Lo usa la hoja impresa para
+        # no poner «Pendiente de completar» debajo de lo que otro periodo ya
+        # dijo. En modo edición una tabla siempre trae su fila vacía, de modo
+        # que ahí el dato no significa nada y nadie lo mira.
+        seccion["con_valor"] = contenido_de_entrada({
+            "valor": seccion.get("valor"),
+            "dibujo": seccion.get("dibujo"),
+            "grafico": seccion.get("grafico"),
+            "filas": seccion["filas"] if seccion["tipo"] == TABLA else None,
+        })
     return {
         "emergencia": emergencia,
         "esquema": esquema,
@@ -1247,13 +1306,13 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_
         # no ofrecer el boton de guardar en uno cerrado.
         "periodo": periodo,
         "periodo_cerrado": periodo is not None and not periodo.esta_abierto,
-        # Los periodos ya cerrados de este mismo documento, para leerlos sin
-        # salir de él. Cuando el incidente no tiene ningún periodo abierto
-        # entra también el vigente: no hay nada que escribir y la hoja se
-        # consulta completa.
-        "periodos_anteriores": periodos_anteriores_del_documento(
-            emergencia, codigo, esquema, periodo
-        ),
+        # Lo escrito en los periodos ya cerrados, campo por campo: cada recuadro
+        # de la hoja lo lleva dentro, encima del campo que se escribe ahora.
+        "historial_periodos": historial,
+        "periodos_cerrados": periodos_cerrados,
+        # Si la hoja muestra más de un periodo. Con uno solo —el caso corriente—
+        # los recuadros no llevan rótulo: el formulario se ve como siempre.
+        "varios_periodos": varios_periodos,
         # Los periodos que tienen hoja de este formulario. El documento continuo
         # los lleva dentro, pero la hoja de impresión es por periodo —el papel
         # oficial lo es— y necesita decir cuáles hay y cómo llegar a ellos.
@@ -1281,7 +1340,8 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_
         # hoja de impresión los recorran en un bucle y no los repitan a mano.
         "evaluacion_items": [
             {"nombre": nombre, "etiqueta": etiqueta,
-             "valor": datos.get(nombre, "")}
+             "valor": datos.get(nombre, ""),
+             "previos": historial.get(nombre, [])}
             for nombre, etiqueta in EVALUACION_INICIAL
         ] if codigo == "201" else [],
         # Un campo vacío se ofrece con lo que ya se escribió en otro formulario
@@ -1291,10 +1351,16 @@ def contexto_documento_sci(usuario, emergencia, codigo, periodo=None, modo=MODO_
                  valor=datos.get(campo["nombre"])
                  or heredado.get(campo["nombre"], ""),
                  heredado=not datos.get(campo["nombre"])
-                 and bool(heredado.get(campo["nombre"])))
+                 and bool(heredado.get(campo["nombre"])),
+                 legible=texto_legible(
+                     campo.get("tipo"),
+                     datos.get(campo["nombre"])
+                     or heredado.get(campo["nombre"], ""),
+                 ),
+                 previos=historial.get(campo["nombre"], []))
             for campo in campos_periodo(esquema)
         ],
-        "secciones": secciones_con_valores(esquema, datos_con_ofrecido, modo),
+        "secciones": secciones,
         # Lo que el sistema sabe del incidente, para que la plantilla pueda
         # enseñarlo junto al campo que lo aprovecha.
         "estado_incidente": estado,

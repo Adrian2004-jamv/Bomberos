@@ -1,0 +1,12 @@
+{% comment %}
+Lo mismo que ``sci_previos.html``, pero dentro de un recuadro de la hoja del
+SCI-201. Ahí el recuadro es un ``label`` y su contenido tiene que ser texto en
+línea, de modo que aquí no hay ni ``div`` ni ``p``: solo ``span``, que el CSS
+pone en bloque. El croquis y el organigrama no pasan por aquí —viven en sus
+propias celdas, que sí son ``div``— y los recorre ``sci_previos.html``.
+
+Espera ``entradas``; el rótulo «P1 · cerrado» solo aparece cuando la hoja lleva
+más de un periodo, porque con uno solo —el caso corriente— el formulario debe
+verse exactamente como el oficial.
+{% endcomment %}
+{% for entrada in entradas %}<span class="sci201-previo">{% if varios_periodos %}<b class="sci201-previo__sello"{% if entrada.fin %} title="Periodo operacional {{ entrada.numero }}, cerrado el {{ entrada.fin|date:'d/m/Y H:i' }}"{% endif %}>P{{ entrada.numero }} · cerrado</b>{% endif %}<span class="sci201-previo__texto">{{ entrada.valor }}</span></span>{% endfor %}

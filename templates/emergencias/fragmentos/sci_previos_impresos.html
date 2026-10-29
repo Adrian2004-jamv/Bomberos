@@ -1,0 +1,24 @@
+{% comment %}
+Lo que los periodos cerrados escribieron en este punto, dentro de la hoja impresa
+del formulario genérico. El encabezado del formulario va una sola vez arriba: lo
+que se repite es el renglón del punto, rotulado con su periodo, no la hoja.
+
+Espera ``entradas`` y toma ``varios_periodos`` del contexto. Las clases las
+define el ``<style>`` de ``sci_preview.html``.
+{% endcomment %}
+{% for entrada in entradas %}
+{% if varios_periodos %}<p class="sci-sello">P{{ entrada.numero }}{% if entrada.fin %} · cerrado el {{ entrada.fin|date:"d/m/Y H:i" }}{% endif %}</p>{% endif %}
+{% if entrada.tipo == 'tabla' %}
+  <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+    <thead><tr>{% for columna in entrada.columnas %}<th style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;background:#eee;font-size:9px{% if columna.ancho %};width:{{ columna.ancho }}{% endif %}">{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for fila in entrada.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.legible }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% if entrada.firma %}<div style="padding:6px 7px;border-top:1px solid #111;font-size:10px"><strong>{{ entrada.firma }}:</strong> {{ entrada.firma_valor|default:"—" }}</div>{% endif %}
+{% elif entrada.tipo == 'croquis' %}
+  <div style="padding:7px">{% include "emergencias/fragmentos/croquis_lectura.html" with seccion=entrada alto_blanco="300px" %}</div>
+{% elif entrada.tipo == 'organigrama' %}
+  <div style="padding:7px">{% include "emergencias/fragmentos/organigrama_lectura.html" with seccion=entrada alto_blanco="300px" %}</div>
+{% else %}
+  <p class="sci-previo-texto">{% firstof entrada.legible entrada.valor %}</p>
+{% endif %}
+{% endfor %}

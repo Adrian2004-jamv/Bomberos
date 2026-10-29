@@ -12,6 +12,7 @@ Los datos capturados se guardan en ``FormularioSCI.datos`` con esta forma:
 """
 
 import re
+from datetime import datetime
 
 from .graficos_sci import (clave_dibujo, clave_grafico, limpiar_croquis,
                            limpiar_organigrama, organigrama_svg)
@@ -510,7 +511,24 @@ def _celda(columna, valor):
     if patron and valor and not patron.match(str(valor)):
         tipo = TEXTO
     # Los tipos seleccion y numero nunca se degradan a texto
-    return {"columna": columna, "valor": valor, "tipo": tipo}
+    return {"columna": columna, "valor": valor, "tipo": tipo,
+            "legible": texto_legible(tipo, valor)}
+
+
+def texto_legible(tipo, valor):
+    """El valor como se lee en una hoja, no como lo pide el control del navegador.
+
+    Un campo de fecha y hora se guarda en el formato que exige
+    ``<input type="datetime-local">`` —2026-10-24T17:10—, y eso es lo que salía
+    impreso en la hoja oficial y en los periodos cerrados. En papel la fecha se
+    escribe como la escribe una persona.
+    """
+    if tipo == FECHA_HORA and valor:
+        try:
+            return datetime.fromisoformat(str(valor)).strftime("%d/%m/%Y %H:%M")
+        except ValueError:
+            return valor
+    return valor
 
 # Cuántas líneas lleva una tabla impresa si el esquema no lo dice.
 FILAS_IMPRESION_POR_DEFECTO = 5
@@ -533,6 +551,7 @@ def limpiar_avisos(filas):
         for celda in fila["celdas"]:
             if celda["columna"].get("recurso_inventario"):
                 celda["valor"] = sin_aviso_de_disponibilidad(celda["valor"])
+                celda["legible"] = celda["valor"]
     return filas
 
 def fila_con_datos(fila, ignorar_primera=False):
