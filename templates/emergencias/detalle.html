@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=27"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -90,28 +90,17 @@
     {% if puede_gestionar and emergencia.esta_terminada %}
     {% comment %}
     Reactivar no es deshacer el cierre: abre el periodo operacional siguiente y
-    deja intacto lo escrito en el anterior. Por eso pide el motivo — queda en el
-    expediente como la justificación del periodo nuevo — y por eso el servicio lo
-    exige en lugar de aceptarlo vacío.
+    deja intacto lo escrito en el anterior. Por eso el botón dice qué periodo va a
+    abrir —«Iniciar periodo operacional 2»— y no «reactivar», que sugería volver
+    atrás, y por eso no ejecuta nada por sí solo: abre un diálogo que explica lo
+    que pasará con lo ya escrito. El diálogo pide además el motivo: queda en el
+    expediente como la justificación del periodo nuevo y el servicio lo exige.
     {% endcomment %}
-    <details class="reactivar">
-        <summary class="reactivar__abrir"><i class="ti ti-refresh" aria-hidden="true"></i> Reactivar la emergencia</summary>
-        <form method="post" action="{% url 'emergencias:reactivar' emergencia.pk %}" class="reactivar__form">
-            {% csrf_token %}
-            <p class="reactivar__aviso">
-                Se abrirá el <strong>periodo operacional {{ periodos_operacionales|length|add:1 }}</strong>.
-                Los formularios del periodo actual quedarán como están, en solo lectura,
-                y podrá llenar versiones nuevas para el periodo que se abre.
-            </p>
-            <label for="motivo-reactivacion">¿Por qué se reactiva?</label>
-            <textarea id="motivo-reactivacion" name="motivo" rows="2" required
-                      maxlength="2000"
-                      placeholder="Ej.: rebrote del incendio en el ala norte a las 03:10."></textarea>
-            <button class="button button--primary" type="submit">
-                <i class="ti ti-refresh" aria-hidden="true"></i> Reactivar y abrir periodo
-            </button>
-        </form>
-    </details>
+    <div class="reactivar" id="reactivar">
+        <button type="button" class="button button--primary reactivar__abrir" data-abrir-dialogo="dialogo-periodo" aria-haspopup="dialog">
+            <i class="ti ti-player-play" aria-hidden="true"></i> Iniciar periodo operacional {{ periodo_siguiente }}
+        </button>
+    </div>
     {% endif %}
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
@@ -221,8 +210,65 @@ que además del motivo pide marcar que se entiende. El servidor lo vuelve a exig
     </form>
 </dialog>
 {% endif %}
+{% if puede_gestionar and emergencia.esta_terminada %}
+{% comment %}
+Iniciar un periodo no se ejecuta con un solo toque: se pulsa con guantes y lo
+escrito en el periodo vigente pasa a solo lectura. El texto del aviso es el que
+pidió el Cuerpo de Bomberos. El motivo es obligatorio y el botón de confirmar no
+se habilita mientras esté vacío; el servidor lo vuelve a exigir.
+{% endcomment %}
+<dialog id="dialogo-periodo" class="dialogo-confirmar dialogo-periodo" aria-labelledby="periodo-titulo" aria-describedby="periodo-texto">
+    <form method="post" action="{% url 'emergencias:reactivar' emergencia.pk %}" class="dialogo-confirmar__cuerpo">
+        {% csrf_token %}
+        <h2 id="periodo-titulo" class="dialogo-confirmar__titulo">Iniciar periodo operacional {{ periodo_siguiente }}</h2>
+        <p id="periodo-texto" class="dialogo-confirmar__texto">¿Está seguro de iniciar el Periodo Operacional {{ periodo_siguiente }}? Se abrirán nuevos campos para la fecha actual, mientras que los registros del periodo anterior quedarán bloqueados y en solo lectura para su consulta e impresión.</p>
+        <label class="periodo-motivo" for="motivo-periodo">¿Por qué se inicia?</label>
+        <textarea id="motivo-periodo" name="motivo" rows="2" required maxlength="2000" placeholder="Ej.: rebrote del incendio en el ala norte a las 03:10."></textarea>
+        <div class="dialogo-confirmar__acciones">
+            <button type="button" class="button" data-dialogo-cerrar autofocus>Volver</button>
+            <button type="submit" class="button button--primary" data-dialogo-enviar disabled>
+                <span class="dialogo-confirmar__spinner" aria-hidden="true" hidden></span>
+                <span data-etiqueta>Iniciar periodo operacional {{ periodo_siguiente }}</span>
+            </button>
+        </div>
+    </form>
+</dialog>
+{% endif %}
 {% endblock %}
-{% block extra_js %}{% if puede_cancelar %}<script>
+{% block extra_js %}{% if puede_gestionar and emergencia.esta_terminada %}<script>
+(() => {
+    "use strict";
+    const dialogo = document.getElementById("dialogo-periodo");
+    if (!dialogo) return;
+    const formulario = dialogo.querySelector("form");
+    const motivo = formulario.querySelector("textarea[name=motivo]");
+    const enviar = formulario.querySelector("[data-dialogo-enviar]");
+    const spinner = enviar.querySelector(".dialogo-confirmar__spinner");
+    const etiqueta = enviar.querySelector("[data-etiqueta]");
+    const textoEnviar = etiqueta.textContent;
+
+    // Sin motivo no hay periodo nuevo: el botón espera a que haya algo escrito.
+    const actualizar = () => { enviar.disabled = !motivo.value.trim(); };
+    motivo.addEventListener("input", actualizar);
+
+    document.querySelectorAll("[data-abrir-dialogo=dialogo-periodo]").forEach((boton) => {
+        boton.addEventListener("click", () => {
+            formulario.reset();
+            enviar.disabled = true;
+            spinner.hidden = true;
+            etiqueta.textContent = textoEnviar;
+            dialogo.showModal();
+        });
+    });
+    formulario.querySelector("[data-dialogo-cerrar]").addEventListener("click", () => dialogo.close());
+    // Un solo envío: una segunda pulsación no debe abrir dos periodos.
+    formulario.addEventListener("submit", () => {
+        enviar.disabled = true;
+        spinner.hidden = false;
+        etiqueta.textContent = "Iniciando…";
+    });
+})();
+</script>{% endif %}{% if puede_cancelar %}<script>
 (() => {
     "use strict";
     const dialogo = document.getElementById("dialogo-cancelar");

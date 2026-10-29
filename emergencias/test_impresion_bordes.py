@@ -81,3 +81,84 @@ class BordesDelSCI201Tests(SimpleTestCase):
     def test_la_hoja_cabe_en_una_pagina_carta(self):
         """Carta menos márgenes de 10 mm son 980 px: 980 exactos desbordan por redondeo."""
         self.assertIn(".sci201-page{min-height:975px", self.bloque_de_impresion())
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Las tablas de la hoja impresa no se salen del papel
+# ──────────────────────────────────────────────────────────────────────
+
+class TablasDeLaHojaTests(SimpleTestCase):
+    """El SCI-211 de catálogo se imprimía con la última columna fuera de la hoja.
+
+    La tabla del punto «Registro y control de recursos» tiene doce columnas. Las once
+    que llevaban ancho sumaban el 100 % y a «Observaciones» no le quedaba nada: como
+    la tabla es de disposición fija, se hacía más ancha que la hoja y la columna salía
+    por el borde derecho, cortada, y arrastraba una segunda página casi vacía. Además
+    la hoja horizontal medía en pantalla lo mismo que una vertical (760 px), y todas
+    las celdas llevaban su estilo en línea, de modo que ninguna regla de impresión
+    podía corregirlas.
+    """
+
+    def fuente(self, ruta):
+        return (Path(settings.BASE_DIR) / ruta).read_text(encoding="utf-8")
+
+    def test_los_anchos_de_las_columnas_dejan_sitio_a_las_que_no_lo_declaran(self):
+        from emergencias.esquemas_sci import ESQUEMA_CATALOGO_211, ESQUEMAS_SCI
+
+        esquemas = dict(ESQUEMAS_SCI, **{"211": ESQUEMA_CATALOGO_211})
+        for codigo, esquema in esquemas.items():
+            for seccion in esquema["secciones"]:
+                if seccion["tipo"] != "tabla":
+                    continue
+                anchos = [float(c["ancho"].rstrip("%")) for c in seccion["columnas"] if c["ancho"]]
+                libres = [c for c in seccion["columnas"] if not c["ancho"]]
+                with self.subTest(formulario=codigo, tabla=seccion["nombre"]):
+                    self.assertLessEqual(sum(anchos), 100)
+                    if libres:
+                        # Cada columna sin ancho necesita un trozo real de la hoja.
+                        self.assertLessEqual(
+                            sum(anchos), 100 - 8 * len(libres),
+                            "las columnas sin ancho se quedan sin sitio y la tabla se sale",
+                        )
+
+    def test_la_tabla_de_la_hoja_es_de_disposicion_fija_y_parte_el_texto(self):
+        plantilla = self.fuente("templates/emergencias/sci_preview.html")
+        regla = re.search(r"\.sci-tbl\{([^}]*)\}", plantilla).group(1)
+        self.assertIn("table-layout:fixed", regla)
+        self.assertIn("max-width:100%", regla)
+        celdas = re.search(r"\.sci-tbl th,\.sci-tbl td\{([^}]*)\}", plantilla).group(1)
+        for propiedad in ("overflow-wrap:anywhere", "word-wrap:break-word", "word-break:break-word"):
+            self.assertIn(propiedad, celdas)
+
+    def test_la_tabla_densa_baja_la_letra_y_el_relleno(self):
+        plantilla = self.fuente("templates/emergencias/sci_preview.html")
+        self.assertIn(".sci-tbl--densa th{padding:3px 2px;font-size:7.5px", plantilla)
+        self.assertIn(".sci-tbl--densa td{padding:3px 2px;font-size:8.5px", plantilla)
+        # Se activa sola cuando la tabla pasa de ocho columnas.
+        self.assertIn("seccion.columnas|length > 8", plantilla)
+
+    def test_al_imprimir_el_encabezado_se_repite_y_ninguna_fila_se_parte(self):
+        plantilla = self.fuente("templates/emergencias/sci_preview.html")
+        impresion = plantilla[plantilla.index("@media print{body{background:#fff}"):]
+        self.assertIn(".sci-tbl thead{display:table-header-group}", impresion)
+        self.assertIn(".sci-tbl tr{break-inside:avoid", impresion)
+
+    def test_las_celdas_ya_no_llevan_estilo_en_linea(self):
+        """Un estilo en línea gana a toda regla de la hoja, también a las de impresión."""
+        for ruta in ("templates/emergencias/sci_preview.html",
+                     "templates/emergencias/fragmentos/sci_previos_impresos.html"):
+            fuente = self.fuente(ruta)
+            self.assertNotIn('<th style="height:26px', fuente, ruta)
+            self.assertNotIn('<td style="height:26px', fuente, ruta)
+            self.assertNotIn('<table style="width:100%;border-collapse', fuente, ruta)
+
+    def test_la_hoja_horizontal_es_mas_ancha_que_la_vertical_en_pantalla(self):
+        plantilla = self.fuente("templates/emergencias/sci_preview.html")
+        self.assertIn(".paper--horizontal{width:min(1040px,calc(100% - 24px))", plantilla)
+        self.assertIn("paper--horizontal", plantilla.split("<main class=\"paper")[1][:120])
+
+    def test_el_sci_211_con_datos_ya_era_de_disposicion_fija(self):
+        """La plantilla de impresión del 211 real no tenía el problema: se conserva así."""
+        pdf = self.fuente("templates/emergencias/sci211/pdf.html")
+        self.assertIn("table-layout:fixed", pdf)
+        self.assertIn("overflow-wrap:anywhere", pdf)

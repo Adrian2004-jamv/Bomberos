@@ -5,11 +5,19 @@ y un «organigrama actual» (punto 17), y el SCI-202 repite el organigrama. Eran
 cuadro de texto: nadie dibuja un croquis con palabras, y el campo se quedaba vacío
 o con una descripción que la hoja impresa no podía sustituir.
 
+El croquis tuvo primero un lienzo para dibujar a mano. Los bomberos lo descartaron:
+en la escena es más rápido fotografiar un plano o pedir el mapa del lugar que
+dibujarlo con el dedo. Ahora el campo guarda una imagen que el navegador arma —una
+foto subida o la captura del mapa en las coordenadas de la emergencia— y lo que
+viene del navegador se valida aquí igual que antes.
+
 Cada uno se guarda junto al texto que ya existía, no en su lugar, con la misma
 convención que las firmas de las tablas (``nombre__firma``):
 
 * ``croquis``              -> la nota de texto de siempre (se conserva lo ya escrito)
-* ``croquis__dibujo``      -> el dibujo, una imagen PNG como ``data:`` URI
+* ``croquis__dibujo``      -> la imagen del croquis, PNG o JPEG como ``data:`` URI
+                             (el nombre es de cuando era un dibujo; cambiarlo obligaría
+                             a migrar lo ya guardado)
 * ``organigrama``          -> el texto de siempre
 * ``organigrama__grafico`` -> las cajas y sus conexiones, en JSON
 
@@ -25,6 +33,7 @@ sitios y las constantes de abajo son las mismas que lee el JavaScript.
 
 import base64
 import binascii
+import io
 import json
 import re
 
@@ -45,13 +54,26 @@ MAX_CONEXIONES = 80
 MAX_TEXTO_CAJA = 60
 MAX_JSON = 30000
 
-# El lienzo del croquis. Se guarda como PNG; el tope es holgado para un dibujo a
-# mano alzada y deja el envío por debajo del límite de cuerpo de Django (2,5 MB).
+# El croquis. Lo que el navegador manda es una imagen ya reducida y comprimida: el
+# mapa capturado ocupa CROQUIS_ANCHO × CROQUIS_ALTO píxeles de pantalla a
+# CROQUIS_DENSIDAD píxeles de imagen por cada uno (el doble, para que el papel salga
+# nítido), y una foto subida se reduce a que su lado largo no pase de
+# CROQUIS_LADO_MAX. El tope de caracteres deja el envío por debajo del límite de
+# cuerpo de Django (2,5 MB) con el resto del formulario. El servidor no se fía de la
+# reducción: ningún lado puede pasar de CROQUIS_LADO_ABSOLUTO, porque una imagen que
+# declara decenas de miles de píxeles de lado ocupa gigabytes al abrirla.
 CROQUIS_ANCHO = 760
 CROQUIS_ALTO = 800
-PREFIJO_PNG = "data:image/png;base64,"
+CROQUIS_DENSIDAD = 2
+CROQUIS_LADO_MAX = 1600
+CROQUIS_LADO_ABSOLUTO = 4096
 MAX_CROQUIS = 1_500_000
-_FIRMA_PNG = b"\x89PNG\r\n\x1a\n"
+# Cada tipo admitido: su prefijo ``data:`` y la firma con que empieza el archivo.
+IMAGENES_CROQUIS = {
+    "data:image/png;base64,": b"\x89PNG\r\n\x1a\n",
+    "data:image/jpeg;base64,": b"\xff\xd8\xff",
+}
+PREFIJO_PNG = "data:image/png;base64,"
 
 
 def clave_dibujo(nombre):
@@ -62,22 +84,45 @@ def clave_grafico(nombre):
     return f"{nombre}__grafico"
 
 
-def limpiar_croquis(valor):
-    """Devuelve el dibujo si es un PNG en base64 de tamaño razonable; si no, ``""``.
+def imagen_de_croquis(valor):
+    """``(tipo, bytes)`` si el valor es una imagen de croquis aceptable; si no, ``None``.
 
-    Se comprueba la firma del PNG y no solo el prefijo: el valor viaja en un campo
-    de formulario y cualquiera puede mandar otra cosa.
+    Se comprueban el prefijo, el tamaño, la firma del archivo y las dimensiones, no
+    solo el prefijo: el valor viaja en un campo de formulario y cualquiera puede
+    mandar otra cosa. Las dimensiones se leen de la cabecera sin decodificar la
+    imagen, de modo que comprobarlas no cuesta lo que se quiere evitar.
     """
     valor = str(valor or "").strip()
-    if not valor.startswith(PREFIJO_PNG) or len(valor) > MAX_CROQUIS:
-        return ""
+    if len(valor) > MAX_CROQUIS:
+        return None
+    for prefijo, firma in IMAGENES_CROQUIS.items():
+        if not valor.startswith(prefijo):
+            continue
+        try:
+            crudo = base64.b64decode(valor[len(prefijo):], validate=True)
+        except (binascii.Error, ValueError):
+            return None
+        if not crudo.startswith(firma) or not _dimensiones_razonables(crudo):
+            return None
+        return prefijo[len("data:"):-len(";base64,")], crudo
+    return None
+
+
+def _dimensiones_razonables(crudo):
     try:
-        crudo = base64.b64decode(valor[len(PREFIJO_PNG):], validate=True)
-    except (binascii.Error, ValueError):
+        from PIL import Image
+        with Image.open(io.BytesIO(crudo)) as imagen:
+            ancho, alto = imagen.size
+    except Exception:  # no es una imagen, o está dañada
+        return False
+    return 0 < ancho <= CROQUIS_LADO_ABSOLUTO and 0 < alto <= CROQUIS_LADO_ABSOLUTO
+
+
+def limpiar_croquis(valor):
+    """Devuelve la imagen si es un PNG o un JPEG de tamaño razonable; si no, ``""``."""
+    if imagen_de_croquis(valor) is None:
         return ""
-    if not crudo.startswith(_FIRMA_PNG):
-        return ""
-    return valor
+    return str(valor).strip()
 
 
 def _acotar(valor, minimo, maximo):

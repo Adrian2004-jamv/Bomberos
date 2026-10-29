@@ -2,12 +2,12 @@
 El croquis en una hoja o en un documento de solo lectura. Espera ``seccion``;
 ``alto_blanco`` (opcional) es el alto del recuadro cuando no hay dibujo.
 
-Con dibujo, se muestra la imagen. Sin dibujo, un recuadro en blanco: el croquis de
-un incidente atendido sin tablet se hace a mano sobre la hoja impresa, y un texto de
-relleno en ese espacio lo estorbaría. La nota de texto, si existe, se imprime abajo.
+Con imagen —una foto o el mapa capturado—, se muestra entera y en su proporción. Sin
+imagen, un recuadro en blanco: el croquis de un incidente atendido sin tablet se hace a
+mano sobre la hoja impresa, y un texto de relleno en ese espacio lo estorbaría. La nota de texto, si existe, se imprime abajo.
 {% endcomment %}
 {% if seccion.dibujo %}
-<figure class="sci-grafico"><img src="{{ seccion.dibujo }}" width="760" height="800" alt="Croquis del incidente">{% if seccion.valor %}<figcaption class="sci-grafico__nota">{{ seccion.valor }}</figcaption>{% endif %}</figure>
+<figure class="sci-grafico"><img src="{{ seccion.dibujo }}" alt="Croquis del incidente">{% if seccion.valor %}<figcaption class="sci-grafico__nota">{{ seccion.valor }}</figcaption>{% endif %}</figure>
 {% else %}
 <div class="sci-grafico sci-grafico--blanco" style="min-height:{{ alto_blanco|default:'14rem' }}">{% if seccion.valor %}<p class="sci-grafico__nota">{{ seccion.valor }}</p>{% endif %}</div>
 {% endif %}

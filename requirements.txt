@@ -15,3 +15,7 @@ rasterio==1.4.3
 
 # Generación de informes PDF institucionales.
 reportlab==4.2.5
+
+# Lee las dimensiones de la imagen del croquis antes de aceptarla (emergencias/graficos_sci.py).
+# ReportLab ya lo trae; se declara porque el sistema lo importa por su cuenta.
+pillow==12.3.0

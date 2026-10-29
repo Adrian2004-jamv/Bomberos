@@ -1,5 +1,5 @@
 {% load static %}<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCI-{{ codigo }} · {{ emergencia.codigo }}</title>
-<link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=3">
 <style>
 @page{size:{% if esquema.orientacion == 'horizontal' %}landscape{% else %}portrait{% endif %};margin:10mm}
 *{box-sizing:border-box}
@@ -8,6 +8,10 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .toolbar button,.toolbar a{padding:8px 14px;border:0;border-radius:5px;background:#c70012;color:#fff;font-weight:700;text-decoration:none;cursor:pointer}
 .toolbar .ghost{background:#374151}
 .paper{width:min(760px,calc(100% - 24px));min-height:980px;margin:18px auto;padding:34px 31px 22px;background:#fff;box-shadow:0 8px 30px #0002}
+/* Un formulario horizontal es una hoja carta apaisada: en pantalla necesita el ancho de
+   una hoja apaisada, no el de una vertical. Con 760 px la tabla del SCI-211, de doce
+   columnas, se salía del papel. */
+.paper--horizontal{width:min(1040px,calc(100% - 24px));min-height:0}
 /* ── Cabecera ── */
 .sci-head{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a237e}
 .sci-head img{width:60px;height:auto}
@@ -41,10 +45,22 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 .tbl-acciones{width:100%;border-collapse:collapse;font-size:10px}
 .tbl-acciones th{background:#e8eaf6;color:#1a237e;font-size:9.5px;padding:3px 5px;border:1px solid #1a237e;text-align:center}
 .tbl-acciones td{border:1px solid #1a237e;padding:3px 5px;height:20px;vertical-align:middle}
-@media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.page-break{border-top:none;margin:0}}
+/* Tablas de la hoja impresa. Disposición fija y texto que se parte donde haga falta: una
+   columna jamás ensancha la tabla ni se monta sobre la vecina. La tabla densa (más de ocho
+   columnas: el SCI-211 tiene doce) baja un punto la letra y el relleno de las celdas. */
+.sci-tbl{width:100%;max-width:100%;border-collapse:collapse;table-layout:fixed}
+.sci-tbl th,.sci-tbl td{padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;hyphens:auto}
+.sci-tbl th{height:26px;background:#eee;font-size:9px;line-height:1.2}
+.sci-tbl td{height:26px;line-height:1.25}
+.sci-tbl--densa th{padding:3px 2px;font-size:7.5px;line-height:1.15}
+.sci-tbl--densa td{padding:3px 2px;font-size:8.5px}
+@media print{body{background:#fff}.toolbar{display:none}.paper{width:100%;margin:0;box-shadow:none}.paper--horizontal{width:100%;min-height:0}.page-break{border-top:none;margin:0}
+.sci-tbl thead{display:table-header-group}.sci-tbl tr{break-inside:avoid;page-break-inside:avoid}.sci-tbl th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .periodo-sello{width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #475569;background:#e2e8f0;color:#1e293b;font:11px Arial;font-weight:700}
 /* Varios periodos dentro del mismo punto: el renglón se repite, la hoja no. */
-.sci-sello{margin:6px 0 2px;color:#334155;font:700 8px Arial;letter-spacing:.02em;text-transform:uppercase}
+.sci-sello{margin:6px 0 2px;padding:0 7px;color:#334155;font:700 8px Arial;letter-spacing:.02em;text-transform:uppercase}
+/* En las celdas del periodo (3, 4 y 5) el texto va pegado al borde, sin el relleno de un punto. */
+.sci-pcel .sci-sello,.sci-pcel .sci-previo-texto{padding-left:0;padding-right:0}
 .sci-previo-texto{min-height:22px;margin:0;padding:0 7px 6px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
 .periodo-nav{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;width:min(100%,760px);margin:0 auto 14px;padding:8px 10px;border-left:4px solid #0b4ea2;background:#eef2f8;color:#1f2d4a;font:11px Arial}.periodo-nav a{color:#0b4ea2;font-weight:700}@media print{.periodo-nav{display:none}}
 </style></head><body>
@@ -251,7 +267,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
 {# ════════════════════════════════════════════════════════════════════ #}
 {# RESTO DE FORMULARIOS SCI — layout genérico original                 #}
 {# ════════════════════════════════════════════════════════════════════ #}
-<main class="paper" style="padding:18px">
+<main class="paper{% if esquema.orientacion == 'horizontal' %} paper--horizontal{% endif %}" style="padding:18px">
   <header style="display:grid;grid-template-columns:80px 1fr 110px;align-items:center;border-bottom:2px solid #111;padding-bottom:8px">
     <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="SCI" style="width:64px">
     <div style="text-align:center"><h1 style="margin:0;font-size:17px">Formulario SCI-{{ codigo }}</h1><p style="margin:3px 0;font-weight:700">{{ esquema.nombre|upper }}</p></div>
@@ -274,7 +290,7 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
   {% if campos_periodo %}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid #111;border-top:1px solid #111;margin-top:8px">
     {% for campo in campos_periodo %}
-    <div style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">{{ campo.numero }}. {{ campo.etiqueta }}</strong>{% include "emergencias/fragmentos/sci_previos_impresos.html" with entradas=campo.previos %}{% if not periodo_cerrado %}{% firstof campo.legible campo.valor "—" %}{% endif %}</div>
+    <div class="sci-pcel" style="min-height:40px;padding:5px;border-right:1px solid #111;border-bottom:1px solid #111"><strong style="display:block;font-size:9px;text-transform:uppercase;color:#374151">{{ campo.numero }}. {{ campo.etiqueta }}</strong>{% include "emergencias/fragmentos/sci_previos_impresos.html" with entradas=campo.previos %}{% if not periodo_cerrado %}{% firstof campo.legible campo.valor "—" %}{% endif %}</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -289,9 +305,9 @@ body{margin:0;background:#e5e7eb;color:#071b3d;font:11px Arial,sans-serif}
     {% else %}
     {% if varios_periodos %}<p class="sci-sello">P{{ periodo.numero }} · en curso</p>{% endif %}
     {% if seccion.tipo == 'tabla' %}
-      <table style="width:100%;border-collapse:collapse;table-layout:fixed">
-        <thead><tr>{% for columna in seccion.columnas %}<th style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;background:#eee;font-size:9px{% if columna.ancho %};width:{{ columna.ancho }}{% endif %}">{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
-        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td style="height:26px;padding:4px 5px;border:1px solid #111;text-align:left;vertical-align:top;overflow-wrap:anywhere">{{ celda.legible }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ seccion.columnas|length }}" style="height:26px;padding:4px 5px;border:1px solid #111;color:#6b7280;font-style:italic">Sin registros</td></tr>{% endfor %}</tbody>
+      <table class="sci-tbl{% if seccion.columnas|length > 8 %} sci-tbl--densa{% endif %}">
+        <thead><tr>{% for columna in seccion.columnas %}<th{% if columna.ancho %} style="width:{{ columna.ancho }}"{% endif %}>{{ columna.etiqueta }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for fila in seccion.filas %}<tr>{% for celda in fila.celdas %}<td>{{ celda.legible }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ seccion.columnas|length }}" style="color:#6b7280;font-style:italic">Sin registros</td></tr>{% endfor %}</tbody>
       </table>
       {% if seccion.firma %}<div style="padding:6px 7px;border-top:1px solid #111;font-size:10px"><strong>{{ seccion.firma }}:</strong> {{ seccion.firma_valor|default:"________________________" }}</div>{% endif %}
     {% elif seccion.tipo == 'croquis' %}

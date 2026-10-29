@@ -1,14 +1,21 @@
-{% comment %}
-Croquis a mano alzada de un campo de tipo «croquis». Espera ``seccion`` (la que arma
-``secciones_con_valores``). El componente es ``static/emergencias/js/sci_croquis.js``,
-que se activa solo en el ``data-sci-croquis``; la plantilla no sabe de herramientas.
+{% load l10n %}{% comment %}
+Croquis de un campo de tipo «croquis»: una foto o el mapa del lugar. Espera
+``seccion`` (la que arma ``secciones_con_valores``) y ``emergencia``. El componente
+es ``static/emergencias/js/sci_croquis.js``, que se activa solo en el
+``data-sci-croquis``; la plantilla no sabe de botones ni de mapas.
 
-El dibujo viaja en el campo oculto ``<nombre>__dibujo`` y la nota de texto, que era
-todo lo que tenía el campo antes, en ``<nombre>``: lo que alguien ya había escrito
-sigue ahí. Las medidas son las de ``CROQUIS_ANCHO`` y ``CROQUIS_ALTO`` de
-``emergencias/graficos_sci.py``.
+Lo que el componente necesita saber de la emergencia viaja en atributos: sus
+coordenadas, para capturar el mapa, y su código, que se rotula junto al marcador.
+Sin coordenadas el componente deshabilita la captura y dice por qué. ``unlocalize``
+es imprescindible: con la configuración regional en español un decimal se escribiría
+con coma y el navegador no lo leería como número.
+
+La imagen viaja en el campo oculto ``<nombre>__dibujo`` (el nombre es de cuando era un
+dibujo a mano; renombrarlo obligaría a migrar lo ya guardado) y la nota de texto, que
+era todo lo que tenía el campo antes, en ``<nombre>``: lo que alguien ya había escrito
+sigue ahí.
 {% endcomment %}
-<div class="sci-croquis" data-sci-croquis data-ancho="760" data-alto="800">
+<div class="sci-croquis" data-sci-croquis{% if emergencia.latitud is not None and emergencia.longitud is not None %} data-lat="{{ emergencia.latitud|unlocalize }}" data-lon="{{ emergencia.longitud|unlocalize }}"{% endif %} data-codigo="{{ emergencia.codigo }}">
   <input type="hidden" name="{{ seccion.nombre }}__dibujo" value="{{ seccion.dibujo }}">
   <noscript><p class="sci-grafico__ayuda">El croquis necesita JavaScript. Use la nota de texto de abajo.</p></noscript>
 </div>

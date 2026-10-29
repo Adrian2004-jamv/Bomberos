@@ -947,6 +947,11 @@ def detalle(request, pk):
         # El historial del incidente: todos sus periodos, abiertos y cerrados.
         "periodos_operacionales": list(emergencia.periodos.order_by("numero")),
         "periodo_vigente": periodo_actual(emergencia),
+        # El número que llevaría el periodo que abre «Iniciar periodo operacional».
+        # Lo calcula el servidor con la misma regla que ``reactivar_emergencia``
+        # —el del último periodo más uno—, no la plantilla contando filas: si la
+        # numeración tuviera un hueco, el botón prometería un periodo que no es.
+        "periodo_siguiente": periodo_actual(emergencia).numero + 1,
     }
 
     return render(request, "emergencias/detalle.html", contexto)

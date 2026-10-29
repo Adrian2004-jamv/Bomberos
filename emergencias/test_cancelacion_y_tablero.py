@@ -409,7 +409,7 @@ class FichaConElBotonDeCancelarTests(ConUnidades):
     def test_una_emergencia_terminada_no_lo_ofrece(self):
         html = self.ficha(self.crear_emergencia(Emergencia.Estado.CERRADA, "FIC-002"))
         self.assertNotIn('id="dialogo-cancelar"', html)
-        self.assertNotIn('data-abrir-dialogo', html)
+        self.assertNotIn('data-abrir-dialogo="dialogo-cancelar"', html)
 
     def test_cancelar_ya_no_es_uno_de_los_botones_de_fase(self):
         """Tiene su propio flujo: pide el motivo y el motivo decide qué pasa."""

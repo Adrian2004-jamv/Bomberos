@@ -263,11 +263,11 @@ class VistaDeReactivarTests(BaseDelPeriodo):
         self.client.force_login(self.usuario)
         en_curso = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "PER-CURSO")
         respuesta = self.client.get(reverse("emergencias:detalle", args=[en_curso.pk]))
-        self.assertNotContains(respuesta, "Reactivar la emergencia")
+        self.assertNotContains(respuesta, "Iniciar periodo operacional 2")
 
         cerrada = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-CERR")
         respuesta = self.client.get(reverse("emergencias:detalle", args=[cerrada.pk]))
-        self.assertContains(respuesta, "Reactivar la emergencia")
+        self.assertContains(respuesta, "Iniciar periodo operacional 2")
 
     def test_reactivar_desde_la_vista(self):
         emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "PER-POST")
@@ -350,7 +350,7 @@ class TerminarLaEmergenciaDesdeLaFichaTests(BaseDelPeriodo):
         respuesta = self.client.get(reverse("emergencias:detalle", args=[emergencia.pk]))
         self.assertEqual(respuesta.context["transiciones_emergencia"], [])
         self.assertNotContains(respuesta, "Fase del incidente")
-        self.assertContains(respuesta, "Reactivar la emergencia")
+        self.assertContains(respuesta, "Iniciar periodo operacional 2")
 
     def test_terminar_permite_cerrar_la_bitacora_que_esperaba(self):
         """Es la cadena entera: sin el botón, el SCI-214 no se cerraba nunca."""
@@ -752,4 +752,104 @@ class HojaUnicaDelSCI201Tests(BaseDelPeriodo):
         self.assertNotIn('id="sci201-form"', html)
         self.assertNotIn('name="objetivos_iniciales"', html)
         self.assertNotIn("data-sci-croquis", html)
+
+
+class BotonDeNuevoPeriodoTests(BaseDelPeriodo):
+    """«Iniciar periodo operacional N»: dice cuál abre y no ejecuta nada por sí solo.
+
+    El botón se llamaba «Reactivar la emergencia», que sugería volver atrás, y al
+    pulsarlo se desplegaba un formulario. Ahora dice el periodo que va a abrir y abre
+    un diálogo que avisa de lo que pasa con lo ya escrito.
+    """
+
+    def ficha(self, emergencia):
+        self.client.force_login(self.usuario)
+        return self.client.get(reverse("emergencias:detalle", args=[emergencia.pk]))
+
+    def test_el_boton_dice_el_numero_del_periodo_que_se_abre(self):
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-UNO")
+        respuesta = self.ficha(emergencia)
+        self.assertContains(respuesta, "Iniciar periodo operacional 2")
+        self.assertNotContains(respuesta, "Iniciar periodo operacional 3")
+        self.assertNotContains(respuesta, "Reactivar la emergencia")
+        self.assertNotContains(respuesta, "Reactivar y abrir periodo")
+
+    def test_en_el_periodo_dos_dice_tres(self):
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-DOS")
+        reactivar_emergencia(emergencia, self.usuario, "Primer rebrote")
+        Emergencia.objects.filter(pk=emergencia.pk).update(
+            estado=Emergencia.Estado.CERRADA, fecha_cierre=timezone.now())
+        respuesta = self.ficha(emergencia)
+        self.assertContains(respuesta, "Iniciar periodo operacional 3")
+        self.assertNotContains(respuesta, "Iniciar periodo operacional 2")
+
+    def test_el_boton_promete_lo_que_el_servicio_abre(self):
+        """El número lo calcula el servidor con la regla del servicio, no la plantilla
+        contando filas: con un hueco en la numeración el botón no puede mentir."""
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-HUECO")
+        periodo = periodo_actual(emergencia)
+        periodo.fin = timezone.now()
+        periodo.save(update_fields=["fin"])
+        PeriodoOperacional.objects.create(
+            emergencia=emergencia, numero=4, inicio=timezone.now(), fin=timezone.now())
+        respuesta = self.ficha(emergencia)
+        self.assertEqual(respuesta.context["periodo_siguiente"], 5)
+        self.assertContains(respuesta, "Iniciar periodo operacional 5")
+        nuevo = reactivar_emergencia(emergencia, self.usuario, "Después del hueco")
+        self.assertEqual(nuevo.numero, respuesta.context["periodo_siguiente"])
+
+    def test_el_boton_no_envia_nada_por_si_solo(self):
+        """Abre el diálogo: no es un botón de envío ni lleva el formulario dentro."""
+        import re as _re
+
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-TIPO")
+        html = self.ficha(emergencia).content.decode()
+        boton = _re.search(r'<button[^>]*reactivar__abrir[^>]*>', html)
+        self.assertIsNotNone(boton)
+        self.assertIn('type="button"', boton.group(0))
+        self.assertIn('data-abrir-dialogo="dialogo-periodo"', boton.group(0))
+        # El formulario que sí envía vive dentro del diálogo, no junto al botón.
+        antes, _, despues = html.partition('<dialog id="dialogo-periodo"')
+        self.assertNotIn("/reactivar/", antes.split("reactivar__abrir")[-1][:600])
+        self.assertIn("/reactivar/", despues)
+
+    def test_el_dialogo_lleva_el_aviso_que_pidio_el_cuerpo_de_bomberos(self):
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-TEXTO")
+        html = self.ficha(emergencia).content.decode()
+        self.assertIn(
+            "¿Está seguro de iniciar el Periodo Operacional 2? Se abrirán nuevos campos "
+            "para la fecha actual, mientras que los registros del periodo anterior "
+            "quedarán bloqueados y en solo lectura para su consulta e impresión.",
+            html,
+        )
+
+    def test_el_dialogo_exige_el_motivo_antes_de_confirmar(self):
+        import re as _re
+
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-MOTIVO")
+        html = self.ficha(emergencia).content.decode()
+        dialogo = _re.search(r'<dialog id="dialogo-periodo".*?</dialog>', html, _re.S).group(0)
+        self.assertRegex(dialogo, r'<textarea[^>]*name="motivo"[^>]*required')
+        confirmar = _re.search(r'<button type="submit"[^>]*data-dialogo-enviar[^>]*>', dialogo)
+        self.assertIn("disabled", confirmar.group(0))
+        self.assertIn("Iniciar periodo operacional 2", dialogo)
+        # Y el servidor lo vuelve a exigir aunque alguien salte el navegador.
+        self.client.post(
+            reverse("emergencias:reactivar", args=[emergencia.pk]), {"motivo": ""})
+        self.assertEqual(emergencia.periodos.count(), 1)
+
+    def test_quien_solo_consulta_no_ve_el_boton_ni_el_dialogo(self):
+        from django.contrib.auth.models import Group
+
+        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "BTN-LECTOR")
+        lector = get_user_model().objects.create_user(
+            username="lector.periodo", password="clave-de-prueba",
+            cedula="0500000398", estacion=self.estacion,
+        )
+        lector.groups.add(Group.objects.get(name="Operador de consulta"))
+        self.client.force_login(lector)
+        html = self.client.get(
+            reverse("emergencias:detalle", args=[emergencia.pk])).content.decode()
+        self.assertNotIn("Iniciar periodo operacional", html)
+        self.assertNotIn("dialogo-periodo", html)
 

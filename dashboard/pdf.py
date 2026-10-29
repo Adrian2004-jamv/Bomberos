@@ -27,7 +27,7 @@ from reportlab.platypus import (
 )
 
 from emergencias.graficos_sci import (CAJA_ALTO, CAJA_ANCHO, LIENZO_ALTO, LIENZO_ANCHO,
-                                      PREFIJO_PNG, cargar_organigrama, lineas_de_caja,
+                                      cargar_organigrama, imagen_de_croquis, lineas_de_caja,
                                       puntos_de_conexion)
 
 # ── Paleta ──────────────────────────────────────────────────────────────────
@@ -158,17 +158,23 @@ class _Plantilla(BaseDocTemplate):
 
 
 # ── Helpers de construcción ──────────────────────────────────────────────────
-def _croquis_pdf(dibujo, ancho_max=ANCHO_PAGINA * 0.8):
-    """El croquis dibujado en el SCI-201 como imagen del tamaño de la hoja, o ``None``."""
-    if not dibujo or not dibujo.startswith(PREFIJO_PNG):
+def _croquis_pdf(dibujo, ancho_max=ANCHO_PAGINA * 0.8, alto_max=190 * mm):
+    """El croquis del SCI-201 —foto o mapa capturado— como imagen del informe, o ``None``.
+
+    Conserva la proporción de la imagen: una foto vertical no se estira al ancho de la
+    hoja, se limita por el alto para que quepa en una página con su rótulo.
+    """
+    parte = imagen_de_croquis(dibujo)
+    if parte is None:
         return None
     try:
-        imagen = Image(io.BytesIO(base64.b64decode(dibujo[len(PREFIJO_PNG):])))
+        imagen = Image(io.BytesIO(parte[1]))
     except Exception:  # una imagen ilegible no debe impedir el informe
         return None
     proporcion = imagen.imageHeight / imagen.imageWidth
-    imagen.drawWidth = ancho_max
-    imagen.drawHeight = ancho_max * proporcion
+    ancho = min(ancho_max, alto_max / proporcion)
+    imagen.drawWidth = ancho
+    imagen.drawHeight = ancho * proporcion
     return imagen
 
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-201{% endblock %}{% block page_title %}Editar SCI-201{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=27"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=3">{% endblock %}
 {% block content %}
 <div class="sci-workspace sci201-workspace"><div class="sci-workspace__toolbar"><div><strong>SCI-201</strong><span>{{ emergencia.codigo }} · {% if varios_periodos %}{{ periodos_cerrados|length|add:1 }} periodos en un solo documento{% else %}periodo operacional {{ periodo.numero }}{% endif %}{% if periodo_cerrado %} · solo lectura{% endif %}</span></div><div><a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a><a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>{% if not periodo_cerrado %}<button class="button button--primary" type="submit" form="sci201-form">Guardar cambios</button>{% endif %}</div></div>
 {% comment %}
@@ -12,7 +12,7 @@ bloqueado, y debajo el campo donde se escribe el periodo en curso. Es el Word.
 {% endcomment %}
 {% if varios_periodos %}<p class="sci-documento-aviso"><i class="ti ti-file-stack" aria-hidden="true"></i> <strong>Un solo documento.</strong> En cada punto, arriba lo que quedó escrito en los periodos cerrados —no se modifica— y debajo el campo del periodo {{ periodo.numero }}{% if periodo.motivo %}, abierto por: {{ periodo.motivo }}{% endif %}. Cerrados: {% for sello in periodos_cerrados %}P{{ sello.numero }}{% if sello.fin %} el {{ sello.fin|date:"d/m/Y H:i" }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
 {% if periodo_cerrado %}
-<p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">reactívela desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de cada punto, sin tocar lo anterior.</p>
+<p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">inicie el periodo siguiente desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de cada punto, sin tocar lo anterior.</p>
 {% endif %}
 {% comment %}
 El mismo cuerpo sirve para escribir y para leer. Con un periodo abierto es el
@@ -59,5 +59,5 @@ que mantener.
 {% if periodo_cerrado %}</article>{% else %}<div class="sci-finalizar"><p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar. Lo que tenga escrito en pantalla se guarda antes.</p><button class="button" type="submit" name="accion" value="finalizar" data-confirmar="¿Está seguro de finalizar el formulario? Al finalizar, el documento quedará bloqueado en modo solo lectura y no se podrá volver a editar." data-confirmar-titulo="Finalizar SCI-201" data-confirmar-boton="Confirmar y Finalizar">Finalizar formulario SCI-201</button></div></form>{% endif %}</div>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>
-<script src="{% static 'emergencias/js/sci_croquis.js' %}?v=1" defer></script><script src="{% static 'emergencias/js/sci_organigrama.js' %}?v=1" defer></script>
+<script src="{% static 'emergencias/js/sci_croquis.js' %}?v=2" defer></script><script src="{% static 'emergencias/js/sci_organigrama.js' %}?v=1" defer></script>
 {% include "emergencias/fragmentos/tablas_dinamicas.html" %}{% endblock %}

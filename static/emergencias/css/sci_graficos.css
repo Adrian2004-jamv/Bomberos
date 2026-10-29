@@ -1,4 +1,4 @@
-/* Croquis y organigrama de los formularios SCI.
+/* Croquis (foto o mapa) y organigrama de los formularios SCI.
    Lo comparten el editor, la hoja impresa, el periodo cerrado y el resumen de la
    emergencia: un componente, un solo juego de estilos. */
 
@@ -9,37 +9,38 @@
     background: #f1f5f9;
 }
 .sci-grafico__grupo { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
-.sci-grafico__boton, .sci-grafico__color, .sci-grafico__grosor {
+.sci-grafico__boton {
     display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
     min-height: 2.75rem; min-width: 2.75rem; padding: .4rem .75rem;
     border: 1px solid #94a3b8; border-radius: .45rem; background: #fff; color: #0f172a;
-    font: 700 .8rem/1.1 inherit; font-family: inherit; cursor: pointer;
+    font-size: .8rem; font-weight: 700; line-height: 1.1; font-family: inherit; cursor: pointer;
 }
 .sci-grafico__boton--chip { font-size: .74rem; padding: .35rem .6rem; }
-.sci-grafico__boton:hover, .sci-grafico__color:hover, .sci-grafico__grosor:hover { border-color: #c70012; }
-.sci-grafico__boton[aria-pressed="true"], .sci-grafico__color[aria-pressed="true"],
-.sci-grafico__grosor[aria-pressed="true"] { border-color: #c70012; background: #fff1f2; box-shadow: inset 0 0 0 1px #c70012; }
+.sci-grafico__boton:hover { border-color: #c70012; }
+.sci-grafico__boton[aria-pressed="true"] { border-color: #c70012; background: #fff1f2; box-shadow: inset 0 0 0 1px #c70012; }
 /* «display» de la clase gana al atributo hidden del navegador: sin esto los botones
    que el editor oculta (eliminar caja, eliminar conexión) se verían siempre. */
 .sci-grafico__boton[hidden] { display: none; }
 .sci-grafico__boton:disabled { opacity: .45; cursor: not-allowed; }
 .sci-grafico__boton[data-confirmar="1"] { border-color: #c70012; background: #c70012; color: #fff; }
-.sci-grafico__color { padding: 0; }
-.sci-grafico__color span { width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #64748b; }
-.sci-grafico__grosor { padding: 0; }
-.sci-grafico__grosor span { border-radius: 50%; background: #0f172a; }
 .sci-grafico__ayuda { margin: .4rem 0 0; color: #475569; font-size: .75rem; font-weight: 400; }
 
-/* ── Croquis: el lienzo ─────────────────────────────────────────────────────── */
+/* ── Croquis: la imagen y su estado ──────────────────────────────────────────── */
 .sci-croquis { width: 100%; }
 .sci-croquis__marco { padding: .5rem; border: 1px solid #cbd5e1; background: #e2e8f0; }
-.sci-croquis__lienzo {
-    display: block; width: 100%; height: auto; background: #fff;
-    border: 1px solid #64748b; cursor: crosshair;
-    /* Sin esto el dedo desplaza la página en lugar de dibujar. */
-    touch-action: none;
+.sci-croquis__vista {
+    display: block; width: auto; max-width: 100%; height: auto; max-height: 34rem;
+    margin: 0 auto; background: #fff; border: 1px solid #64748b;
 }
-.sci-croquis__lienzo--borrador { cursor: cell; }
+.sci-croquis__vacio {
+    display: grid; place-items: center; min-height: 12rem; margin: 0; padding: 1rem;
+    border: 2px dashed #94a3b8; background: #f8fafc; color: #475569;
+    font-size: .85rem; text-align: center;
+}
+/* «display» de la clase gana al atributo hidden del navegador. */
+.sci-croquis__vista[hidden], .sci-croquis__vacio[hidden], .sci-croquis__archivo[hidden] { display: none; }
+.sci-croquis__estado { min-height: 1.2em; }
+.sci-croquis__estado--error { color: #b5121b; font-weight: 700; }
 
 /* ── Organigrama: el lienzo ─────────────────────────────────────────────────── */
 .sci-organigrama { width: 100%; }
@@ -72,7 +73,11 @@
 
 /* ── Lectura e impresión ────────────────────────────────────────────────────── */
 .sci-grafico { margin: 0; box-sizing: border-box; width: 100%; }
-.sci-grafico img, .sci-organigrama__svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.sci-organigrama__svg { display: block; width: 100%; height: auto; max-width: 100%; }
+/* El croquis es una foto o un mapa de cualquier proporción: se muestra entero, sin
+   estirarlo, y nunca más alto de lo que cabe en la hoja (una foto vertical al ancho
+   completo se saldría de la página). */
+.sci-grafico img { display: block; width: auto; max-width: 100%; height: auto; max-height: 46rem; margin: 0 auto; }
 .sci-grafico--blanco { border: 0; }
 .sci-grafico__nota {
     margin: .5rem 0 0; font: 400 .75rem/1.4 Arial, sans-serif; color: #1e293b;

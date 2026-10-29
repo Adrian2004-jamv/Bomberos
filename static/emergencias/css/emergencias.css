@@ -200,28 +200,12 @@ td a { color: var(--color-red-700); }
 .periodo-fila__estado { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 700; white-space: nowrap; }
 
 .reactivar { margin-top: 1rem; }
-.reactivar__abrir {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-height: 2.75rem;
-    padding: 0.55rem 0.9rem;
-    border: 1.5px solid var(--color-slate-300);
-    border-radius: var(--radius-sm);
-    font-weight: 750;
-    cursor: pointer;
-}
-.reactivar__abrir:hover { border-color: var(--color-red-600); color: var(--color-red-700); }
-.reactivar__form { display: grid; gap: 0.6rem; max-width: 36rem; margin-top: 0.8rem; }
-.reactivar__aviso {
-    margin: 0;
-    padding: 0.6rem 0.75rem;
-    border-left: 0.25rem solid #d89b00;
-    background: #fff7dd;
-    font-size: 0.85rem;
-}
-.reactivar__form label { font-size: 0.82rem; font-weight: 750; }
-.reactivar__form textarea { width: 100%; }
+.reactivar__abrir { min-height: 2.75rem; display: inline-flex; align-items: center; gap: 0.45rem; }
+
+/* El diálogo de «Iniciar periodo operacional N»: el motivo va dentro, con el aviso. */
+.dialogo-periodo { width: min(94vw, 34rem); }
+.dialogo-periodo .periodo-motivo { font-size: 0.85rem; font-weight: 800; }
+.dialogo-periodo textarea { box-sizing: border-box; width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--color-slate-300, #cbd5e1); border-radius: 0.45rem; font: inherit; font-size: 0.9rem; }
 
 /* El documento de un periodo cerrado se anuncia antes de que nadie lo lea. */
 .periodo-cerrado-aviso {

@@ -132,7 +132,7 @@ ESQUEMAS_SCI = {
             {"numero": 12, "nombre": "mensaje_seguridad", "etiqueta": "Mensaje general de seguridad", "tipo": TEXTAREA, "filas": 4},
             # Campo 14 — Mapa/Croquis (página 2 completa)
             {"numero": 14, "nombre": "croquis", "etiqueta": "Mapa situacional o croquis", "tipo": CROQUIS,
-             "ayuda": "Dibuje el croquis con el dedo, el lápiz táctil o el ratón. La nota de abajo es opcional.",
+             "ayuda": "Suba una foto o un plano, o capture el mapa del lugar. La nota de abajo es opcional.",
              "filas": 3},
             # Campos 15-16 — Tabla cronológica de acciones (página 3)
             {"numero": 16, "nombre": "acciones", "fila": "acción", "etiqueta": "Resumen de las acciones", "tipo": TABLA,
@@ -709,6 +709,9 @@ def secciones_completadas(esquema, datos):
 
 # El SCI-211 se captura con su modelo propio, pero el catálogo debe poder mostrar
 # su estructura oficial en blanco igual que la de los demás formularios.
+# Los anchos de las columnas con tamaño propio suman el 86 %: el 14 % restante es de
+# «Observaciones». Con la suma en el 100 % esa columna se quedaba sin sitio y la tabla,
+# que es de disposición fija, se salía de la hoja por la derecha.
 ESQUEMA_CATALOGO_211 = {
     "nombre": "Registro y Control de Recursos",
     "proposito": (
@@ -721,17 +724,17 @@ ESQUEMA_CATALOGO_211 = {
     "preparado_por": "Registrador del punto de registro (PC, Base, Helibase o Área de Espera)",
     "secciones": [
         {"numero": 1, "nombre": "recursos", "etiqueta": "Registro y control de recursos", "tipo": TABLA,
-         "columnas": [_columna("solicitado_por", "A. Solicitud — 1. Por quién", "11%"),
-                      _columna("fecha_solicitud", "2. Fecha y hora", "9%", tipo=FECHA_HORA),
-                      _columna("clase", "3. Clase", "8%"),
-                      _columna("tipo", "4. Tipo", "8%"),
-                      _columna("fecha_arribo", "B. Arribo real — 5. Fecha y hora", "9%", tipo=FECHA_HORA),
-                      _columna("institucion", "C. Suministrado por — 6. Institución", "12%"),
-                      _columna("matricula", "7. Matrícula", "8%"),
-                      _columna("personas", "8. N.º de personas", "6%"),
-                      _columna("estado", "D. Estado del recurso", "10%"),
-                      _columna("desmovilizado_por", "E. Desmovilizado — 10. Por quién", "10%"),
-                      _columna("fecha_desmovilizacion", "11. Fecha y hora", "9%", tipo=FECHA_HORA),
+         "columnas": [_columna("solicitado_por", "A. Solicitud — 1. Por quién", "9%"),
+                      _columna("fecha_solicitud", "2. Fecha y hora", "8%", tipo=FECHA_HORA),
+                      _columna("clase", "3. Clase", "7%"),
+                      _columna("tipo", "4. Tipo", "7%"),
+                      _columna("fecha_arribo", "B. Arribo real — 5. Fecha y hora", "8%", tipo=FECHA_HORA),
+                      _columna("institucion", "C. Suministrado por — 6. Institución", "10%"),
+                      _columna("matricula", "7. Matrícula", "7%"),
+                      _columna("personas", "8. N.º de personas", "5%"),
+                      _columna("estado", "D. Estado del recurso", "8%"),
+                      _columna("desmovilizado_por", "E. Desmovilizado — 10. Por quién", "9%"),
+                      _columna("fecha_desmovilizacion", "11. Fecha y hora", "8%", tipo=FECHA_HORA),
                       _columna("observaciones", "12. Observaciones")],
          "filas_impresion": 12},
     ],

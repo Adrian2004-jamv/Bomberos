@@ -2,8 +2,8 @@
 
 El SCI-201 pide un «mapa situacional o croquis» (punto 14) y un «organigrama actual»
 (punto 17); el SCI-202 pide «graficar» el organigrama del periodo (punto 15). Eran
-cuadros de texto. Ahora son dos componentes reutilizables —un lienzo de dibujo y un
-editor de cajas— que se declaran en el esquema con un tipo de campo, de modo que
+cuadros de texto. Ahora son dos componentes reutilizables —una imagen, que es una foto o
+el mapa del lugar, y un editor de cajas— que se declaran en el esquema con un tipo de campo, de modo que
 cualquier formulario futuro los obtiene sin copiar nada.
 
 Estas pruebas cubren lo que el servidor debe garantizar aunque el navegador falle o
@@ -11,6 +11,7 @@ alguien mande una petición a mano: qué se acepta, qué se guarda, qué se impr
 """
 
 import base64
+from decimal import Decimal
 import re
 from pathlib import Path
 
@@ -41,6 +42,21 @@ PNG_1X1 = (
 FIRMA_PNG = b"\x89PNG\r\n\x1a\n"
 
 
+def imagen_de_prueba(formato, ancho=1520, alto=1600, color=(200, 220, 240)):
+    """Una imagen real, como ``data:`` URI, del formato y tamaño pedidos."""
+    import io
+
+    from PIL import Image
+
+    memoria = io.BytesIO()
+    Image.new("RGB", (ancho, alto), color).save(memoria, formato)
+    tipo = "jpeg" if formato == "JPEG" else "png"
+    return f"data:image/{tipo};base64," + base64.b64encode(memoria.getvalue()).decode()
+
+
+JPEG_MAPA = imagen_de_prueba("JPEG")
+
+
 def organigrama(*cajas, enlaces=()):
     import json
     return json.dumps({
@@ -61,34 +77,57 @@ ORGANIGRAMA_BASICO = organigrama(
 # ──────────────────────────────────────────────────────────────────────
 
 class LimpiezaDelCroquisTests(SimpleTestCase):
+    """El croquis es ahora una foto o el mapa capturado: PNG o JPEG, y nada más."""
+
     def test_un_png_valido_se_acepta(self):
         self.assertEqual(g.limpiar_croquis(PNG_1X1), PNG_1X1)
 
-    def test_lo_que_no_es_un_png_se_descarta(self):
+    def test_un_jpeg_valido_se_acepta(self):
+        """La foto subida y el mapa capturado llegan como JPEG."""
+        self.assertEqual(g.limpiar_croquis(JPEG_MAPA), JPEG_MAPA)
+        self.assertEqual(g.imagen_de_croquis(JPEG_MAPA)[0], "image/jpeg")
+
+    def test_lo_que_no_es_una_imagen_aceptable_se_descarta(self):
         casos = {
             "vacío": "",
             "nulo": None,
-            "otro tipo de imagen": PNG_1X1.replace("image/png", "image/jpeg"),
+            "un gif": PNG_1X1.replace("image/png", "image/gif"),
+            "un svg": "data:image/svg+xml;base64," + base64.b64encode(b"<svg onload=alert(1)/>").decode(),
             "un script": "javascript:alert(1)",
             "una URL": "https://ejemplo.com/croquis.png",
             "base64 roto": "data:image/png;base64,@@@@no es base64@@@@",
-            "base64 válido pero no es un PNG": "data:image/png;base64,"
+            "base64 válido pero no es una imagen": "data:image/png;base64,"
             + base64.b64encode(b"<script>alert(1)</script>").decode(),
+            "un jpeg que dice ser png": JPEG_MAPA.replace("image/jpeg", "image/png"),
+            "un png que dice ser jpeg": PNG_1X1.replace("image/png", "image/jpeg"),
         }
         for nombre, valor in casos.items():
             with self.subTest(nombre):
                 self.assertEqual(g.limpiar_croquis(valor), "")
 
-    def test_un_dibujo_desmesurado_se_descarta(self):
-        """Con la firma de un PNG de verdad: lo que lo frena es el tamaño, no el contenido."""
+    def test_la_firma_sin_una_imagen_detras_no_basta(self):
+        """Empieza como un PNG pero no lo es: antes pasaba, ahora se lee su cabecera."""
+        falso = g.PREFIJO_PNG + base64.b64encode(FIRMA_PNG + b"0" * 500).decode()
+        self.assertEqual(g.limpiar_croquis(falso), "")
+
+    def test_una_imagen_desmesurada_en_bytes_se_descarta(self):
+        """Con la firma de un PNG de verdad: lo que la frena es el tamaño, no el contenido."""
         crudo = FIRMA_PNG + b"0" * g.MAX_CROQUIS
         enorme = g.PREFIJO_PNG + base64.b64encode(crudo).decode()
         self.assertGreater(len(enorme), g.MAX_CROQUIS)
         self.assertEqual(g.limpiar_croquis(enorme), "")
 
-    def test_se_acepta_un_dibujo_grande_pero_dentro_del_tope(self):
-        crudo = FIRMA_PNG + b"0" * 500_000
-        grande = g.PREFIJO_PNG + base64.b64encode(crudo).decode()
+    def test_una_imagen_que_declara_decenas_de_miles_de_pixeles_se_descarta(self):
+        """Pesa poco en disco y ocuparía gigabytes al abrirla: se lee la cabecera."""
+        ancha = imagen_de_prueba("JPEG", ancho=g.CROQUIS_LADO_ABSOLUTO + 1, alto=8)
+        self.assertLess(len(ancha), g.MAX_CROQUIS)
+        self.assertEqual(g.limpiar_croquis(ancha), "")
+        justa = imagen_de_prueba("JPEG", ancho=g.CROQUIS_LADO_ABSOLUTO, alto=8)
+        self.assertEqual(g.limpiar_croquis(justa), justa)
+
+    def test_se_acepta_una_imagen_grande_pero_dentro_del_tope(self):
+        grande = imagen_de_prueba("PNG", ancho=g.CROQUIS_LADO_MAX, alto=g.CROQUIS_LADO_MAX)
+        self.assertLessEqual(len(grande), g.MAX_CROQUIS)
         self.assertEqual(g.limpiar_croquis(grande), grande)
 
 
@@ -278,7 +317,7 @@ class EditorTests(BaseValidacion):
         self.client.force_login(self.usuario)
         return self.client.get(reverse("emergencias:sci_editar", args=[codigo, emergencia.pk]))
 
-    def test_el_201_ofrece_el_lienzo_y_el_editor_de_organigrama(self):
+    def test_el_201_ofrece_el_croquis_y_el_editor_de_organigrama(self):
         respuesta = self.abrir("201", self.crear_emergencia("EDI-001"))
         self.assertContains(respuesta, "data-sci-croquis")
         self.assertContains(respuesta, 'name="croquis__dibujo"')
@@ -286,6 +325,28 @@ class EditorTests(BaseValidacion):
         self.assertContains(respuesta, 'name="organigrama__grafico"')
         self.assertContains(respuesta, "emergencias/js/sci_croquis.js")
         self.assertContains(respuesta, "emergencias/js/sci_organigrama.js")
+
+    def test_el_croquis_recibe_las_coordenadas_de_la_emergencia_con_punto_decimal(self):
+        """Con la configuración regional en español un decimal se escribiría con coma, y el
+        navegador no lo leería como número: la captura del mapa saldría en ninguna parte."""
+        emergencia = self.crear_emergencia("EDI-COORD")
+        Emergencia.objects.filter(pk=emergencia.pk).update(
+            latitud=Decimal("-0.934600"), longitud=Decimal("-78.615500"))
+        respuesta = self.abrir("201", emergencia)
+        self.assertContains(respuesta, 'data-lat="-0.934600"')
+        self.assertContains(respuesta, 'data-lon="-78.615500"')
+        self.assertContains(respuesta, 'data-codigo="EDI-COORD"')
+
+    def test_sin_coordenadas_el_croquis_no_ofrece_capturar_el_mapa(self):
+        respuesta = self.abrir("201", self.crear_emergencia("EDI-SINCOORD"))
+        self.assertContains(respuesta, "data-sci-croquis")
+        self.assertNotContains(respuesta, "data-lat=")
+        self.assertNotContains(respuesta, "data-lon=")
+
+    def test_el_editor_ya_no_ofrece_un_lienzo_para_dibujar(self):
+        respuesta = self.abrir("201", self.crear_emergencia("EDI-SINLIENZO"))
+        self.assertNotContains(respuesta, "<canvas")
+        self.assertNotContains(respuesta, "Dibuje el croquis")
 
     def test_el_202_solo_ofrece_el_organigrama(self):
         respuesta = self.abrir("202", self.crear_emergencia("EDI-002"))
@@ -328,6 +389,15 @@ class HojaImpresaTests(BaseValidacion):
         emergencia = self.crear_emergencia("IMP-002")
         self.crear_formulario(emergencia, "201", {"croquis__dibujo": PNG_1X1})
         self.assertContains(self.visualizar("201", emergencia), f'<img src="{PNG_1X1}"')
+
+    def test_el_mapa_capturado_o_la_foto_se_imprimen_como_imagen(self):
+        """Un JPEG como el que arma el navegador, sin fijar las medidas de un lienzo: la
+        imagen conserva su proporción y no se estira al alto de una hoja vertical."""
+        emergencia = self.crear_emergencia("IMP-JPG")
+        self.crear_formulario(emergencia, "201", {"croquis__dibujo": JPEG_MAPA})
+        respuesta = self.visualizar("201", emergencia)
+        self.assertContains(respuesta, f'<img src="{JPEG_MAPA}" alt="Croquis del incidente">')
+        self.assertNotContains(respuesta, 'width="760" height="800"')
 
     def test_con_organigrama_se_imprime_el_svg_sin_ejecutar_nada(self):
         emergencia = self.crear_emergencia("IMP-003")
@@ -439,6 +509,20 @@ class InformePdfTests(SimpleTestCase):
         self.assertIsNotNone(imagen)
         self.assertAlmostEqual(imagen.drawHeight / imagen.drawWidth, 1.0, places=2)
 
+    def test_una_foto_o_un_mapa_jpeg_entran_al_pdf(self):
+        imagen = _croquis_pdf(JPEG_MAPA)
+        self.assertIsNotNone(imagen)
+        self.assertAlmostEqual(imagen.drawHeight / imagen.drawWidth, 1600 / 1520, places=2)
+
+    def test_una_foto_vertical_no_se_sale_de_la_pagina(self):
+        """Al ancho completo mediría más que el alto útil de la hoja: se limita por el alto."""
+        from reportlab.lib.units import mm
+
+        vertical = imagen_de_prueba("JPEG", ancho=1200, alto=1600)
+        imagen = _croquis_pdf(vertical)
+        self.assertLessEqual(imagen.drawHeight, 190 * mm + 0.01)
+        self.assertAlmostEqual(imagen.drawHeight / imagen.drawWidth, 1600 / 1200, places=2)
+
     def test_un_croquis_ilegible_no_rompe_el_informe(self):
         self.assertIsNone(_croquis_pdf(""))
         self.assertIsNone(_croquis_pdf("data:image/png;base64,AAAA"))
@@ -475,23 +559,73 @@ class ComponenteTests(SimpleTestCase):
             self.assertIsNotNone(hallado, nombre)
             self.assertEqual(int(hallado.group(1)), valor, nombre)
 
-    def test_el_lienzo_del_croquis_mide_lo_que_declara_el_servidor(self):
-        plantilla = self.fuente("templates/emergencias/fragmentos/croquis_editor.html")
-        self.assertIn(f'data-ancho="{g.CROQUIS_ANCHO}"', plantilla)
-        self.assertIn(f'data-alto="{g.CROQUIS_ALTO}"', plantilla)
+    def test_la_captura_del_mapa_usa_las_cifras_del_servidor(self):
+        """El mapa se compone en el navegador y el servidor solo lo valida: las medidas
+        están duplicadas a propósito y deben decir lo mismo."""
+        js = self.fuente("static/emergencias/js/sci_croquis.js")
+        esperado = {
+            "ANCHO": g.CROQUIS_ANCHO, "ALTO": g.CROQUIS_ALTO,
+            "DENSIDAD": g.CROQUIS_DENSIDAD, "LADO_MAX": g.CROQUIS_LADO_MAX,
+        }
+        for nombre, valor in esperado.items():
+            hallado = re.search(rf"var {nombre} = (\d+);", js)
+            self.assertIsNotNone(hallado, nombre)
+            self.assertEqual(int(hallado.group(1)), valor, nombre)
+        objetivo = int(re.search(r"var OBJETIVO_CARACTERES = (\d+);", js).group(1))
+        self.assertLess(objetivo, g.MAX_CROQUIS, "el cliente debe quedar por debajo del tope del servidor")
 
-    def test_los_dos_componentes_no_dependen_de_la_red(self):
-        """Es una PWA que debe abrirse en el campo: nada de CDN ni de peticiones."""
-        for ruta in ("static/emergencias/js/sci_croquis.js", "static/emergencias/js/sci_organigrama.js"):
-            js = self.fuente(ruta)
-            self.assertNotIn("http://", js.replace("http://www.w3.org/2000/svg", ""), ruta)
-            self.assertNotIn("https://", js, ruta)
-            self.assertNotIn("fetch(", js, ruta)
-            self.assertNotIn("XMLHttpRequest", js, ruta)
+    def test_el_mapa_sale_a_doble_resolucion_y_cabe_en_el_tope(self):
+        """La calidad para imprimir: el lienzo del mapa tiene el doble de píxeles que el de
+        pantalla, y el servidor admite lados de ese tamaño."""
+        self.assertEqual(g.CROQUIS_DENSIDAD, 2)
+        self.assertLessEqual(g.CROQUIS_ANCHO * g.CROQUIS_DENSIDAD, g.CROQUIS_LADO_ABSOLUTO)
+        self.assertLessEqual(g.CROQUIS_ALTO * g.CROQUIS_DENSIDAD, g.CROQUIS_LADO_ABSOLUTO)
+        self.assertGreaterEqual(g.CROQUIS_LADO_MAX, g.CROQUIS_ALTO * g.CROQUIS_DENSIDAD)
+
+    def test_el_mapa_se_pide_al_mismo_proveedor_que_el_resto_del_sistema(self):
+        """La dirección de los mosaicos vive en ``fondo.js``; aquí está repetida porque el
+        croquis no carga Leaflet. Si una cambia y la otra no, el croquis dejaría de
+        parecerse al mapa que el comandante tiene delante."""
+        patron = r'"(https://server\.arcgisonline\.com/[^"]+\{z\}/\{y\}/\{x\})"'
+        croquis = re.search(patron, self.fuente("static/emergencias/js/sci_croquis.js"))
+        fondo = re.search(patron, self.fuente("static/mapas/js/fondo.js"))
+        self.assertIsNotNone(croquis)
+        self.assertIsNotNone(fondo)
+        self.assertEqual(croquis.group(1), fondo.group(1))
+        self.assertIn("Esri", self.fuente("static/emergencias/js/sci_croquis.js"))
+
+    def test_el_croquis_ya_no_es_un_lienzo_para_dibujar(self):
+        """A los bomberos les resulta más rápido una foto o el mapa: las herramientas del
+        lápiz, el borrador, los colores y los trazos se fueron."""
+        js = self.fuente("static/emergencias/js/sci_croquis.js")
+        for resto in ("pointerdown", "trazos", "Borrador", "Lápiz", "COLORES", "GROSORES", "Deshacer"):
+            self.assertNotIn(resto, js, resto)
+        self.assertIn("Subir imagen", js)
+        self.assertIn("Capturar mapa", js)
+        self.assertIn('accept: "image/*"', js)
+
+    def test_el_organigrama_no_depende_de_la_red(self):
+        """Es una PWA que debe abrirse en el campo: el organigrama no pide nada a nadie."""
+        js = self.fuente("static/emergencias/js/sci_organigrama.js")
+        self.assertNotIn("http://", js.replace("http://www.w3.org/2000/svg", ""))
+        self.assertNotIn("https://", js)
+        self.assertNotIn("fetch(", js)
+        self.assertNotIn("XMLHttpRequest", js)
+
+    def test_el_croquis_solo_sale_a_la_red_por_los_mosaicos_del_mapa(self):
+        """Lo único que el croquis descarga son los mosaicos del mapa, y con una imagen: nada de
+        fetch ni de XMLHttpRequest que pudiera mandar el formulario a otra parte."""
+        js = self.fuente("static/emergencias/js/sci_croquis.js")
+        for direccion in re.findall(r"https?://[^\s\"']+", js):
+            self.assertTrue(direccion.startswith("https://server.arcgisonline.com/"), direccion)
+        self.assertNotIn("fetch(", js)
+        self.assertNotIn("XMLHttpRequest", js)
+        self.assertNotIn("sendBeacon", js)
+        self.assertIn('crossOrigin = "anonymous"', js)
 
     def test_los_controles_miden_al_menos_44_px(self):
         css = self.fuente("static/emergencias/css/sci_graficos.css")
-        regla = re.search(r"\.sci-grafico__boton, \.sci-grafico__color, \.sci-grafico__grosor \{([^}]*)\}", css).group(1)
+        regla = re.search(r"\.sci-grafico__boton \{([^}]*)\}", css).group(1)
         self.assertIn("min-height: 2.75rem", regla)
         self.assertIn("min-width: 2.75rem", regla)
 
@@ -502,6 +636,8 @@ class ComponenteTests(SimpleTestCase):
         self.assertIn(".sci-grafico__boton[hidden] { display: none; }", css)
         self.assertIn(".sci-organigrama__campo[hidden] { display: none; }", css)
         self.assertIn(".sci-organigrama__panel[hidden] { display: none; }", css)
+        # Y los del croquis: la vista de la imagen y el recuadro vacío se alternan con «hidden».
+        self.assertIn(".sci-croquis__vista[hidden], .sci-croquis__vacio[hidden]", css)
 
     def test_cada_pagina_que_usa_los_componentes_enlaza_sus_archivos(self):
         raiz = Path(settings.BASE_DIR) / "templates"

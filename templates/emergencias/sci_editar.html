@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=26"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=27"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=3">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
@@ -25,7 +25,7 @@
   {% endif %}
 
   {% if periodo_cerrado %}
-  <p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">reactívela desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de cada punto, sin tocar lo anterior.</p>
+  <p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">inicie el periodo siguiente desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de cada punto, sin tocar lo anterior.</p>
   {% endif %}
 
   {% comment %}
@@ -184,6 +184,6 @@
 </div>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>
-<script src="{% static 'emergencias/js/sci_croquis.js' %}?v=1" defer></script><script src="{% static 'emergencias/js/sci_organigrama.js' %}?v=1" defer></script>
+<script src="{% static 'emergencias/js/sci_croquis.js' %}?v=2" defer></script><script src="{% static 'emergencias/js/sci_organigrama.js' %}?v=1" defer></script>
 {% include "emergencias/fragmentos/tablas_dinamicas.html" %}
 {% endblock %}
