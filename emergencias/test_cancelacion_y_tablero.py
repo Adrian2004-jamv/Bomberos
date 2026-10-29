@@ -1,12 +1,11 @@
-"""El tablero de formularios por periodo, y descartar un incidente que no existió.
+"""El tablero de formularios de la ficha, y descartar un incidente que no existió.
 
 Dos cosas que se ven mal desde la escena:
 
-* En un incidente reactivado todos los formularios seguían en verde —«finalizado»—
-  porque el tablero miraba el último de cada código sin importar el periodo. Parecía
-  que la emergencia de ahora ya había terminado cuando en realidad es una fase
-  nueva. Cada periodo lleva sus propios formularios, y el tablero pinta los del
-  vigente; lo del anterior consta aparte.
+* El tablero de la ficha pinta el estado de cada formulario. Cada uno se guarda una
+  sola vez por emergencia; la excepción es el SCI-201, que tiene un registro por
+  periodo operacional, y de ese el tablero pinta el del periodo vigente: lo del
+  periodo anterior consta aparte («Antes: P1 finalizado»).
 * Una llamada falsa o una broma no tenía salida limpia: el incidente se quedaba en
   el sistema, contando en las estadísticas. Ahora se descarta según el motivo.
 """
@@ -23,7 +22,7 @@ from inventario.models import CategoriaRecurso, Recurso, TipoRecurso
 
 from .models import (DespliegueUnidad, Emergencia, FormularioSCI, FormularioSCI211,
                      PeriodoOperacional, PosicionUnidad, RegistroRecursoSCI211)
-from .services import desplegar_unidad, reactivar_emergencia
+from .services import desplegar_unidad, iniciar_periodo_operacional
 from .services_sci import crear_sci211_desde_emergencia
 from .test_periodo_operacional import BaseDelPeriodo
 from .views import emergencias_permitidas
@@ -39,15 +38,15 @@ def estados_del_tablero(html):
     }
 
 
-class TableroPorPeriodoTests(BaseDelPeriodo):
+class TableroDeLaFichaTests(BaseDelPeriodo):
     def ficha(self, emergencia):
         self.client.force_login(self.usuario)
         return self.client.get(
             reverse("emergencias:detalle", args=[emergencia.pk])
         ).content.decode()
 
-    def incidente_terminado_con_todo_finalizado(self, codigo="TAB-001"):
-        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, codigo)
+    def incidente_con_todo_finalizado(self, codigo="TAB-001"):
+        emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, codigo)
         for sci in ("201", "202", "207"):
             self.crear_formulario(
                 emergencia, sci, estado=FormularioSCI.Estado.FINALIZADO,
@@ -55,25 +54,24 @@ class TableroPorPeriodoTests(BaseDelPeriodo):
             )
         return emergencia
 
-    def test_en_el_periodo_uno_lo_finalizado_se_ve_finalizado(self):
-        emergencia = self.incidente_terminado_con_todo_finalizado()
+    def test_lo_finalizado_se_ve_finalizado(self):
+        emergencia = self.incidente_con_todo_finalizado()
         estados = estados_del_tablero(self.ficha(emergencia))
         for sci in ("201", "202", "207"):
             self.assertEqual(estados[sci], "complete", sci)
 
-    def test_al_reactivar_el_tablero_vuelve_a_empezar(self):
-        """El caso: periodo 2 y todo en verde."""
-        emergencia = self.incidente_terminado_con_todo_finalizado("TAB-002")
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
-        html = self.ficha(emergencia)
-        estados = estados_del_tablero(html)
-        self.assertNotIn("complete", estados.values(), estados)
-        for sci in ("201", "202", "207"):
-            self.assertEqual(estados[sci], "pending", sci)
+    def test_al_iniciar_el_periodo_2_solo_el_201_vuelve_a_empezar(self):
+        """El periodo es del SCI-201: los demás formularios siguen como estaban."""
+        emergencia = self.incidente_con_todo_finalizado("TAB-002")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
+        estados = estados_del_tablero(self.ficha(emergencia))
+        self.assertEqual(estados["201"], "pending")
+        self.assertEqual(estados["202"], "complete")
+        self.assertEqual(estados["207"], "complete")
 
-    def test_lo_del_periodo_anterior_consta_pero_no_se_pinta_como_actual(self):
-        emergencia = self.incidente_terminado_con_todo_finalizado("TAB-003")
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+    def test_lo_del_periodo_anterior_del_201_consta_pero_no_se_pinta_como_actual(self):
+        emergencia = self.incidente_con_todo_finalizado("TAB-003")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
         html = self.ficha(emergencia)
         self.assertIn("Antes: P1 finalizado", html)
         # Y el historial sigue ahí, intacto.
@@ -84,95 +82,66 @@ class TableroPorPeriodoTests(BaseDelPeriodo):
             3,
         )
 
-    def test_un_borrador_del_periodo_nuevo_se_ve_como_incompleto(self):
-        emergencia = self.incidente_terminado_con_todo_finalizado("TAB-004")
-        nuevo = reactivar_emergencia(emergencia, self.usuario, "Rebrote")
-        self.crear_formulario(emergencia, "202", periodo=nuevo, datos={"objetivos": "Fase 2"})
+    def test_un_borrador_del_201_nuevo_se_ve_como_incompleto(self):
+        emergencia = self.incidente_con_todo_finalizado("TAB-004")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
+        self.crear_formulario(emergencia, "201", datos={"lugar_incidente": "Fase 2"})
         estados = estados_del_tablero(self.ficha(emergencia))
-        self.assertEqual(estados["202"], "incomplete")
-        self.assertEqual(estados["201"], "pending")
+        self.assertEqual(estados["201"], "incomplete")
+        self.assertEqual(estados["202"], "complete")
 
-    def test_el_listado_cuenta_solo_lo_del_periodo_vigente(self):
-        emergencia = self.incidente_terminado_con_todo_finalizado("TAB-005")
+    def test_el_listado_cuenta_cada_formulario_una_vez(self):
+        emergencia = self.incidente_con_todo_finalizado("TAB-005")
         antes = emergencias_permitidas(self.usuario).get(pk=emergencia.pk)
         self.assertEqual(antes.formularios_registrados, 3)
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
+        self.crear_formulario(emergencia, "201", datos={"lugar_incidente": "Fase 2"})
         despues = emergencias_permitidas(self.usuario).get(pk=emergencia.pk)
-        self.assertEqual(despues.formularios_registrados, 0)
-        self.assertFalse(despues.tiene_sci211)
+        # El 201 tiene dos registros pero es un solo formulario.
+        self.assertEqual(despues.formularios_registrados, 3)
 
 
-class SCI211PorPeriodoTests(BaseDelPeriodo):
-    """El 211 era uno por emergencia: en el periodo 2 no se podía crear otro."""
+class SCI211UnoPorEmergenciaTests(BaseDelPeriodo):
+    """El 211 es una bitácora que dura toda la atención: uno por emergencia, sin periodos."""
 
-    def finalizar_211_del_periodo_uno(self, emergencia):
-        formulario = FormularioSCI211.objects.create(
-            emergencia=emergencia, codigo=f"SCI-211-{emergencia.codigo}",
-            punto_registro="Puesto de Comando", registrador_1="Registrador",
-            creado_por=self.usuario, modificado_por=self.usuario,
-            estado=FormularioSCI211.Estado.FINALIZADO,
-        )
-        return formulario
-
-    def test_el_211_nace_en_el_periodo_vigente(self):
+    def test_el_211_nace_sin_periodo_y_con_su_numero_de_siempre(self):
         emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "S211-001")
         formulario = crear_sci211_desde_emergencia(emergencia, self.usuario)
-        self.assertEqual(formulario.numero_periodo, 1)
+        self.assertEqual(formulario.codigo, "SCI-211-S211-001")
+        self.assertEqual(emergencia.periodos.count(), 0)
 
-    def test_en_el_periodo_dos_se_puede_abrir_un_211_nuevo(self):
-        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "S211-002")
-        viejo = self.finalizar_211_del_periodo_uno(emergencia)
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+    def test_iniciar_un_periodo_del_201_no_abre_otro_211(self):
+        emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "S211-002")
+        self.crear_formulario(emergencia, "201")
+        viejo = crear_sci211_desde_emergencia(emergencia, self.usuario)
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
         emergencia = Emergencia.objects.get(pk=emergencia.pk)
+        self.assertEqual(emergencia.formulario_sci_211.pk, viejo.pk)
+        self.assertTrue(emergencia.formulario_sci_211.es_editable)
+        self.assertEqual(FormularioSCI211.objects.filter(emergencia=emergencia).count(), 1)
 
-        # El vigente todavía no existe: el del periodo 1 no cuenta como «el de ahora».
-        self.assertIsNone(emergencia.formulario_sci_211)
-        nuevo = crear_sci211_desde_emergencia(emergencia, self.usuario)
-
-        self.assertEqual(nuevo.numero_periodo, 2)
-        self.assertTrue(nuevo.codigo.endswith("-P2"))
-        self.assertTrue(nuevo.es_editable)
-        self.assertEqual(emergencia.formulario_sci_211.pk, nuevo.pk)
-        # El anterior sigue como estaba: finalizado, del periodo 1 y sin poder tocarse.
-        viejo.refresh_from_db()
-        self.assertEqual(viejo.numero_periodo, 1)
-        self.assertEqual(viejo.estado, FormularioSCI211.Estado.FINALIZADO)
-        self.assertFalse(viejo.es_editable)
-
-    def test_no_caben_dos_211_en_el_mismo_periodo(self):
-        from django.db import IntegrityError, transaction
-
+    def test_el_boton_de_crear_el_211_no_duplica(self):
         emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "S211-003")
-        crear_sci211_desde_emergencia(emergencia, self.usuario)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            FormularioSCI211.objects.create(
-                emergencia=emergencia, periodo=emergencia.periodo_vigente(),
-                codigo="OTRO-CODIGO", punto_registro="PC", registrador_1="R",
-                creado_por=self.usuario, modificado_por=self.usuario,
-            )
-
-    def test_el_boton_de_crear_el_211_funciona_en_el_periodo_dos(self):
-        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "S211-004")
-        self.finalizar_211_del_periodo_uno(emergencia)
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+        existente = crear_sci211_desde_emergencia(emergencia, self.usuario)
         self.client.force_login(self.usuario)
         respuesta = self.client.post(reverse("emergencias:sci211_crear", args=[emergencia.pk]))
-        nuevo = FormularioSCI211.objects.get(emergencia=emergencia, periodo__numero=2)
         self.assertRedirects(
-            respuesta, reverse("emergencias:sci211_editar", args=[nuevo.pk]),
+            respuesta, reverse("emergencias:sci211_editar", args=[existente.pk]),
             fetch_redirect_response=False,
         )
+        self.assertEqual(FormularioSCI211.objects.filter(emergencia=emergencia).count(), 1)
 
-    def test_el_tablero_ofrece_el_211_como_registro_abierto_en_el_periodo_dos(self):
-        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "S211-005")
-        self.finalizar_211_del_periodo_uno(emergencia)
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+    def test_el_tablero_ofrece_el_211_como_registro_abierto(self):
+        emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "S211-004")
+        self.crear_formulario(emergencia, "201")
+        crear_sci211_desde_emergencia(emergencia, self.usuario)
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
         self.client.force_login(self.usuario)
         html = self.client.get(
             reverse("emergencias:detalle", args=[emergencia.pk])
         ).content.decode()
         self.assertEqual(estados_del_tablero(html)["211"], "open")
-        self.assertIn("Antes: P1 finalizado", html)
+        self.assertNotIn("Antes: P1 borrador SCI-211", html)
 
 
 class ConUnidades(BaseDelPeriodo):
@@ -286,8 +255,9 @@ class EliminarFalsasAlarmasTests(ConUnidades):
 
     def test_con_mas_de_un_periodo_no_se_elimina(self):
         """Hubo actividad real en el periodo anterior y debe conservarse."""
-        emergencia = self.crear_emergencia(Emergencia.Estado.CERRADA, "CAN-P2")
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+        emergencia = self.crear_emergencia(Emergencia.Estado.EN_ATENCION, "CAN-P2")
+        self.crear_formulario(emergencia, "201")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
         respuesta = self.cancelar(emergencia, "falsa_alarma", confirmo="1")
         self.assertTrue(Emergencia.objects.filter(pk=emergencia.pk).exists())
         self.assertContains(self.client.get(respuesta["Location"]), "más de un periodo")

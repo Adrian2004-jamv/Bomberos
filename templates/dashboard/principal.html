@@ -17,7 +17,6 @@
         <div><dt>Estación asignada</dt><dd>{% if user.estacion %}{{ user.estacion.nombre }}{% else %}Todas las autorizadas{% endif %}</dd></div>
         <div><dt>Fecha</dt><dd><time datetime="{{ fecha_actual|date:'Y-m-d' }}">{{ fecha_actual|date:"d/m/Y" }}</time></dd></div>
     </dl>
-    <button class="guide-btn" type="button" onclick="window.bomberosTour && window.bomberosTour.iniciar()" aria-label="Iniciar guía interactiva del panel de control"><i class="ti ti-help-circle" aria-hidden="true"></i> Guía</button>
 </section>
 
 {% if puede_consultar_emergencias %}

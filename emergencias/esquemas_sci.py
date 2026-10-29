@@ -665,8 +665,17 @@ def evaluacion_en_partes(datos):
         if str(datos.get(nombre) or "").strip()
     ]
 
+# Clave reservada del JSON de un formulario. La migración 0021 unificó los
+# formularios que existían en varios periodos y dejó lo de los periodos anteriores
+# dentro del registro vigente, bajo esta clave. Ningún campo del esquema empieza
+# por guion bajo, de modo que el editor nunca la sobrescribe ni la muestra.
+RESPALDO_DE_PERIODOS = "_periodos_anteriores"
+
+
 def conservar_campos_retirados(codigo, anteriores, nuevos):
-    """Devuelve ``nuevos`` con los campos retirados tal como estaban."""
+    """Devuelve ``nuevos`` con los campos retirados y el respaldo, tal como estaban."""
+    if RESPALDO_DE_PERIODOS in (anteriores or {}) and RESPALDO_DE_PERIODOS not in nuevos:
+        nuevos[RESPALDO_DE_PERIODOS] = anteriores[RESPALDO_DE_PERIODOS]
     for nombre in CAMPOS_RETIRADOS.get(codigo, ()):
         if nombre in (anteriores or {}) and nombre not in nuevos:
             nuevos[nombre] = anteriores[nombre]

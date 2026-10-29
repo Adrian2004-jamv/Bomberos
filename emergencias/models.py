@@ -121,15 +121,13 @@ class Emergencia(models.Model):
     def periodo_vigente(self):
         """El periodo operacional al que pertenece lo que se escriba ahora.
 
-        Vive en el modelo y no en los servicios porque ``FormularioSCI.save``
-        también lo necesita, y un formulario sin periodo no debe poder existir:
+        Solo el SCI-201 lo necesita. Vive en el modelo y no en los servicios
+        porque ``FormularioSCI.save`` lo usa al guardar un 201 sin periodo:
         importarlo desde los servicios cerraría un círculo, ya que aquellos
         importan este módulo.
 
-        Se crea bajo demanda en lugar de al registrar la emergencia. Así quedan
-        cubiertas por igual las emergencias que ya existían antes de que el
-        periodo fuera una tabla, las nuevas, y cualquier otra vía —una carga de
-        escenarios, una restauración parcial— sin que ninguna se quede sin él.
+        El periodo 1 se crea aquí, al guardar el primer SCI-201, y no al registrar
+        la emergencia: una emergencia sin 201 no tiene periodos.
         """
         existente = self.periodo_vigente_si_existe()
         if existente is not None:
@@ -159,19 +157,14 @@ class Emergencia(models.Model):
 
     @property
     def formulario_sci_211(self):
-        """El SCI-211 del periodo vigente, o ``None`` si todavía no se abrió.
+        """El SCI-211 de la emergencia, o ``None`` si todavía no se abrió.
 
-        Antes era la relación inversa de un ``OneToOneField``. Se conserva el
-        nombre porque es como lo lee el resto del código, pero ahora responde por
-        el periodo en curso: en un incidente reactivado, el del periodo anterior
-        sigue existiendo —finalizado, en su historial— y no es el que se llena.
+        Es uno por emergencia: el registro de recursos es una bitácora que vive
+        toda la atención y no se divide en periodos. Se lee de ``all()`` y no de
+        un ``filter`` para aprovechar el ``prefetch_related`` de los listados.
         """
-        vigente = self.periodo_vigente_si_existe()
-        if vigente is None:
-            return None
         for formulario in self.formularios_sci_211.all():
-            if formulario.periodo_id == vigente.pk:
-                return formulario
+            return formulario
         return None
 
     def __str__(self):
@@ -345,13 +338,11 @@ class PosicionUnidad(models.Model):
         return f"{self.despliegue} @ {self.fecha_recepcion:%Y-%m-%d %H:%M:%S}"
 
 class FormularioSCI211(models.Model):
-    """Encabezado del Registro y Control de Recursos de una emergencia, por periodo.
+    """Encabezado del Registro y Control de Recursos de una emergencia.
 
-    Era uno por emergencia. Al reactivar un incidente cerrado el del periodo 1
-    seguía finalizado y bloqueado, y no había forma de crear otro: en el periodo
-    2 no se podían registrar los recursos que llegaban. Es un documento del
-    periodo, como los demás: cada periodo operacional tiene el suyo y el
-    anterior queda como quedó.
+    Uno por emergencia, de guardado único: el registro de recursos es una
+    bitácora que se va llenando mientras dura la atención. Los periodos
+    operacionales son solo del SCI-201.
     """
 
     class Estado(models.TextChoices):
@@ -361,10 +352,6 @@ class FormularioSCI211(models.Model):
     emergencia = models.ForeignKey(
         Emergencia, on_delete=models.PROTECT, related_name="formularios_sci_211",
         verbose_name="emergencia",
-    )
-    periodo = models.ForeignKey(
-        "PeriodoOperacional", on_delete=models.PROTECT,
-        related_name="formularios_sci_211", verbose_name="periodo operacional",
     )
     codigo = models.CharField("número del formulario", max_length=40, unique=True)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
@@ -404,62 +391,27 @@ class FormularioSCI211(models.Model):
         ordering = ("-fecha_creacion",)
         constraints = [
             models.UniqueConstraint(
-                fields=("emergencia", "periodo"), name="sci211_unico_por_periodo"
+                fields=("emergencia",), name="sci211_unico_por_emergencia"
             ),
         ]
 
     def __str__(self):
         return f"{self.codigo} - {self.emergencia.codigo}"
 
-    def save(self, *args, **kwargs):
-        # Un formulario sin periodo no debe poder existir; si no se dice a cuál
-        # pertenece, es el del periodo vigente.
-        if self.periodo_id is None and self.emergencia_id is not None:
-            self.periodo = self.emergencia.periodo_vigente()
-        super().save(*args, **kwargs)
-
-    @property
-    def numero_periodo(self):
-        return self.periodo.numero
-
     @property
     def es_editable(self):
-        """El candado del periodo manda sobre el del documento, como en los demás."""
-        if not self.periodo.esta_abierto:
-            return False
         return self.estado == self.Estado.BORRADOR
-
-def numero_de_periodo_vigente():
-    """Subconsulta: el número del periodo vigente de la emergencia de la fila.
-
-    Para anotar listados. Con ella un formulario «cuenta» solo si es del periodo
-    en curso: en un incidente reactivado los del periodo anterior siguen en el
-    historial, pero no son lo que falta por llenar.
-    """
-    from django.db.models import OuterRef, Subquery
-
-    return Subquery(
-        PeriodoOperacional.objects.filter(emergencia_id=OuterRef("pk"))
-        .order_by("-numero").values("numero")[:1]
-    )
 
 
 class PeriodoOperacional(models.Model):
-    """Cada tramo de trabajo en que se divide la atención de un incidente.
+    """Cada tramo de trabajo del SCI-201 de un incidente.
 
-    El SCI organiza el trabajo en periodos operacionales, no en un continuo:
-    nueve de los doce formularios piden su número, su inicio y su fin, y el
-    SCI-221 exige «un SCI-202 por cada periodo operacional». Hasta ahora ese
-    dato vivía como texto suelto dentro del JSON de cada formulario, de modo que
-    tres documentos del mismo periodo podían declarar tres fechas distintas sin
-    que nada lo advirtiera.
+    El periodo operacional es del SCI-201 y de ningún otro formulario: el resumen
+    del incidente se vuelve a escribir en cada periodo, y lo declarado en uno
+    cerrado no se reescribe. El resto de los formularios se guarda una sola vez.
 
-    Un incidente nace con su periodo 1 abierto. Cuando una emergencia que ya se
-    había cerrado vuelve a activarse —el rescoldo que reaviva, la estructura que
-    cede después de darla por controlada— no se reabre el periodo anterior: se
-    abre el siguiente. Lo escrito en el anterior queda como quedó, que es la
-    razón de ser de este modelo: el expediente de un incidente es un documento
-    legal y lo que se declaró en su momento no se reescribe después.
+    El periodo 1 nace cuando se guarda el SCI-201 por primera vez. El siguiente
+    solo lo abre quien pulsa «Iniciar periodo operacional» en ese formulario.
     """
 
     emergencia = models.ForeignKey(
@@ -470,7 +422,7 @@ class PeriodoOperacional(models.Model):
     inicio = models.DateTimeField("fecha y hora de inicio", default=timezone.now)
     fin = models.DateTimeField("fecha y hora de finalización", null=True, blank=True)
     motivo = models.TextField(
-        "motivo de la reactivación", blank=True,
+        "motivo del periodo", blank=True,
         help_text="Por qué se abrió este periodo. El primero no lo necesita.",
     )
     abierto_por = models.ForeignKey(
@@ -517,10 +469,10 @@ class FormularioSCI(models.Model):
     La estructura de cada código vive en ``esquemas_sci.ESQUEMAS_SCI``; aquí solo
     se guardan los valores capturados y el ciclo de vida del documento.
 
-    Cada formulario pertenece a un periodo operacional del incidente. Un mismo
-    código puede existir una vez por periodo —un SCI-201 del periodo 1 y otro
-    del 2— y los de periodos cerrados son de solo lectura pase lo que pase:
-    ``es_editable`` lo comprueba antes que nada.
+    Todos se guardan una sola vez por emergencia, salvo el SCI-201: ese es el
+    único que trabaja por periodo operacional, así que puede haber uno por
+    periodo y los de periodos cerrados son de solo lectura. Para los demás
+    ``periodo`` es nulo, y la base lo exige.
     """
 
     class Estado(models.TextChoices):
@@ -534,7 +486,8 @@ class FormularioSCI(models.Model):
     codigo_sci = models.CharField("código SCI", max_length=3)
     periodo = models.ForeignKey(
         PeriodoOperacional, on_delete=models.PROTECT, related_name="formularios",
-        verbose_name="periodo operacional",
+        verbose_name="periodo operacional", null=True, blank=True,
+        help_text="Solo el SCI-201 trabaja por periodo operacional.",
     )
     datos = models.JSONField(default=dict, blank=True)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.BORRADOR)
@@ -571,50 +524,62 @@ class FormularioSCI(models.Model):
         verbose_name_plural = "formularios SCI"
         ordering = ("codigo_sci", "periodo__numero", "pk")
         constraints = [
+            # Un formulario por emergencia y código, salvo el 201, que tiene uno
+            # por periodo. Son dos reglas porque en SQL dos NULL nunca chocan:
+            # una restricción sobre (emergencia, código, periodo) no impediría
+            # un segundo SCI-202.
             models.UniqueConstraint(
-                fields=("emergencia", "codigo_sci", "periodo"),
-                name="formulario_sci_unico_por_emergencia_y_periodo",
-            )
+                fields=("emergencia", "codigo_sci"),
+                condition=~models.Q(codigo_sci="201"),
+                name="formulario_sci_unico_por_emergencia",
+            ),
+            models.UniqueConstraint(
+                fields=("emergencia", "periodo"),
+                condition=models.Q(codigo_sci="201"),
+                name="formulario_sci201_unico_por_periodo",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(codigo_sci="201", periodo__isnull=False)
+                    | (~models.Q(codigo_sci="201") & models.Q(periodo__isnull=True))
+                ),
+                name="formulario_sci_periodo_solo_en_el_201",
+            ),
         ]
 
     def __str__(self):
-        if self.numero_periodo > 1:
+        if self.numero_periodo and self.numero_periodo > 1:
             return f"SCI-{self.codigo_sci} P{self.numero_periodo}-{self.emergencia.codigo}"
         return f"SCI-{self.codigo_sci}-{self.emergencia.codigo}"
 
     def save(self, *args, **kwargs):
-        """Ningún formulario llega a la base sin su periodo operacional.
+        """Solo el SCI-201 pertenece a un periodo; los demás no llevan ninguno.
 
-        Quien crea un formulario casi nunca tiene motivo para elegir el periodo:
-        es el vigente del incidente. Rellenarlo aquí evita que un solo sitio
-        olvidado deje un documento colgando fuera de toda fase, que es la clase
-        de hueco por el que después se cuela un expediente incompleto.
+        El 201 casi nunca tiene motivo para elegirlo: es el vigente del incidente
+        (el primero se crea al guardar el primer 201). Cualquier otro código se
+        guarda sin periodo aunque alguien se lo ponga.
         """
-        if self.periodo_id is None and self.emergencia_id is not None:
-            self.periodo = self.emergencia.periodo_vigente()
+        if self.codigo_sci == "201":
+            if self.periodo_id is None and self.emergencia_id is not None:
+                self.periodo = self.emergencia.periodo_vigente()
+        else:
+            self.periodo = None
         super().save(*args, **kwargs)
 
     @property
     def numero_periodo(self):
-        """El número del periodo al que pertenece.
-
-        Se conserva el nombre con que nació el campo para no obligar a las
-        plantillas a bajar un nivel más, pero el dato ya no vive aquí.
-        """
-        return self.periodo.numero
+        """El número de periodo del SCI-201, o ``None`` en los demás formularios."""
+        return self.periodo.numero if self.periodo_id else None
 
     @property
     def es_editable(self):
-        """Un documento de un periodo cerrado no se vuelve a tocar.
+        """Un SCI-201 de un periodo cerrado no se vuelve a tocar.
 
-        Son dos candados distintos y el del periodo manda. El del estado lo
-        controla quien redacta —finaliza el documento cuando lo da por escrito—;
-        el del periodo lo cierra el incidente al pasar de fase, y a partir de ahí
-        lo declarado en esa fase es historia, esté en borrador o no. Un borrador
-        que se quedó a medias cuando se cerró el periodo se queda a medias: eso
-        es precisamente lo que ocurrió y lo que el expediente debe mostrar.
+        Son dos candados: el del estado lo controla quien redacta —finaliza el
+        documento cuando lo da por escrito— y el del periodo, que solo existe en
+        el 201, lo cierra el inicio del periodo siguiente. El del periodo manda.
         """
-        if not self.periodo.esta_abierto:
+        if self.periodo_id and not self.periodo.esta_abierto:
             return False
         return self.estado == self.Estado.BORRADOR
 

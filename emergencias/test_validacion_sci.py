@@ -290,11 +290,12 @@ class FuenteUnicaTests(BaseValidacion):
             "lugar_incidente": "Bodega de la Panamericana Sur",
             "ubicacion_pc": "Esquina norte, junto al portón",
         }, preparado_por="Mayor Luis Andrade")
-        estado = estado_del_incidente(emergencia, emergencia.periodo_vigente())
+        estado = estado_del_incidente(emergencia)
         self.assertEqual(estado["comandante_incidente"], "Mayor Luis Andrade")
         self.assertEqual(estado["lugar_incidente"], "Bodega de la Panamericana Sur")
         self.assertEqual(estado["ubicacion_pc"], "Esquina norte, junto al portón")
-        self.assertEqual(estado["periodo_numero"], "1")
+        # El periodo operacional es del SCI-201: ya no se ofrece a los demás formularios.
+        self.assertNotIn("periodo_numero", estado)
 
     def test_sin_201_el_lugar_sale_de_la_emergencia(self):
         emergencia = self.crear_emergencia("VAL-DIR")
@@ -532,17 +533,13 @@ class EvaluacionInicialSeparadaTests(BaseValidacion):
         self.assertNotIn("Texto escrito antes de separar", self.editor(emergencia))
 
     def test_el_periodo_cerrado_conserva_a_la_vista_lo_antiguo(self):
-        from .services import reactivar_emergencia
+        from .services import iniciar_periodo_operacional
 
         emergencia = self.crear_emergencia("EVA-CERRADO")
         self.crear_formulario(
             emergencia, "201", {"evaluacion_inicial": "Texto de una sola casilla."},
         )
-        Emergencia.objects.filter(pk=emergencia.pk).update(
-            estado=Emergencia.Estado.CERRADA, fecha_cierre=timezone.now(),
-        )
-        emergencia.refresh_from_db()
-        reactivar_emergencia(emergencia, self.usuario, "Rebrote")
+        iniciar_periodo_operacional(emergencia, self.usuario, "Relevo de turno")
         self.assertIn("Texto de una sola casilla.", self.editor(emergencia))
 
     # -- la guarda -------------------------------------------------------------

@@ -230,4 +230,4 @@ class DialogoDeConfirmacionTests(BaseValidacion):
         base = self.fuente("templates", "base.html")
         self.assertIn("js/app.js' %}?v=5", base)
         self.assertIn("pwa/js/sin-conexion.js' %}?v=2", base)
-        self.assertIn("css/componentes.css' %}?v=15", base)
+        self.assertIn("css/componentes.css' %}?v=19", base)

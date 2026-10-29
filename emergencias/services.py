@@ -684,36 +684,56 @@ def punto_de_la_emergencia(emergencia):
 
 
 # ==========================================
-# PERIODOS OPERACIONALES
+# PERIODOS OPERACIONALES (solo del SCI-201)
 # ==========================================
 
 def periodo_actual(emergencia):
-    """El periodo operacional al que pertenece lo que se escriba ahora.
+    """El periodo operacional vigente del SCI-201, creando el 1 si aún no hay ninguno.
 
-    La regla vive en Emergencia.periodo_vigente porque el propio
-    FormularioSCI.save la necesita y los servicios no pueden importarse desde
-    los modelos. Aquí queda el nombre con que la usan las vistas.
+    Escribe en la base cuando no existe: es para quien está por guardar un SCI-201.
+    Para solo mostrar, ``Emergencia.periodo_vigente_si_existe`` no crea nada.
     """
     return emergencia.periodo_vigente()
 
 
-@transaction.atomic
-def reactivar_emergencia(emergencia, usuario_responsable, motivo=""):
-    """Reabre una emergencia terminada en un periodo operacional nuevo.
+def formulario_201_vigente(emergencia):
+    """El SCI-201 del periodo vigente, o ``None`` si todavía no se ha guardado."""
+    from .models import FormularioSCI
 
-    Es la única puerta para volver a una emergencia cerrada, y es deliberado que
-    no pase por ``cambiar_estado_emergencia``: aquel mapa de transiciones sigue
-    declarando que de CERRADA no se sale, de modo que nadie puede reabrir una
-    emergencia por el camino ordinario y saltarse el periodo. Reabrir sin abrir
-    periodo dejaría los formularios del periodo anterior otra vez editables, que
-    es exactamente lo que este trabajo viene a impedir.
+    vigente = emergencia.periodo_vigente_si_existe()
+    if vigente is None:
+        return None
+    return FormularioSCI.objects.filter(
+        emergencia=emergencia, codigo_sci="201", periodo=vigente
+    ).first()
 
-    Lo que hace, en una sola transacción: cierra el periodo vigente con la hora
-    de la reactivación, abre el siguiente con su motivo, y devuelve la emergencia
-    a atención. Lo escrito en el periodo que se cierra queda inmutable —
-    ``FormularioSCI.es_editable`` consulta el periodo antes que el estado del
-    documento— y sigue visible en el historial del incidente.
+
+def puede_iniciar_periodo(emergencia):
+    """Si en este momento corresponde ofrecer «Iniciar periodo operacional N+1».
+
+    Solo cuando el SCI-201 del periodo vigente ya se guardó —un periodo se abre
+    sobre lo que consta— y mientras la emergencia siga en curso: una emergencia
+    terminada ya no abre periodos y su expediente queda como está.
     """
+    return (
+        not emergencia.esta_terminada
+        and formulario_201_vigente(emergencia) is not None
+    )
+
+
+@transaction.atomic
+def iniciar_periodo_operacional(emergencia, usuario_responsable, motivo=""):
+    """Cierra el periodo vigente del SCI-201 y abre el siguiente.
+
+    Lo escrito en el periodo que se cierra queda bloqueado y en solo lectura —
+    ``FormularioSCI.es_editable`` consulta el periodo antes que el estado del
+    documento— y sigue a la vista, campo por campo, dentro del mismo SCI-201.
+
+    No toca la emergencia: ni su estado ni su fecha de cierre. Tampoco crea ni
+    desbloquea ningún otro formulario, porque los demás no trabajan por periodo.
+    """
+    from .models import FormularioSCI
+
     validar_usuario(usuario_responsable)
     if not isinstance(emergencia, Emergencia) or not emergencia.pk:
         raise ValidationError("La emergencia no existe.")
@@ -724,41 +744,39 @@ def reactivar_emergencia(emergencia, usuario_responsable, motivo=""):
 
     if not estacion_autorizada(usuario_responsable, actual.estacion_responsable_id):
         raise ValidationError("La emergencia está fuera del ámbito autorizado.")
-    if not actual.esta_terminada:
+    if actual.esta_terminada:
         raise ValidationError(
-            "La emergencia sigue en curso; no hay nada que reactivar."
+            "La emergencia ya terminó: no se pueden abrir más periodos operacionales."
         )
     motivo = str(motivo or "").strip()
     if not motivo:
         raise ValidationError(
-            "Indique por qué se reactiva la emergencia: queda en el expediente "
-            "como la justificación del nuevo periodo operacional."
+            "Indique por qué se inicia el periodo: queda en el expediente como la "
+            "justificación del nuevo periodo operacional."
         )
 
-    momento = timezone.now()
     vigente = (
         PeriodoOperacional.objects.select_for_update()
         .filter(emergencia=actual).order_by("-numero").first()
     )
-    if vigente is None:
-        vigente = PeriodoOperacional.objects.create(
-            emergencia=actual, numero=1, inicio=actual.fecha_reporte, fin=momento,
+    if vigente is None or not FormularioSCI.objects.filter(
+        emergencia=actual, codigo_sci="201", periodo=vigente
+    ).exists():
+        raise ValidationError(
+            "Guarde primero el SCI-201 del periodo en curso: el periodo siguiente "
+            "se abre sobre lo que ya consta."
         )
-    elif vigente.esta_abierto:
-        # El cierre no puede ser anterior al inicio: si la emergencia se reactiva
-        # el mismo instante en que se abrió el periodo, se cierra en su inicio.
+
+    momento = timezone.now()
+    if vigente.esta_abierto:
+        # El cierre no puede ser anterior al inicio del periodo. Si ya estaba
+        # cerrado —un dato corregido a mano— solo falta abrir el siguiente.
         vigente.fin = max(momento, vigente.inicio)
         vigente.save(update_fields=["fin"])
-
-    nuevo = PeriodoOperacional.objects.create(
+    return PeriodoOperacional.objects.create(
         emergencia=actual,
         numero=vigente.numero + 1,
         inicio=momento,
         motivo=motivo,
         abierto_por=usuario_responsable,
     )
-
-    actual.estado = Emergencia.Estado.EN_ATENCION
-    actual.fecha_cierre = None
-    actual.save(update_fields=["estado", "fecha_cierre"])
-    return nuevo

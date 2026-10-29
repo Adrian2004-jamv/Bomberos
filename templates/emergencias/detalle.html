@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ emergencia.codigo }}{% endblock %}
 {% block page_title %}{{ emergencia.codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=27"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=29"><link rel="stylesheet" href="{% static 'emergencias/css/despacho.css' %}?v=3">{% endblock %}
 {% block content %}
 <section class="panel">
     <div class="panel__heading">
@@ -21,12 +21,12 @@
         <div><dt>Descripción</dt><dd>{{ emergencia.descripcion|default:"Sin observaciones" }}</dd></div>
         {% if emergencia.fecha_cierre %}<div><dt>Fecha de cierre</dt><dd>{{ emergencia.fecha_cierre|date:"d/m/Y H:i" }}</dd></div>{% endif %}
         {% if emergencia.estado == 'cancelada' %}<div><dt>Motivo de la cancelación</dt><dd>{{ emergencia.get_motivo_cancelacion_display|default:"Sin motivo registrado" }}{% if emergencia.detalle_cancelacion %} · {{ emergencia.detalle_cancelacion }}{% endif %}</dd></div>{% endif %}
-        <div><dt>Periodo operacional</dt><dd>{{ periodo_vigente.numero|default:"1" }}{% if periodos_operacionales|length > 1 %} <small>(de {{ periodos_operacionales|length }})</small>{% endif %}</dd></div>
+        {% if periodo_vigente %}<div><dt>Periodo operacional (SCI-201)</dt><dd>{{ periodo_vigente.numero }}{% if periodos_operacionales|length > 1 %} <small>(de {{ periodos_operacionales|length }})</small>{% endif %}</dd></div>{% endif %}
     </dl>
 
     {% if periodos_operacionales|length > 1 %}
     <div class="periodos-historial">
-        <h3 class="periodos-historial__titulo"><i class="ti ti-history" aria-hidden="true"></i> Periodos operacionales</h3>
+        <h3 class="periodos-historial__titulo"><i class="ti ti-history" aria-hidden="true"></i> Periodos operacionales del SCI-201</h3>
         <ol class="periodos-historial__lista">
             {% for po in periodos_operacionales %}
             <li class="periodo-fila periodo-fila--{% if po.fin %}cerrado{% else %}abierto{% endif %}">
@@ -87,21 +87,6 @@
     </div>
     {% endif %}
 
-    {% if puede_gestionar and emergencia.esta_terminada %}
-    {% comment %}
-    Reactivar no es deshacer el cierre: abre el periodo operacional siguiente y
-    deja intacto lo escrito en el anterior. Por eso el botón dice qué periodo va a
-    abrir —«Iniciar periodo operacional 2»— y no «reactivar», que sugería volver
-    atrás, y por eso no ejecuta nada por sí solo: abre un diálogo que explica lo
-    que pasará con lo ya escrito. El diálogo pide además el motivo: queda en el
-    expediente como la justificación del periodo nuevo y el servicio lo exige.
-    {% endcomment %}
-    <div class="reactivar" id="reactivar">
-        <button type="button" class="button button--primary reactivar__abrir" data-abrir-dialogo="dialogo-periodo" aria-haspopup="dialog">
-            <i class="ti ti-player-play" aria-hidden="true"></i> Iniciar periodo operacional {{ periodo_siguiente }}
-        </button>
-    </div>
-    {% endif %}
 </section>
 <section id="formularios-sci" class="panel incident-sci-panel">
     <div class="panel__heading">
@@ -140,11 +125,8 @@
     <p class="sci-order-help"><i class="ti ti-list-numbers" aria-hidden="true"></i> Orden recomendado según las fases de planificación operativa del SCI.</p>
     <nav class="sci-form-tabs" aria-label="Orden de formularios SCI de la emergencia">{% for item in catalogo_sci %}{% if item.bloqueado %}<span class="sci-form-tab sci-form-tab--locked" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, bloqueado"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>Finalice el paso anterior</em></span><i class="ti ti-lock" aria-hidden="true"></i></span>
     {% comment %}
-    El SCI-201 tenía aquí una tarjeta que se desplegaba en una lista de
-    períodos, cada uno con su propio enlace de ver y de editar. Eran «versiones»
-    del formulario y el Cuerpo de Bomberos de Latacunga las rechazó: el
-    documento es uno, con sus periodos dentro. Ahora todos los formularios
-    entran por el mismo sitio y los periodos se recorren dentro del documento.
+    Todos los formularios entran por el mismo sitio. Solo el SCI-201 trabaja por
+    periodos operacionales, y se recorren dentro del propio documento.
     {% endcomment %}
     {% else %}<a class="sci-form-tab sci-form-tab--{{ item.clave_estado }}" href="{% url 'emergencias:sci_visualizar' item.codigo emergencia.pk %}" aria-label="Paso {{ item.numero }}: SCI-{{ item.codigo }}, {{ item.nombre }}, {{ item.etiqueta_estado }}"><strong class="sci-form-tab__number">{{ item.numero }}</strong><span class="sci-form-tab__content"><b>SCI-{{ item.codigo }}</b><strong class="sci-form-tab__name">{{ item.nombre }}</strong><small>{{ item.etapa_orden }}</small><em>{{ item.etiqueta_estado }}{% if item.periodos > 1 %} · {{ item.periodos }} periodos en un documento{% endif %}</em>{% if item.anteriores %}<small class="sci-form-tab__previo">Antes: {{ item.anteriores|join:" · " }}</small>{% endif %}</span><i class="ti {% if item.clave_estado == 'complete' %}ti-circle-check-filled{% elif item.clave_estado == 'incomplete' %}ti-alert-triangle-filled{% else %}ti-circle-dashed{% endif %}" aria-hidden="true"></i></a>{% endif %}{% endfor %}</nav>
 </section>
@@ -210,65 +192,8 @@ que además del motivo pide marcar que se entiende. El servidor lo vuelve a exig
     </form>
 </dialog>
 {% endif %}
-{% if puede_gestionar and emergencia.esta_terminada %}
-{% comment %}
-Iniciar un periodo no se ejecuta con un solo toque: se pulsa con guantes y lo
-escrito en el periodo vigente pasa a solo lectura. El texto del aviso es el que
-pidió el Cuerpo de Bomberos. El motivo es obligatorio y el botón de confirmar no
-se habilita mientras esté vacío; el servidor lo vuelve a exigir.
-{% endcomment %}
-<dialog id="dialogo-periodo" class="dialogo-confirmar dialogo-periodo" aria-labelledby="periodo-titulo" aria-describedby="periodo-texto">
-    <form method="post" action="{% url 'emergencias:reactivar' emergencia.pk %}" class="dialogo-confirmar__cuerpo">
-        {% csrf_token %}
-        <h2 id="periodo-titulo" class="dialogo-confirmar__titulo">Iniciar periodo operacional {{ periodo_siguiente }}</h2>
-        <p id="periodo-texto" class="dialogo-confirmar__texto">¿Está seguro de iniciar el Periodo Operacional {{ periodo_siguiente }}? Se abrirán nuevos campos para la fecha actual, mientras que los registros del periodo anterior quedarán bloqueados y en solo lectura para su consulta e impresión.</p>
-        <label class="periodo-motivo" for="motivo-periodo">¿Por qué se inicia?</label>
-        <textarea id="motivo-periodo" name="motivo" rows="2" required maxlength="2000" placeholder="Ej.: rebrote del incendio en el ala norte a las 03:10."></textarea>
-        <div class="dialogo-confirmar__acciones">
-            <button type="button" class="button" data-dialogo-cerrar autofocus>Volver</button>
-            <button type="submit" class="button button--primary" data-dialogo-enviar disabled>
-                <span class="dialogo-confirmar__spinner" aria-hidden="true" hidden></span>
-                <span data-etiqueta>Iniciar periodo operacional {{ periodo_siguiente }}</span>
-            </button>
-        </div>
-    </form>
-</dialog>
-{% endif %}
 {% endblock %}
-{% block extra_js %}{% if puede_gestionar and emergencia.esta_terminada %}<script>
-(() => {
-    "use strict";
-    const dialogo = document.getElementById("dialogo-periodo");
-    if (!dialogo) return;
-    const formulario = dialogo.querySelector("form");
-    const motivo = formulario.querySelector("textarea[name=motivo]");
-    const enviar = formulario.querySelector("[data-dialogo-enviar]");
-    const spinner = enviar.querySelector(".dialogo-confirmar__spinner");
-    const etiqueta = enviar.querySelector("[data-etiqueta]");
-    const textoEnviar = etiqueta.textContent;
-
-    // Sin motivo no hay periodo nuevo: el botón espera a que haya algo escrito.
-    const actualizar = () => { enviar.disabled = !motivo.value.trim(); };
-    motivo.addEventListener("input", actualizar);
-
-    document.querySelectorAll("[data-abrir-dialogo=dialogo-periodo]").forEach((boton) => {
-        boton.addEventListener("click", () => {
-            formulario.reset();
-            enviar.disabled = true;
-            spinner.hidden = true;
-            etiqueta.textContent = textoEnviar;
-            dialogo.showModal();
-        });
-    });
-    formulario.querySelector("[data-dialogo-cerrar]").addEventListener("click", () => dialogo.close());
-    // Un solo envío: una segunda pulsación no debe abrir dos periodos.
-    formulario.addEventListener("submit", () => {
-        enviar.disabled = true;
-        spinner.hidden = false;
-        etiqueta.textContent = "Iniciando…";
-    });
-})();
-</script>{% endif %}{% if puede_cancelar %}<script>
+{% block extra_js %}{% if puede_cancelar %}<script>
 (() => {
     "use strict";
     const dialogo = document.getElementById("dialogo-cancelar");

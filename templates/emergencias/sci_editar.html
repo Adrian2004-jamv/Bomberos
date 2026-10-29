@@ -1,44 +1,18 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Editar SCI-{{ codigo }}{% endblock %}{% block page_title %}Editar SCI-{{ codigo }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=27"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=3"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=17"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}?v=29"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=4"><link rel="stylesheet" href="{% static 'emergencias/css/sci_editor.css' %}?v=22"><link rel="stylesheet" href="{% static 'emergencias/css/sci_graficos.css' %}?v=3">{% endblock %}
 {% block content %}
 <div class="sci-workspace">
   <div class="sci-workspace__toolbar">
-    <div><strong>SCI-{{ codigo }}</strong><span>{{ emergencia.codigo }} · {% if varios_periodos %}{{ periodos_cerrados|length|add:1 }} periodos en un solo documento{% else %}periodo operacional {{ periodo.numero }}{% endif %}{% if periodo_cerrado %} · solo lectura{% endif %}</span></div>
+    <div><strong>SCI-{{ codigo }}</strong><span>{{ emergencia.codigo }}</span></div>
     <div>
       <a class="button" href="{% url 'emergencias:detalle' emergencia.pk %}#formularios-sci">Volver al incidente</a>
       <a class="button" href="{% url 'emergencias:sci_visualizar' codigo emergencia.pk %}">Vista de impresión</a>
-      {% if not periodo_cerrado %}<button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>{% endif %}
+      <button class="button button--primary" type="submit" form="sci-document-form">Guardar cambios</button>
     </div>
   </div>
 
-  {% comment %}
-  El documento es uno y se recorre con el dedo. El primer intento apiló los
-  periodos enteros, uno debajo de otro, cada uno con todos sus puntos aunque no
-  se hubiera escrito ninguno; el Cuerpo de Bomberos de Latacunga volvió a
-  corregirlo señalando el Word: en el papel no hay una hoja por periodo, hay una
-  sola hoja cuyos puntos crecen. Dentro de cada punto va lo que escribió el
-  periodo cerrado, bloqueado, y debajo el campo del periodo en curso.
-  {% endcomment %}
-  {% if varios_periodos %}
-  <p class="sci-documento-aviso" id="periodo-{{ periodo.numero }}"><i class="ti ti-file-stack" aria-hidden="true"></i> <strong>Un solo documento.</strong> En cada punto, arriba lo que quedó escrito en los periodos cerrados —no se modifica— y debajo el campo del periodo {{ periodo.numero }}{% if periodo.motivo %}, abierto por: {{ periodo.motivo }}{% endif %}. Cerrados: {% for sello in periodos_cerrados %}P{{ sello.numero }}{% if sello.fin %} el {{ sello.fin|date:"d/m/Y H:i" }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>
-  {% endif %}
-
-  {% if periodo_cerrado %}
-  <p class="sci-sin-periodo"><i class="ti ti-lock" aria-hidden="true"></i> Este incidente no tiene ningún periodo operacional abierto, de modo que el documento solo puede leerse. Si la emergencia volvió a activarse, <a href="{% url 'emergencias:detalle' emergencia.pk %}#reactivar">inicie el periodo siguiente desde la ficha</a>: se abrirá el periodo siguiente y podrá escribirlo debajo de cada punto, sin tocar lo anterior.</p>
-  {% endif %}
-
-  {% comment %}
-  El mismo cuerpo sirve para escribir y para leer. Con un periodo abierto es el
-  formulario que se envía; sin ninguno es un artículo con los mismos puntos y ni
-  un control dentro, porque lo que ese periodo escribió ya está arriba, con su
-  sello de cerrado.
-  {% endcomment %}
-  {% if periodo_cerrado %}
-  <article class="sci-paper sci-paper--word sci-paper--cerrado{% if es_horizontal %} sci-paper--landscape{% endif %}">
-  {% else %}
   <form method="post" id="sci-document-form" data-guardar-sin-conexion="Formulario SCI" class="sci-paper{% if es_horizontal %} sci-paper--landscape{% endif %} sci-paper--word">{% csrf_token %}
-  {% endif %}
     <header class="sci-paper__header">
       <img src="{% static 'emergencias/img/sci-logo.png' %}" alt="Sistema de Comando de Incidentes">
       <div>
@@ -54,7 +28,7 @@
 
     <p class="sci-proposito">{{ esquema.proposito }}</p>
     {% if esquema.aviso %}<p class="sci-aviso">{{ esquema.aviso }}</p>{% endif %}
-    {% if not periodo_cerrado %}<p class="sci-inventory-notice"><strong>Inventario en línea:</strong> los selectores muestran los recursos operativos y libres de su ámbito institucional, advirtiendo los que no tengan la disponibilidad confirmada hoy. Las columnas de recursos <em>en el lugar</em> solo ofrecen los que el SCI-211 ya registró en esta emergencia: nada está en la escena si no pasó por ese registro.</p>{% endif %}
+    <p class="sci-inventory-notice"><strong>Inventario en línea:</strong> los selectores muestran los recursos operativos y libres de su ámbito institucional, advirtiendo los que no tengan la disponibilidad confirmada hoy. Las columnas de recursos <em>en el lugar</em> solo ofrecen los que el SCI-211 ya registró en esta emergencia: nada está en la escena si no pasó por ese registro.</p>
 
     <section class="sci-paper__meta">
       <label>1. Nombre del incidente<input value="{{ emergencia.tipo_emergencia }}" readonly></label>
@@ -66,9 +40,8 @@
     {% if campos_periodo %}
     <section class="sci-periodo">
       {% for campo in campos_periodo %}
-      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}{% if campo.heredado %} <em class="sci-heredado" title="Lo declara el periodo operacional del incidente, de modo que todos sus formularios dicen lo mismo. Puede cambiarlo en este documento si hace falta.">del periodo del incidente</em>{% endif %}</span>
-        {% include "emergencias/fragmentos/sci_previos.html" with entradas=campo.previos %}
-        {% if not periodo_cerrado %}<input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}"{% if campo.tipo == 'fecha_hora' and fecha_minima %} min="{{ fecha_minima }}"{% endif %} aria-label="{{ campo.etiqueta }}{% if varios_periodos %}, periodo {{ periodo.numero }}{% endif %}">{% endif %}
+      <label><span>{{ campo.numero }}. {{ campo.etiqueta }}{% if campo.heredado %} <em class="sci-heredado" title="Ya está escrito en otro formulario de esta emergencia. Puede cambiarlo en este documento si hace falta.">ya escrito en otro formulario</em>{% endif %}</span>
+        <input type="{% if campo.tipo == 'fecha_hora' %}datetime-local{% else %}text{% endif %}" name="{{ campo.nombre }}" value="{{ campo.valor }}"{% if campo.tipo == 'fecha_hora' and fecha_minima %} min="{{ fecha_minima }}"{% endif %} aria-label="{{ campo.etiqueta }}">
       </label>
       {% endfor %}
     </section>
@@ -77,11 +50,9 @@
     <section class="sci-word-sections">
       {% for seccion in secciones %}
         {% if seccion.tipo == 'tabla' %}
-        <fieldset class="sci-tabla" data-seccion="{{ seccion.nombre }}"{% if not seccion.filas_fijas and not periodo_cerrado %} data-tabla-dinamica{% endif %}>
+        <fieldset class="sci-tabla" data-seccion="{{ seccion.nombre }}"{% if not seccion.filas_fijas %} data-tabla-dinamica{% endif %}>
           <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
-          {% if seccion.ayuda and not periodo_cerrado %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
-          {% include "emergencias/fragmentos/sci_previos.html" with entradas=seccion.previos %}
-          {% if not periodo_cerrado %}
+          {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
           <table>
             <thead><tr>{% for columna in seccion.columnas %}<th{% if columna.ancho %} style="width:{{ columna.ancho }}"{% endif %}>{{ columna.etiqueta }}</th>{% endfor %}{% if not seccion.filas_fijas %}<th class="sci-tabla__acciones"></th>{% endif %}</tr></thead>
             <tbody>
@@ -128,22 +99,19 @@
           {% if seccion.firma %}
           <label class="sci-firma"><span>{{ seccion.firma }}</span><input name="{{ seccion.nombre }}__firma" value="{{ seccion.firma_valor }}" maxlength="150"></label>
           {% endif %}
-          {% endif %}
         </fieldset>
         {% else %}
         <fieldset>
           <legend>{{ seccion.numero }}. {{ seccion.etiqueta }}</legend>
-          {% if seccion.ayuda and not periodo_cerrado %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
-          {% include "emergencias/fragmentos/sci_previos.html" with entradas=seccion.previos %}
-          {% if periodo_cerrado %}{% comment %}Lo que escribió el periodo cerrado ya está arriba, en su sello.{% endcomment %}
-          {% elif seccion.tipo == 'croquis' %}{% include "emergencias/fragmentos/croquis_editor.html" %}
+          {% if seccion.ayuda %}<p class="sci-ayuda">{{ seccion.ayuda }}</p>{% endif %}
+          {% if seccion.tipo == 'croquis' %}{% include "emergencias/fragmentos/croquis_editor.html" %}
           {% elif seccion.tipo == 'organigrama' %}{% include "emergencias/fragmentos/organigrama_editor.html" %}
           {% elif seccion.tipo == 'textarea' %}
-            <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:4 }}" maxlength="5000" aria-label="{{ seccion.etiqueta }}{% if varios_periodos %}, periodo {{ periodo.numero }}{% endif %}">{{ seccion.valor }}</textarea>
+            <textarea name="{{ seccion.nombre }}" rows="{{ seccion.filas|default:4 }}" maxlength="5000" aria-label="{{ seccion.etiqueta }}">{{ seccion.valor }}</textarea>
           {% elif seccion.tipo == 'fecha_hora' %}
-            <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}"{% if fecha_minima %} min="{{ fecha_minima }}"{% endif %} aria-label="{{ seccion.etiqueta }}{% if varios_periodos %}, periodo {{ periodo.numero }}{% endif %}">
+            <input type="datetime-local" name="{{ seccion.nombre }}" value="{{ seccion.valor }}"{% if fecha_minima %} min="{{ fecha_minima }}"{% endif %} aria-label="{{ seccion.etiqueta }}">
           {% else %}
-            <input name="{{ seccion.nombre }}" value="{{ seccion.valor }}" maxlength="5000" aria-label="{{ seccion.etiqueta }}{% if varios_periodos %}, periodo {{ periodo.numero }}{% endif %}">
+            <input name="{{ seccion.nombre }}" value="{{ seccion.valor }}" maxlength="5000" aria-label="{{ seccion.etiqueta }}">
           {% endif %}
         </fieldset>
         {% endif %}
@@ -159,10 +127,10 @@
     en los formularios que lo piden.
     {% endcomment %}
     <footer class="sci-paper__footer">
-      <div><strong>Preparado por:</strong>{% if periodo_cerrado %}<span>{{ formulario_generico.preparado_por|default:"—" }}</span>{% else %}<input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150" placeholder="{{ esquema.preparado_por }}">{% endif %}</div>
-      <div><strong>Posición:</strong>{% if periodo_cerrado %}<span>{{ formulario_generico.posicion_preparado_por|default:"—" }}</span>{% else %}<input name="posicion_preparado_por" value="{{ formulario_generico.posicion_preparado_por }}" maxlength="150" placeholder="{{ esquema.preparado_por }}">{% endif %}</div>
+      <div><strong>Preparado por:</strong><input name="preparado_por" value="{{ formulario_generico.preparado_por|default:preparado_por_sugerido }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
+      <div><strong>Posición:</strong><input name="posicion_preparado_por" value="{{ formulario_generico.posicion_preparado_por }}" maxlength="150" placeholder="{{ esquema.preparado_por }}"></div>
       {% if esquema.aprobado_por %}
-      <div><strong>Aprobado por:</strong>{% if periodo_cerrado %}<span>{{ formulario_generico.aprobado_por|default:"—" }}</span>{% else %}<input name="aprobado_por" value="{{ formulario_generico.aprobado_por }}" maxlength="150" placeholder="{{ esquema.aprobado_por }}">{% endif %}</div>
+      <div><strong>Aprobado por:</strong><input name="aprobado_por" value="{{ formulario_generico.aprobado_por }}" maxlength="150" placeholder="{{ esquema.aprobado_por }}"></div>
       {% endif %}
       <div><strong>Fecha:</strong>{{ emergencia.fecha_reporte|date:"d/m/Y H:i" }}</div>
     </footer>
@@ -174,13 +142,11 @@
     primera vez y pulsaba «Finalizar» recibía «formulario incompleto» y perdía lo
     escrito. Ahora es un solo envío: se guarda y, solo si se guardó, se finaliza.
     {% endcomment %}
-    {% if not periodo_cerrado %}
     <div class="sci-finalizar">
       <p>Al finalizar, el formulario queda en solo lectura y ya no se puede editar. Lo que tenga escrito en pantalla se guarda antes.</p>
       <button class="button" type="submit" name="accion" value="finalizar" data-confirmar="¿Está seguro de finalizar el formulario? Al finalizar, el documento quedará bloqueado en modo solo lectura y no se podrá volver a editar." data-confirmar-titulo="Finalizar SCI-{{ codigo }}" data-confirmar-boton="Confirmar y Finalizar">Finalizar formulario SCI-{{ codigo }}</button>
     </div>
-    {% endif %}
-  {% if periodo_cerrado %}</article>{% else %}</form>{% endif %}
+  </form>
 </div>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'emergencias/js/ahora.js' %}?v=1" defer></script>

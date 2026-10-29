@@ -18,9 +18,8 @@ urlpatterns = [
     path("formularios-sci/<str:codigo>/emergencia/<int:emergencia_pk>/periodo/<int:periodo>/finalizar/", views.formulario_sci_finalizar, name="sci_finalizar_periodo"),
     path("formularios-sci/<str:codigo>/emergencia/<int:emergencia_pk>/editar/", views.formulario_sci_editar, name="sci_editar"),
     path("formularios-sci/<str:codigo>/emergencia/<int:emergencia_pk>/finalizar/", views.formulario_sci_finalizar, name="sci_finalizar"),
-    # La reactivacion es del incidente, no de un formulario: abre un periodo
-    # operacional para todo el expediente.
-    path("<int:pk>/reactivar/", views.emergencia_reactivar, name="reactivar"),
+    # El periodo operacional es solo del SCI-201: este es el unico camino que abre uno.
+    path("formularios-sci/201/emergencia/<int:emergencia_pk>/periodo/iniciar/", views.sci201_iniciar_periodo, name="sci201_iniciar_periodo"),
     path("formularios-sci/211/<int:pk>/", views.sci211_detalle, name="sci211_detalle"),
     path("formularios-sci/211/<int:pk>/editar/", views.sci211_editar, name="sci211_editar"),
     path("formularios-sci/211/<int:pk>/finalizar/", views.sci211_finalizar, name="sci211_finalizar"),

@@ -1,5 +1,5 @@
 .sci-workspace{margin:-.5rem;padding:1rem;border-radius:.875rem;background:#dfe3e8}
-.sci-workspace__toolbar{position:sticky;top:.5rem;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:1rem;max-width:1120px;margin:0 auto 1rem;padding:.75rem 1rem;border:1px solid #ddddda;border-radius:.875rem;background:rgba(255,255,255,.97);box-shadow:0 12px 30px rgb(0 0 0/12%);backdrop-filter:blur(8px)}
+.sci-workspace__toolbar{position:sticky;top:4rem;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:1rem;max-width:1120px;margin:0 auto 1rem;padding:.75rem 1rem;border:1px solid #ddddda;border-radius:.875rem;background:rgba(255,255,255,.97);box-shadow:0 12px 30px rgb(0 0 0/12%);backdrop-filter:blur(8px)}
 .sci-workspace__toolbar>div{display:flex;align-items:center;gap:.6rem}.sci-workspace__toolbar>div:first-child{align-items:flex-start;flex-direction:column;gap:.1rem}.sci-workspace__toolbar span{color:#505050;font-size:.75rem}
 .sci-paper{box-sizing:border-box;width:min(100%,820px);min-height:1050px;margin:0 auto;padding:24px;border:1px solid #b7bdc5;background:#fff;color:#071b3d;box-shadow:0 12px 35px rgb(15 23 42/18%);font-family:Arial,sans-serif}.sci-paper--landscape{width:min(100%,1120px);min-height:720px}
 .sci-paper__header{display:grid;grid-template-columns:90px 1fr 90px;align-items:center;min-height:88px;border:1px solid #111}.sci-paper__header img{display:block;width:70px!important;max-width:70px!important;height:auto!important;margin:auto!important}.sci-paper__header div{align-self:stretch;padding:12px;border-right:1px solid #111;border-left:1px solid #111;text-align:center}.sci-paper__header small{font-size:.62rem;font-weight:800;letter-spacing:.08em}.sci-paper__header h2{margin:.25rem 0;font-size:1.15rem}.sci-paper__header strong{font-size:.78rem}.sci-paper__header>span{text-align:center;font-size:.65rem;font-weight:800}
@@ -46,8 +46,14 @@
 .sci-tabla td,.sci-tabla th{overflow-wrap:anywhere;word-break:break-word}
 .sci-tabla td input,.sci-word-sections textarea,.sci-word-sections input{max-width:100%}
 .sci-word-sections textarea{overflow-wrap:anywhere;word-break:break-word;resize:vertical}
-/* Los controles de fecha y hora traen su propio ancho minimo. */
-.sci-tabla td input[type="datetime-local"],.sci-tabla td input[type="time"]{min-width:0;font-size:11px}
+/* Los controles de fecha y hora traen su propio ancho mínimo (componentes.css). Una
+   tabla que los lleva deja de ser de disposición fija: la columna se ensancha
+   hasta el ancho del control en lugar de recortarlo, y la caja se desplaza si no
+   cabe. Antes se les quitaba el mínimo y se bajaba la letra a 11 px, y el texto
+   «dd/mm/aaaa» y el icono salían cortados. */
+.sci-tabla{overflow-x:auto}
+.sci-tabla table:has(input[type="datetime-local"],input[type="time"],input[type="date"]){table-layout:auto}
+.sci-tabla td input[type="datetime-local"],.sci-tabla td input[type="time"],.sci-tabla td input[type="date"]{font-size:.9rem}
 
 /* Ningún control de la cuadrícula puede exigir más ancho del que su columna
    tiene: las anchuras las fija el formulario oficial y hay columnas del 7 %.
@@ -179,3 +185,12 @@ label.sci201-eval__item>span{padding-top:6px;font-weight:700}
 .sci201-actions thead{display:table-header-group}
 .sci201-actions tr{break-inside:avoid;page-break-inside:avoid}
 }
+
+/* La fecha y hora de la tabla de acciones del SCI-201: el control entero a la vista.
+   Con la letra de 10 px de la hoja y el 22 % de la tabla mostraba «dd/mm/aa» con el
+   icono cortado. Va al final para ganar a las reglas de la hoja de arriba. */
+.sci201-actions input[type="datetime-local"]{height:2.75rem;padding:.3rem .45rem;font:13px Arial}
+@media screen and (min-width:761px){.sci201-actions th:first-child,.sci201-actions td:first-child{width:16.5rem}}
+.sci201-actions .campo-ahora{font-size:11px}
+/* Los tres campos del periodo del encabezado: la letra del control no hereda los 11 px de la etiqueta. */
+.sci-periodo input[type="datetime-local"],.sci-periodo input[type="date"],.sci-periodo input[type="time"]{font-size:.95rem}

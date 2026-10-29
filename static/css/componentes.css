@@ -254,48 +254,70 @@
 }
 .menu-toggle .ti { font-size: 1.45rem; }
 
-/* Botón de tour / ayuda en el navbar */
+/* Botón de la guía: UNO solo, fijo arriba a la derecha, igual en todas las pantallas y
+   en todos los tamaños. Vive fuera de la barra de arriba (que en escritorio no se
+   ve) para que no cambie de sitio ni desaparezca. 2.75 rem es el mínimo que cumple
+   toda la aplicación desde que se midió con guante puesto. */
 .tour-btn {
+    position: fixed;
+    z-index: 900;
+    top: .75rem;
+    right: clamp(.75rem, 2vw, 1.5rem);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
-    margin-left: auto;
-    /* 2.75rem es el minimo que cumple toda la aplicacion desde que se midio con
-       guante puesto. Nacio con 37.9 px, que es el alto que dan 0.45rem de
-       relleno y 0.78rem de letra. */
+    gap: .45rem;
     min-width: 2.75rem;
     min-height: 2.75rem;
-    padding: 0.45rem 0.85rem;
-    border: 1px solid var(--color-slate-300);
-    border-radius: var(--radius-sm);
+    padding: .5rem 1.05rem;
+    border: 1.5px solid var(--color-slate-300);
+    border-radius: 999px;
     color: var(--color-navy-900);
     background: var(--color-white);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 14%);
     font: inherit;
-    font-size: 0.78rem;
+    font-size: .9rem;
     font-weight: 750;
+    white-space: nowrap;
     cursor: pointer;
     transition: border-color 150ms, color 150ms, background 150ms;
 }
 .tour-btn:hover { color: var(--color-red-700); border-color: var(--color-red-600); background: #fff5f5; }
-.tour-btn .ti { font-size: 1.1rem; }
-@media (min-width: 961px) {
-    /* En pantallas anchas el navbar está oculto; mostramos el botón como
-       elemento flotante fijo en la esquina inferior derecha */
-    .tour-btn {
-        position: fixed;
-        z-index: 900;
-        bottom: 1.25rem;
-        right: 1.25rem;
-        padding: 0.55rem 1rem;
-        border-radius: 999px;
-        background: var(--color-white);
-        box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
-        font-size: 0.8rem;
-    }
+.tour-btn .ti { font-size: 1.2rem; }
+@media print { .tour-btn { display: none; } }
+
+/* El texto de la guía (Driver.js). Las medidas de fábrica —19 px de título, 14 px de
+   texto, 12 px en los botones— se quedaban cortas para leerlas de pie, con prisa y
+   desde un teléfono. Los selectores llevan dos clases para ganar a la hoja del
+   paquete, que se carga después. */
+.driver-popover {
+    min-width: min(88vw, 20rem);
+    max-width: min(92vw, 25rem);
+    padding: 1.15rem 1.25rem;
+    border-radius: .75rem;
 }
-@media (max-width: 960px) {
-    .tour-btn span { display: none; }
+.driver-popover .driver-popover-title { font-size: 1.3rem; line-height: 1.3; }
+.driver-popover .driver-popover-description { font-size: 1.05rem; line-height: 1.55; }
+.driver-popover .driver-popover-title[style*=block] + .driver-popover-description { margin-top: .5rem; }
+.driver-popover .driver-popover-close-btn { width: 2.75rem; height: 2.75rem; font-size: 1.6rem; line-height: 2.75rem; }
+.driver-popover .driver-popover-footer { flex-wrap: wrap; gap: .6rem; margin-top: 1.1rem; }
+.driver-popover .driver-popover-progress-text { font-size: .95rem; font-weight: 600; color: #4b5563; }
+.driver-popover .driver-popover-footer button {
+    min-height: 2.75rem;
+    padding: .5rem 1rem;
+    border: 1px solid var(--color-slate-300);
+    border-radius: .5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.driver-popover .driver-popover-footer button.driver-popover-next-btn { border-color: var(--color-red-700); color: #fff; background: var(--color-red-700); text-shadow: none; }
+.driver-popover .driver-popover-footer button.driver-popover-next-btn:hover,
+.driver-popover .driver-popover-footer button.driver-popover-next-btn:focus { background: var(--color-red-600); }
+@media (max-width: 480px) {
+    .driver-popover .driver-popover-footer { justify-content: center; }
+    .driver-popover .driver-popover-navigation-btns { width: 100%; }
+    .driver-popover .driver-popover-navigation-btns button { flex: 1 1 0; text-align: center; }
 }
 
 /* El botón de la aplicación, igual en <button> y en <a>, y en las cuatro familias que
@@ -634,15 +656,52 @@
 
 /* Botón «Ahora» de los campos de fecha y hora. Se pone al lado del campo,
    nunca encima, para que no tape lo escrito en pantallas estrechas. */
-.campo-con-ahora { display: inline-flex; align-items: center; gap: .25rem; max-width: 100%; }
-.campo-con-ahora > input { min-width: 0; }
+.campo-con-ahora { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; width: 100%; max-width: 100%; }
+.campo-con-ahora > input { flex: 1 1 auto; }
 .campo-ahora {
-    flex: none; padding: .2rem .45rem;
+    flex: none; min-height: 2.75rem; padding: .2rem .8rem;
     border: 1px solid var(--color-slate-300); border-radius: var(--radius-sm);
     color: var(--color-navy-900); background: #fff;
-    font-size: .68rem; font-weight: 800; line-height: 1.4; cursor: pointer;
+    font-size: .75rem; font-weight: 800; line-height: 1.4; cursor: pointer;
 }
 .campo-ahora:hover { color: #fff; border-color: var(--color-navy-900); background: var(--color-navy-900); }
+
+/* Controles de fecha y hora, en TODOS los formularios.
+   El navegador dibuja «dd/mm/aaaa, --:--» más el icono del calendario o del reloj
+   dentro del propio control, y lo recorta si el control es más estrecho: en una
+   celda de tabla, con la letra de 10 px de una hoja SCI, se veía «dd/mm/aa» y el
+   icono cortado, y no había donde pulsar. Cada tipo declara el ancho mínimo que
+   necesita su texto —una columna que no lo tiene se ensancha o se desplaza, no
+   recorta el control—, la letra no baja de 15 px y el icono tiene un blanco de
+   pulsación del tamaño de un dedo con guante. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: .35rem .5rem;
+    font-family: inherit;
+    font-size: .95rem;
+    line-height: 1.25;
+}
+input[type="date"] { min-width: 10.5rem; }
+input[type="time"] { min-width: 8.5rem; }
+input[type="datetime-local"] { min-width: 14.5rem; }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    box-sizing: content-box;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-left: .25rem;
+    padding: .3rem;
+    border-radius: .3rem;
+    cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { background: var(--color-slate-100); }
 
 /* Tabla ancha dentro de una caja estrecha: se desplaza ella en lugar de
    empujar la pagina de lado. La usan emergencias, inventario y operaciones, de
@@ -825,42 +884,6 @@ body.sidebar-collapsed .sidebar__nav { padding-inline: 0.45rem; }
     font-weight: 800;
     white-space: normal !important;
 }
-
-/* ── Botón de guía / tour interactivo ─────────────────────────────── */
-.guide-btn,
-.incident-action--guide,
-.inventory-action--guide {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0.5rem 0.9rem;
-    border: 1.5px solid var(--color-slate-300);
-    border-radius: var(--radius-sm);
-    color: var(--color-navy-900);
-    background: var(--color-white);
-    font: inherit;
-    font-size: 0.8rem;
-    font-weight: 750;
-    white-space: nowrap;
-    cursor: pointer;
-    text-decoration: none;
-    transition: border-color 150ms ease, color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-}
-.guide-btn:hover,
-.incident-action--guide:hover,
-.inventory-action--guide:hover {
-    color: var(--color-red-700);
-    border-color: var(--color-red-600);
-    background: #fff5f5;
-    box-shadow: 0 2px 8px rgb(199 0 20 / 10%);
-}
-.guide-btn .ti,
-.incident-action--guide .ti,
-.inventory-action--guide .ti { font-size: 1.05rem; }
-
 /* Diálogo de confirmación (app.js): para lo que cuesta deshacer. Un <dialog> nativo,
    de modo que el resto de la pantalla queda bloqueado y el foco no se escapa. */
 .dialogo-confirmar {

@@ -17,7 +17,6 @@ from emergencias.models import (
     Emergencia, FormularioSCI, FormularioSCI211, RegistroRecursoSCI211
 )
 from emergencias.esquemas_sci import ESQUEMAS_SCI, TABLA
-from emergencias.services import periodo_actual
 from emergencias.services_sci import crear_sci211_desde_emergencia
 
 
@@ -660,10 +659,12 @@ def completar_sci_para_emergencia(emergencia, usuario, stdout=None):
 
         datos_reales = generar_datos_reales(esquema, emergencia)
 
+        # Solo el SCI-201 tiene periodos: se completa el del periodo vigente.
+        buscar = {"periodo": emergencia.periodo_vigente()} if codigo == "201" else {}
         formulario, creado = FormularioSCI.objects.get_or_create(
             emergencia=emergencia,
             codigo_sci=codigo,
-            periodo=periodo_actual(emergencia),
+            **buscar,
             defaults={
                 "datos": datos_reales,
                 "preparado_por": "Mayor Luis Andrade",

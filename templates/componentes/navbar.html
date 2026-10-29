@@ -1,3 +1,10 @@
+{% comment %}
+La barra de arriba solo lleva el botón del menú (se ve en pantallas estrechas). El
+botón de la guía NO vive dentro de ella: está fuera para que sea el mismo, en el
+mismo sitio —arriba a la derecha, fijo— en todas las vistas y tamaños de pantalla.
+Antes había uno en la barra (solo visible en el móvil) y otro distinto en la
+cabecera de cinco pantallas, de modo que cambiaba de sitio o no estaba.
+{% endcomment %}
 <header class="navbar">
     <button
         class="menu-toggle"
@@ -9,14 +16,14 @@
     >
         <i class="ti ti-menu-2" aria-hidden="true"></i>
     </button>
-    <button
-        class="tour-btn"
-        type="button"
-        onclick="window.bomberosTour && window.bomberosTour.iniciar()"
-        aria-label="Iniciar guía interactiva"
-        title="Guía del sistema"
-    >
-        <i class="ti ti-help-circle" aria-hidden="true"></i>
-        <span>Ayuda</span>
-    </button>
 </header>
+<button
+    class="tour-btn"
+    type="button"
+    onclick="window.bomberosTour && window.bomberosTour.iniciar()"
+    aria-label="Iniciar guía interactiva"
+    title="Guía del sistema"
+>
+    <i class="ti ti-help-circle" aria-hidden="true"></i>
+    <span>Guía</span>
+</button>

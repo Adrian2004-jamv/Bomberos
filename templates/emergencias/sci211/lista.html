@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Formularios SCI{% endblock %}{% block page_title %}Formularios SCI{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=7">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'emergencias/css/emergencias.css' %}"><link rel="stylesheet" href="{% static 'emergencias/css/sci_catalog.css' %}?v=8">{% endblock %}
 {% block content %}
 <section class="panel sci-incidents-panel" aria-labelledby="sci-incidents-title">
     <div class="panel__heading">
@@ -11,7 +11,6 @@
         </div>
         <div style="display:flex;align-items:center;gap:.6rem">
             <span class="sci-incident-total"><strong>{{ expedientes|length }}</strong> incidente{{ expedientes|length|pluralize }}</span>
-            <button class="guide-btn" type="button" onclick="window.bomberosTour && window.bomberosTour.iniciar()" aria-label="Iniciar guía de formularios SCI"><i class="ti ti-help-circle" aria-hidden="true"></i> Guía</button>
         </div>
     </div>
     {% if expedientes %}

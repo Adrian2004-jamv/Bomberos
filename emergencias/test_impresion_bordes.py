@@ -145,12 +145,10 @@ class TablasDeLaHojaTests(SimpleTestCase):
 
     def test_las_celdas_ya_no_llevan_estilo_en_linea(self):
         """Un estilo en línea gana a toda regla de la hoja, también a las de impresión."""
-        for ruta in ("templates/emergencias/sci_preview.html",
-                     "templates/emergencias/fragmentos/sci_previos_impresos.html"):
-            fuente = self.fuente(ruta)
-            self.assertNotIn('<th style="height:26px', fuente, ruta)
-            self.assertNotIn('<td style="height:26px', fuente, ruta)
-            self.assertNotIn('<table style="width:100%;border-collapse', fuente, ruta)
+        fuente = self.fuente("templates/emergencias/sci_preview.html")
+        self.assertNotIn('<th style="height:26px', fuente)
+        self.assertNotIn('<td style="height:26px', fuente)
+        self.assertNotIn('<table style="width:100%;border-collapse', fuente)
 
     def test_la_hoja_horizontal_es_mas_ancha_que_la_vertical_en_pantalla(self):
         plantilla = self.fuente("templates/emergencias/sci_preview.html")

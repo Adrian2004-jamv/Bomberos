@@ -9,7 +9,6 @@
     <div class="catalog-actions">
         {% if puede_gestionar_catalogos %}<a class="inventory-action" href="{% url 'inventario:catalogo' %}"><i class="ti ti-list-details" aria-hidden="true"></i> Catálogo</a>{% endif %}
         {% if puede_gestionar %}<a class="inventory-action inventory-action--primary" href="{% url 'inventario:crear' %}">Registrar recurso</a>{% endif %}
-        <button class="inventory-action inventory-action--guide" type="button" onclick="window.bomberosTour && window.bomberosTour.iniciar()" aria-label="Iniciar guía interactiva"><i class="ti ti-help-circle" aria-hidden="true"></i> Guía</button>
     </div>
 </section>
 

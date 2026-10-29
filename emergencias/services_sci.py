@@ -15,17 +15,11 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
     # dónde está el PC ya lo declaró el campo 8 del SCI-201. Volver a pedirlo era
     # pedir por segunda vez un dato que consta, con el riesgo de que las dos
     # copias no coincidan. Si el 201 aún no lo dice, queda el valor de siempre.
-    periodo = emergencia.periodo_vigente()
-    del_201 = estado_del_incidente(emergencia, periodo)
+    del_201 = estado_del_incidente(emergencia)
     punto = (del_201.get("ubicacion_pc") or "").strip() or "Puesto de Comando"
     formulario = FormularioSCI211.objects.create(
         emergencia=emergencia,
-        periodo=periodo,
-        # El número del formulario es único: el de un periodo posterior lleva su sufijo.
-        codigo=(
-            f"SCI-211-{emergencia.codigo}" if periodo.numero == 1
-            else f"SCI-211-{emergencia.codigo}-P{periodo.numero}"
-        ),
+        codigo=f"SCI-211-{emergencia.codigo}",
         punto_registro=punto,
         registrador_1=nombre_usuario(usuario),
         creado_por=usuario,
@@ -34,10 +28,6 @@ def crear_sci211_desde_emergencia(emergencia, usuario):
     despliegues = emergencia.despliegues.select_related(
         "unidad__tipo__categoria", "estacion_procedencia__cuerpo_bomberos", "despachado_por"
     )
-    if periodo.numero > 1:
-        # Las unidades despachadas en un periodo anterior ya constan en su 211; este
-        # empieza con las que se mandaron desde que el periodo se abrió.
-        despliegues = despliegues.filter(fecha_asignacion__gte=periodo.inicio)
     for orden, despliegue in enumerate(despliegues, start=1):
         unidad = despliegue.unidad
         estado = RegistroRecursoSCI211.EstadoRecurso.DISPONIBLE
@@ -138,7 +128,9 @@ def finalizar_sci(formulario, usuario):
     return actual
 
 def tiene_contenido(datos):
-    for valor in (datos or {}).values():
+    for nombre, valor in (datos or {}).items():
+        if str(nombre).startswith("_"):
+            continue
         if isinstance(valor, list):
             if any(any(celda for celda in fila.values()) for fila in valor if isinstance(fila, dict)):
                 return True
@@ -434,16 +426,16 @@ def exigir_fechas_coherentes(emergencia, esquema, datos):
 CAMPOS_COMPARTIDOS = ("lugar_incidente", "ubicacion_um")
 
 
-def estado_del_incidente(emergencia, periodo=None):
+def estado_del_incidente(emergencia):
     """Lo que ya consta del incidente y no hace falta volver a declarar.
 
     Se arma de lo más fiable a lo menos: primero lo que el sistema sabe por sí
-    mismo —la dirección registrada, las unidades efectivamente desplegadas, las
-    fechas del periodo operacional—, y después lo que alguien escribió en el
+    mismo —la dirección registrada, las unidades efectivamente desplegadas—, y
+    después lo que alguien escribió en el
     SCI-201, que es el documento que fija el nombre del incidente y su mando.
 
     Nada de esto se impone: viaja al editor como valor inicial de un campo vacío
-    y quien llena el formulario puede cambiarlo. Si este periodo tiene otro
+    y quien llena el formulario puede cambiarlo. Si hay otro
     Comandante, se escribe el otro.
     """
     del_201 = (
@@ -466,15 +458,6 @@ def estado_del_incidente(emergencia, periodo=None):
         "cantidad_unidades": unidades,
         "mensaje_seguridad": datos_201.get("mensaje_seguridad", ""),
     }
-    if periodo is not None:
-        estado["periodo_numero"] = str(periodo.numero)
-        estado["periodo_inicio"] = timezone.localtime(periodo.inicio).strftime(
-            "%Y-%m-%dT%H:%M"
-        )
-        estado["periodo_fin"] = (
-            timezone.localtime(periodo.fin).strftime("%Y-%m-%dT%H:%M")
-            if periodo.fin else ""
-        )
     return estado
 
 

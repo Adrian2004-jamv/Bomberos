@@ -1,0 +1,71 @@
+{% comment %}
+«Iniciar periodo operacional N» del SCI-201. El periodo operacional es solo de
+este formulario: ningún otro tiene botón ni diálogo como este.
+
+Se incluye dos veces, con ``parte`` distinta, porque el botón vive en la barra de
+herramientas y el diálogo no puede quedar dentro del formulario del SCI-201 (un
+formulario dentro de otro no es HTML válido). ``puede_iniciar_periodo`` lo calcula
+el servidor: el SCI-201 del periodo vigente ya guardado y la emergencia en curso.
+
+El botón no ejecuta nada por sí solo: abre el diálogo, que avisa de lo que pasará
+con lo ya escrito y pide el motivo. Es una pantalla que se pulsa con guantes, así
+que la letra es grande y el botón de confirmar no se habilita sin motivo (el
+servidor lo vuelve a exigir). Sin dependencias de estilo de la página: la misma
+pieza sirve en el editor y en la hoja de impresión, que es una página aparte.
+{% endcomment %}
+{% if puede_iniciar_periodo %}{% if parte == "boton" %}<button type="button" class="button button--primary pdlg-abrir" data-abrir-periodo aria-haspopup="dialog" aria-controls="dialogo-periodo"><i class="ti ti-player-play" aria-hidden="true"></i> Iniciar periodo operacional {{ periodo_siguiente }}</button>{% else %}<style>
+.pdlg{width:min(94vw,34rem);padding:0;border:0;border-radius:.9rem;background:#fff;color:#1b1b1b;box-shadow:0 24px 60px rgb(0 0 0/35%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.pdlg::backdrop{background:rgb(15 23 42/60%)}
+.pdlg form{display:grid;gap:.8rem;margin:0;padding:1.3rem 1.4rem 1.15rem;border-top:5px solid #d89b00;border-radius:.9rem}
+.pdlg h2{margin:0;font-size:1.2rem}
+.pdlg p{margin:0;font-size:1rem;line-height:1.55}
+.pdlg label{font-size:.95rem;font-weight:800}
+.pdlg textarea{box-sizing:border-box;width:100%;padding:.6rem .7rem;border:1px solid #c9c9c7;border-radius:.45rem;font:inherit;font-size:1rem}
+.pdlg__acciones{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.6rem;margin-top:.2rem}
+.pdlg__acciones button{min-height:2.9rem;min-width:7.5rem;padding:.55rem 1rem;border:1px solid #c9c9c7;border-radius:.5rem;background:#fff;color:#1b1b1b;font:inherit;font-size:1rem;font-weight:700;cursor:pointer}
+.pdlg__acciones button[type=submit]{border-color:#b9000b;background:#b9000b;color:#fff}
+.pdlg__acciones button:disabled{opacity:.55;cursor:not-allowed}
+@media (max-width:480px){.pdlg__acciones{flex-direction:column-reverse}.pdlg__acciones button{width:100%}}
+</style>
+<dialog id="dialogo-periodo" class="pdlg" aria-labelledby="pdlg-titulo" aria-describedby="pdlg-texto">
+  <form method="post" action="{% url 'emergencias:sci201_iniciar_periodo' emergencia.pk %}">
+    {% csrf_token %}
+    <h2 id="pdlg-titulo">Iniciar periodo operacional {{ periodo_siguiente }}</h2>
+    <p id="pdlg-texto">¿Está seguro de iniciar el Periodo Operacional {{ periodo_siguiente }}? Se abrirán nuevos campos para la fecha actual, mientras que los registros del periodo anterior quedarán bloqueados y en solo lectura para su consulta e impresión.</p>
+    <label for="pdlg-motivo">¿Por qué se inicia?</label>
+    <textarea id="pdlg-motivo" name="motivo" rows="2" required maxlength="2000" placeholder="Ej.: relevo de turno a las 07:00 o rebrote del incendio en el ala norte."></textarea>
+    <div class="pdlg__acciones">
+      <button type="button" data-cerrar-periodo autofocus>Volver</button>
+      <button type="submit" data-enviar-periodo disabled>Iniciar periodo operacional {{ periodo_siguiente }}</button>
+    </div>
+  </form>
+</dialog>
+<script>
+(function () {
+  "use strict";
+  var dialogo = document.getElementById("dialogo-periodo");
+  if (!dialogo || typeof dialogo.showModal !== "function") return;
+  var formulario = dialogo.querySelector("form");
+  var motivo = formulario.querySelector("textarea[name=motivo]");
+  var enviar = formulario.querySelector("[data-enviar-periodo]");
+  var textoEnviar = enviar.textContent;
+
+  // Sin motivo no hay periodo nuevo: el botón espera a que haya algo escrito.
+  motivo.addEventListener("input", function () { enviar.disabled = !motivo.value.trim(); });
+
+  document.querySelectorAll("[data-abrir-periodo]").forEach(function (boton) {
+    boton.addEventListener("click", function () {
+      formulario.reset();
+      enviar.disabled = true;
+      enviar.textContent = textoEnviar;
+      dialogo.showModal();
+    });
+  });
+  formulario.querySelector("[data-cerrar-periodo]").addEventListener("click", function () { dialogo.close(); });
+  // Un solo envío: una segunda pulsación no debe abrir dos periodos.
+  formulario.addEventListener("submit", function () {
+    enviar.disabled = true;
+    enviar.textContent = "Iniciando…";
+  });
+})();
+</script>{% endif %}{% endif %}
